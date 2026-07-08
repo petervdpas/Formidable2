@@ -38,6 +38,8 @@
     "api_token": "API key",
     "api_token_help": "Requests to the data endpoints must send this key (header X-API-Key, Authorization Bearer, or ?key=). Set your own, or generate one. The docs and spec stay open so an agent can discover the API.",
     "api_generate": "Generate key",
+    "api_copy": "Copy key",
+    "api_copied": "Copied",
     "api_urls": "API reachable at",
     "api_no_data": "This bundle has no queryable data; open one exported with collection templates.",
     "server_off": "Server is off.",

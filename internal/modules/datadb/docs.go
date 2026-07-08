@@ -57,49 +57,37 @@ func serveDocs(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// TemplateSpec describes one collection template for the OpenAPI document: its
-// filename, display name, and fields. The export backend fills this from the
-// actual templates so the packed spec reflects the real collections.
-type TemplateSpec struct {
+// Collection describes one collection in the bundle for the spec and context:
+// its filename, display name, and the JSON Schema of its record data. Data is
+// produced by the export backend from the live API's own schema builder, so the
+// field typing (loops, tables, lists, relations, dates, enums) mirrors the real
+// Formidable API rather than being re-derived here.
+type Collection struct {
 	Filename string
 	Name     string
-	Fields   []FieldSpec
+	Data     map[string]any // JSON Schema object; its "properties" are the fields
 }
 
-// FieldSpec is one field of a template. Type is already a JSON Schema type
-// (string / number / boolean / array / object), mapped by the export backend.
-type FieldSpec struct {
-	Key   string
-	Label string
-	Type  string
-}
-
-// BuildOpenAPI produces the bundle's OpenAPI document enriched from its actual
+// BuildOpenAPI produces the bundle's OpenAPI document from its actual
 // collections: the {tpl} path parameter is enumerated to the real filenames,
-// each collection gets a schema of its fields, and the collections are listed in
-// the description. Packed by the export backend as _/openapi.json; the Viewer
-// serves it in place of the generic spec.
-func BuildOpenAPI(templates []TemplateSpec) []byte {
+// each collection's data schema is attached as a component, and the collections
+// are listed in the description. Packed by the export backend as _/openapi.json;
+// the Viewer serves it in place of the generic spec.
+func BuildOpenAPI(cols []Collection) []byte {
 	spec := baseOpenAPISpec()
 
 	paths := spec["paths"].(map[string]any)
 	tplParam := paths["/api/templates/{tpl}"].(map[string]any)["get"].(map[string]any)["parameters"].([]any)[0].(map[string]any)
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
 
-	names := make([]any, 0, len(templates))
-	lines := make([]string, 0, len(templates))
-	for _, t := range templates {
-		names = append(names, t.Filename)
-		props := map[string]any{}
-		for _, f := range t.Fields {
-			field := map[string]any{"type": f.Type}
-			if f.Label != "" {
-				field["description"] = f.Label
-			}
-			props[f.Key] = field
+	names := make([]any, 0, len(cols))
+	lines := make([]string, 0, len(cols))
+	for _, c := range cols {
+		names = append(names, c.Filename)
+		if c.Data != nil {
+			schemas[schemaName(c.Filename)] = c.Data
 		}
-		schemas[schemaName(t.Filename)] = map[string]any{"type": "object", "properties": props}
-		lines = append(lines, "- "+t.Name+" (`"+t.Filename+"`)")
+		lines = append(lines, "- "+c.Name+" (`"+c.Filename+"`)")
 	}
 	if len(names) > 0 {
 		tplParam["schema"].(map[string]any)["enum"] = names

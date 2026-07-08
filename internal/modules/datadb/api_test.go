@@ -108,18 +108,28 @@ func TestAPIOpenAPISpec(t *testing.T) {
 	}
 }
 
-func TestBuildOpenAPIEnrichesFromTemplates(t *testing.T) {
-	spec := BuildOpenAPI([]TemplateSpec{
-		{Filename: "kostenplaats.yaml", Name: "Kostenplaats", Fields: []FieldSpec{
-			{Key: "code", Label: "Code", Type: "string"},
-			{Key: "budget", Label: "Budget", Type: "number"},
-		}},
+// sampleData is a data schema shaped like the live API's DataSchemaForTemplate
+// output: loop children flat, tables as arrays of row objects.
+func sampleData() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"code":   map[string]any{"type": "string"},
+			"budget": map[string]any{"type": "number"},
+			"rows":   map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
+		},
+	}
+}
+
+func TestBuildOpenAPIEnrichesFromCollections(t *testing.T) {
+	spec := BuildOpenAPI([]Collection{
+		{Filename: "kostenplaats.yaml", Name: "Kostenplaats", Data: sampleData()},
 	})
 	if !strings.Contains(string(spec), "Fields_kostenplaats") {
-		t.Fatal("per-template schema not generated")
+		t.Fatal("per-collection schema not attached")
 	}
 	if !strings.Contains(string(spec), "\"kostenplaats.yaml\"") {
-		t.Fatal("template filename not enumerated on the tpl parameter")
+		t.Fatal("filename not enumerated on the tpl parameter")
 	}
 	if !strings.Contains(string(spec), "budget") {
 		t.Fatal("field not in the schema")
@@ -127,7 +137,7 @@ func TestBuildOpenAPIEnrichesFromTemplates(t *testing.T) {
 }
 
 func TestAPIServesPackedSpec(t *testing.T) {
-	packed := BuildOpenAPI([]TemplateSpec{{Filename: "z.yaml", Name: "Zed"}})
+	packed := BuildOpenAPI([]Collection{{Filename: "z.yaml", Name: "Zed", Data: sampleData()}})
 	h := Handler(openSample(t), Docs{OpenAPI: packed})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/openapi.json", nil))
@@ -153,13 +163,17 @@ func TestAPIContext(t *testing.T) {
 		}
 	}
 
-	// Packed context lists the bundle's own collections.
-	packed := BuildContext([]TemplateSpec{{Filename: "kostenplaats.yaml", Name: "Kostenplaats", Fields: []FieldSpec{{Key: "code", Type: "string"}}}})
+	// Packed context lists the bundle's own collections, marking array fields.
+	packed := BuildContext([]Collection{{Filename: "kostenplaats.yaml", Name: "Kostenplaats", Data: sampleData()}})
 	h2 := Handler(openSample(t), Docs{Context: packed})
 	rec2 := httptest.NewRecorder()
 	h2.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/api/context", nil))
-	if !strings.Contains(rec2.Body.String(), "kostenplaats.yaml") || !strings.Contains(rec2.Body.String(), "Collections in this bundle") {
-		t.Fatalf("packed context not served: %s", rec2.Body.String())
+	body := rec2.Body.String()
+	if !strings.Contains(body, "kostenplaats.yaml") || !strings.Contains(body, "Collections in this bundle") {
+		t.Fatalf("packed context not served: %s", body)
+	}
+	if !strings.Contains(body, "rows[]") {
+		t.Fatalf("array field not marked with []: %s", body)
 	}
 }
 

@@ -38,6 +38,8 @@
     "api_token": "API-sleutel",
     "api_token_help": "Verzoeken aan de data-endpoints moeten deze sleutel meesturen (header X-API-Key, Authorization Bearer of ?key=). Stel je eigen sleutel in of genereer er een. De docs en spec blijven open zodat een agent de API kan ontdekken.",
     "api_generate": "Sleutel genereren",
+    "api_copy": "Sleutel kopiëren",
+    "api_copied": "Gekopieerd",
     "api_urls": "API bereikbaar op",
     "api_no_data": "Deze bundel bevat geen doorzoekbare gegevens; open er een die met collectietemplates is geëxporteerd.",
     "server_off": "Server is uit.",

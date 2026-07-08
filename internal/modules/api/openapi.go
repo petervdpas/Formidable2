@@ -8,6 +8,16 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
+// DataSchemaForTemplate returns the JSON Schema of a template's record data,
+// typed exactly as the REST API types it (loop markers dropped so loop children
+// stay top-level; tables as arrays of row objects; list/tags/multioption as
+// arrays; api as an id or a to-many array; date as string+format; dropdown as a
+// labelled enum). Exported so the offline bundle's spec mirrors the live API's
+// field shape instead of re-deriving it.
+func DataSchemaForTemplate(t *template.Template) map[string]any {
+	return dataSchemaForTemplate(t)
+}
+
 // buildOpenAPISpec assembles the OpenAPI 3.0.3 document from the live template set per request.
 func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[string]any, error) {
 	tps, err := dp.ListTemplates(ctx)

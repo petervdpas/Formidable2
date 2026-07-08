@@ -1,6 +1,7 @@
 package datadb
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -56,24 +57,22 @@ so you can orient yourself before authorizing.
 
 // BuildContext produces the agent-context primer for this bundle: the static
 // preamble plus a listing of the bundle's actual collections and their fields.
+// Field names come from each collection's data schema (the same one the live API
+// uses), and array-typed fields (loops, tables, lists) are suffixed with [].
 // The export backend packs it; the Viewer serves it at /api/context.
-func BuildContext(templates []TemplateSpec) []byte {
+func BuildContext(cols []Collection) []byte {
 	var b strings.Builder
 	b.WriteString(contextPreamble)
 
-	if len(templates) > 0 {
+	if len(cols) > 0 {
 		b.WriteString("\n## Collections in this bundle\n\n")
-		for _, t := range templates {
+		for _, c := range cols {
 			b.WriteString("- **")
-			b.WriteString(t.Name)
+			b.WriteString(c.Name)
 			b.WriteString("** (`")
-			b.WriteString(t.Filename)
+			b.WriteString(c.Filename)
 			b.WriteString("`)")
-			if len(t.Fields) > 0 {
-				keys := make([]string, 0, len(t.Fields))
-				for _, f := range t.Fields {
-					keys = append(keys, f.Key)
-				}
+			if keys := schemaFieldKeys(c.Data); len(keys) > 0 {
 				b.WriteString(" — fields: ")
 				b.WriteString(strings.Join(keys, ", "))
 			}
@@ -81,4 +80,22 @@ func BuildContext(templates []TemplateSpec) []byte {
 		}
 	}
 	return []byte(b.String())
+}
+
+// schemaFieldKeys lists the property keys of a data schema, sorted, with
+// array-typed fields suffixed "[]". See /api/openapi.json for the full types.
+func schemaFieldKeys(data map[string]any) []string {
+	props, ok := data["properties"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	keys := make([]string, 0, len(props))
+	for k, v := range props {
+		if m, ok := v.(map[string]any); ok && m["type"] == "array" {
+			k += "[]"
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

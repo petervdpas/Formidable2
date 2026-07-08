@@ -306,7 +306,9 @@ body {
   color: #e06c6c;
 }
 
-.token-gen {
+.token-actions {
+  display: flex;
+  gap: 0.4rem;
   margin-top: 0.4rem;
 }
 

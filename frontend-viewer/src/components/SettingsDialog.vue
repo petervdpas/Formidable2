@@ -91,6 +91,16 @@ async function generateToken(): Promise<void> {
     reportError(e);
   }
 }
+const copied = ref(false);
+async function copyKey(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(cfg.value?.api_token ?? "");
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 1500);
+  } catch (e) {
+    reportError(e);
+  }
+}
 
 async function clearRecents(): Promise<void> {
   if (!cfg.value) return;
@@ -150,9 +160,14 @@ async function clearRecents(): Promise<void> {
       <div class="field" v-if="cfg.serve_api">
         <label>{{ $t("settings.api_token") }}</label>
         <input type="text" spellcheck="false" v-model="cfg.api_token" @change="apply" />
-        <button class="btn ghost small token-gen" @click="generateToken">
-          {{ $t("settings.api_generate") }}
-        </button>
+        <div class="token-actions">
+          <button class="btn ghost small" :disabled="!cfg.api_token" @click="copyKey">
+            {{ copied ? $t("settings.api_copied") : $t("settings.api_copy") }}
+          </button>
+          <button class="btn ghost small" @click="generateToken">
+            {{ $t("settings.api_generate") }}
+          </button>
+        </div>
         <p class="field-help">{{ $t("settings.api_token_help") }}</p>
       </div>
 

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/datadb"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/relation"
@@ -28,12 +29,12 @@ type exportDataPacker struct {
 
 func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string) (wiki.DataPack, error) {
 	var records []datadb.Record
-	var specs []datadb.TemplateSpec
+	var cols []datadb.Collection
 	for _, fn := range filenames {
 		if !p.dp.IsCollectionExposed(ctx, fn) {
 			continue
 		}
-		specs = append(specs, p.templateSpec(fn))
+		cols = append(cols, p.collection(fn))
 		forms, err := p.dp.ListForms(ctx, fn, dataprovider.ListOpts{})
 		if err != nil {
 			return wiki.DataPack{}, err
@@ -68,49 +69,26 @@ func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string)
 	}
 	return wiki.DataPack{
 		DB:      db,
-		OpenAPI: datadb.BuildOpenAPI(specs),
-		Context: datadb.BuildContext(specs),
+		OpenAPI: datadb.BuildOpenAPI(cols),
+		Context: datadb.BuildContext(cols),
 	}, nil
 }
 
-// templateSpec describes one collection template for the OpenAPI document: its
-// display name and top-level fields, each with a JSON Schema type.
-func (p exportDataPacker) templateSpec(filename string) datadb.TemplateSpec {
-	spec := datadb.TemplateSpec{Filename: filename, Name: filename}
+// collection describes one collection for the bundle's spec/context. Its data
+// schema comes from the live API's own builder (api.DataSchemaForTemplate), so
+// field typing (loops, tables, lists, relations, dates, enums) mirrors the real
+// Formidable API rather than being re-derived.
+func (p exportDataPacker) collection(filename string) datadb.Collection {
+	col := datadb.Collection{Filename: filename, Name: filename}
 	t, err := p.tpl.LoadTemplate(filename)
 	if err != nil || t == nil {
-		return spec
+		return col
 	}
 	if n := strings.TrimSpace(t.Name); n != "" {
-		spec.Name = n
+		col.Name = n
 	}
-	for _, f := range t.Fields {
-		if f.Key == "" {
-			continue
-		}
-		spec.Fields = append(spec.Fields, datadb.FieldSpec{
-			Key:   f.Key,
-			Label: f.Label,
-			Type:  jsonType(f.Type),
-		})
-	}
-	return spec
-}
-
-// jsonType maps a Formidable field type to a JSON Schema type for the spec.
-func jsonType(fieldType string) string {
-	switch fieldType {
-	case "number", "range":
-		return "number"
-	case "boolean", "checkbox", "switch":
-		return "boolean"
-	case "table", "loop", "list":
-		return "array"
-	case "object", "group":
-		return "object"
-	default:
-		return "string"
-	}
+	col.Data = api.DataSchemaForTemplate(t)
+	return col
 }
 
 // outgoingEdges indexes a template's relation edges by source record guid, then
