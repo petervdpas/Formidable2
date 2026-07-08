@@ -8,6 +8,7 @@ package viewer
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/subtle"
 	"io"
 	"net/http"
 	"strings"
@@ -127,10 +128,11 @@ func (b *Bundle) Close() error {
 // can be swapped at runtime (e.g. from a native Open dialog) while the webview
 // is live.
 type Server struct {
-	mu      sync.RWMutex
-	bundle  *Bundle
-	landing http.Handler
-	apiOn   bool
+	mu       sync.RWMutex
+	bundle   *Bundle
+	landing  http.Handler
+	apiOn    bool
+	apiToken string
 }
 
 // NewServer returns a Server with no bundle loaded; it serves the landing
@@ -141,17 +143,23 @@ func NewServer() *Server {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
-	b, apiOn := s.bundle, s.apiOn
+	b, apiOn, token := s.bundle, s.apiOn, s.apiToken
 	s.mu.RUnlock()
 
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		// The agent API answers only when opted in and the bundle carries data;
 		// otherwise it is invisible (404), never the HTML fallback.
-		if apiOn && b != nil && b.HasData() {
-			b.ServeAPI(w, r)
+		if !apiOn || b == nil || !b.HasData() {
+			http.NotFound(w, r)
 			return
 		}
-		http.NotFound(w, r)
+		// Data endpoints require the token; discovery (docs, spec) stays open.
+		if datadb.RequiresAuth(r.URL.Path) && !tokenOK(r, token) {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, "unauthorized: API token required", http.StatusUnauthorized)
+			return
+		}
+		b.ServeAPI(w, r)
 		return
 	}
 
@@ -162,11 +170,37 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b.ServeHTTP(w, r)
 }
 
+// tokenOK reports whether the request carries the API token, accepted as an
+// X-API-Key header, an Authorization Bearer token, or a ?key= query parameter.
+// An empty configured token fails closed (no request can match).
+func tokenOK(r *http.Request, token string) bool {
+	if token == "" {
+		return false
+	}
+	presented := r.Header.Get("X-API-Key")
+	if presented == "" {
+		if b, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+			presented = b
+		}
+	}
+	if presented == "" {
+		presented = r.URL.Query().Get("key")
+	}
+	return presented != "" && subtle.ConstantTimeCompare([]byte(presented), []byte(token)) == 1
+}
+
 // SetAPIEnabled turns the agent API on or off at runtime, reflecting the
 // ServeAPI setting.
 func (s *Server) SetAPIEnabled(on bool) {
 	s.mu.Lock()
 	s.apiOn = on
+	s.mu.Unlock()
+}
+
+// SetAPIToken installs the token the data endpoints require.
+func (s *Server) SetAPIToken(token string) {
+	s.mu.Lock()
+	s.apiToken = token
 	s.mu.Unlock()
 }
 

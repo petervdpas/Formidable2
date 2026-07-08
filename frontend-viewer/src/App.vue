@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import { Events } from "@wailsio/runtime";
 import { api, BundleChangedEvent, type BundleInfo, type OpenResult } from "./api";
-import { bundleZoom, reportError } from "./state";
+import { reportError } from "./state";
 import { applyTheme } from "./theme";
 import HomeScreen from "./components/HomeScreen.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
@@ -166,7 +166,6 @@ onMounted(async () => {
     bundleUrl.value = await api.bundleURL();
     const cfg = await api.getConfig();
     applyTheme(cfg.theme);
-    bundleZoom.value = cfg.default_zoom;
   } catch (e) {
     reportError(e);
   }
@@ -242,7 +241,6 @@ function closeSettings(): void {
         :key="frameKey"
         class="bundle-frame"
         :src="bundleUrl"
-        :style="{ zoom: bundleZoom }"
         title="bundle"
       ></iframe>
       <div class="frame-controls">

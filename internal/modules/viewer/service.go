@@ -1,7 +1,9 @@
 package viewer
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -61,6 +63,7 @@ type APIStatus struct {
 	Enabled   bool     `json:"enabled"`
 	Available bool     `json:"available"`
 	URLs      []string `json:"urls"`
+	Token     string   `json:"token"` // the key agents must present; shown only when enabled
 }
 
 // Service is the viewer's bound Wails surface. The Vue shell calls it to open
@@ -122,32 +125,66 @@ func (s *Service) BundleURL() string {
 // GetConfig returns the persisted config.
 func (s *Service) GetConfig() Config { return s.store.Load() }
 
-// SetConfig persists cfg and applies it (starting or stopping the LAN server),
-// returning the normalized, applied config.
+// SetConfig persists cfg and applies it (starting or stopping the LAN server,
+// minting the API token on first enable), returning the applied config.
 func (s *Service) SetConfig(cfg Config) (Config, error) {
 	if err := s.store.Save(cfg); err != nil {
 		return s.store.Load(), err
 	}
-	applied := s.store.Load()
-	if err := s.applyServer(applied); err != nil {
-		return applied, err
-	}
-	return applied, nil
+	return s.applyServer(s.store.Load())
 }
 
 // Apply reflects the persisted config at startup (e.g. auto-starts the LAN
-// server when enabled).
-func (s *Service) Apply() error { return s.applyServer(s.store.Load()) }
+// server when enabled, restores the API token).
+func (s *Service) Apply() error {
+	_, err := s.applyServer(s.store.Load())
+	return err
+}
 
-func (s *Service) applyServer(cfg Config) error {
+// applyServer reflects cfg onto the running servers and returns the config that
+// was actually applied. Enabling the API mints a token on first use and
+// persists it, so the returned config carries the live token.
+func (s *Service) applyServer(cfg Config) (Config, error) {
+	if cfg.ServeAPI && cfg.APIToken == "" {
+		cfg.APIToken = generateToken()
+		if err := s.store.Save(cfg); err != nil {
+			return cfg, err
+		}
+	}
+	s.server.SetAPIToken(cfg.APIToken)
 	s.server.SetAPIEnabled(cfg.ServeAPI) // gates /api/ on both loopback and LAN
+
 	if s.http == nil {
-		return nil
+		return cfg, nil
 	}
 	if cfg.ServeHTTP {
-		return s.http.Start(cfg.HTTPPort)
+		return cfg, s.http.Start(cfg.HTTPPort)
 	}
-	return s.http.Stop()
+	return cfg, s.http.Stop()
+}
+
+// RegenerateAPIToken mints a fresh API token (invalidating the old one) and
+// returns the updated API status. Enables nothing on its own; the API stays off
+// unless ServeAPI is on.
+func (s *Service) RegenerateAPIToken() (APIStatus, error) {
+	cfg := s.store.Load()
+	cfg.APIToken = generateToken()
+	if err := s.store.Save(cfg); err != nil {
+		return s.APIStatus(), err
+	}
+	if _, err := s.applyServer(cfg); err != nil {
+		return s.APIStatus(), err
+	}
+	return s.APIStatus(), nil
+}
+
+// generateToken returns a random 32-hex-char (16-byte) API token.
+func generateToken() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
 }
 
 // Languages lists the supported UI languages (English first).
@@ -301,6 +338,9 @@ func (s *Service) APIStatus() APIStatus {
 	st := APIStatus{Enabled: s.server.APIEnabled()}
 	if b := s.server.Current(); b != nil {
 		st.Available = b.HasData()
+	}
+	if st.Enabled {
+		st.Token = s.store.Load().APIToken
 	}
 	if st.Enabled && st.Available {
 		st.URLs = append(st.URLs, s.BundleURL()+"api/") // loopback frame server

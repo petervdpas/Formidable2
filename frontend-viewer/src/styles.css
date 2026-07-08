@@ -306,6 +306,10 @@ body {
   color: #e06c6c;
 }
 
+.token-gen {
+  margin-top: 0.4rem;
+}
+
 
 .switch-row {
   display: flex;

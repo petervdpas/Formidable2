@@ -126,11 +126,6 @@ func main() {
 	}
 	win := app.Window.NewWithOptions(winOpts)
 
-	// Zoom is applied by the shell as CSS zoom on the bundle iframe alone (see
-	// bundleZoom in App.vue), so it scales the document being read, not the app
-	// chrome. Applying it here too (win.SetZoom) would double it at startup and
-	// diverge from the live Settings control, so it is intentionally not set.
-
 	// Inject the Wails-side behavior the service needs.
 	svc.SetOpenFunc(func() (string, error) {
 		return app.Dialog.OpenFile().

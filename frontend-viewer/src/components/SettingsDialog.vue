@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { api, type Config, type ServerStatus, type APIStatus } from "../api";
 import { loadMessages } from "../i18n";
 import { applyTheme } from "../theme";
-import { reportError, bundleZoom } from "../state";
+import { reportError } from "../state";
 import SelectField from "./SelectField.vue";
 import SwitchField from "./SwitchField.vue";
 
@@ -14,7 +14,7 @@ const { t } = useI18n();
 const cfg = ref<Config | null>(null);
 const langs = ref<string[]>([]);
 const status = ref<ServerStatus>({ running: false, port: 0, urls: [] });
-const apiStat = ref<APIStatus>({ enabled: false, available: false, urls: [] });
+const apiStat = ref<APIStatus>({ enabled: false, available: false, urls: [], token: "" });
 
 const languageOptions = computed(() => [
   { value: "system", label: t("settings.language_system") },
@@ -45,7 +45,6 @@ async function apply(): Promise<void> {
     const applied = await api.setConfig(cfg.value);
     cfg.value = applied;
     applyTheme(applied.theme);
-    bundleZoom.value = applied.default_zoom;
     status.value = await api.serverStatus();
     apiStat.value = await api.apiStatus();
     await loadMessages();
@@ -84,6 +83,14 @@ function setServeAPI(v: boolean): void {
     void apply();
   }
 }
+async function generateToken(): Promise<void> {
+  try {
+    apiStat.value = await api.regenerateAPIToken();
+    if (cfg.value) cfg.value.api_token = apiStat.value.token;
+  } catch (e) {
+    reportError(e);
+  }
+}
 
 async function clearRecents(): Promise<void> {
   if (!cfg.value) return;
@@ -109,11 +116,6 @@ async function clearRecents(): Promise<void> {
       <div class="field">
         <label>{{ $t("settings.theme") }}</label>
         <SelectField :model-value="cfg.theme" :options="themeOptions" @update:model-value="setTheme" />
-      </div>
-
-      <div class="field">
-        <label>{{ $t("settings.zoom") }}</label>
-        <input type="number" step="0.1" min="0.5" max="3" v-model.number="cfg.default_zoom" @change="apply" />
       </div>
 
       <div class="switch-row">
@@ -144,6 +146,15 @@ async function clearRecents(): Promise<void> {
         <span>{{ $t("settings.serve_api") }}</span>
       </div>
       <p class="field-help">{{ $t("settings.serve_api_help") }}</p>
+
+      <div class="field" v-if="cfg.serve_api">
+        <label>{{ $t("settings.api_token") }}</label>
+        <input type="text" spellcheck="false" v-model="cfg.api_token" @change="apply" />
+        <button class="btn ghost small token-gen" @click="generateToken">
+          {{ $t("settings.api_generate") }}
+        </button>
+        <p class="field-help">{{ $t("settings.api_token_help") }}</p>
+      </div>
 
       <div class="lan" v-if="apiStat.enabled && apiStat.available && apiStat.urls.length">
         <div class="lan-title">{{ $t("settings.api_urls") }}</div>

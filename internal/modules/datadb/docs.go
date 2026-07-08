@@ -142,7 +142,8 @@ func baseOpenAPISpec() map[string]any {
 			"version":     "1.0.0",
 			"description": "Read-only access to the collection records packed in this bundle.",
 		},
-		"servers": []any{map[string]any{"url": "/"}},
+		"servers":  []any{map[string]any{"url": "/"}},
+		"security": []any{map[string]any{"ApiKeyAuth": []any{}}},
 		"paths": map[string]any{
 			"/api/templates": map[string]any{
 				"get": map[string]any{
@@ -195,6 +196,13 @@ func baseOpenAPISpec() map[string]any {
 			},
 		},
 		"components": map[string]any{
+			"securitySchemes": map[string]any{
+				"ApiKeyAuth": map[string]any{
+					"type": "apiKey",
+					"in":   "header",
+					"name": "X-API-Key",
+				},
+			},
 			"schemas": map[string]any{
 				"TemplateCount": map[string]any{
 					"type": "object",

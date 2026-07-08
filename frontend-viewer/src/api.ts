@@ -7,7 +7,6 @@ const SVC = "github.com/petervdpas/formidable2/internal/modules/viewer.Service";
 export interface Config {
   language: string;
   theme: string;
-  default_zoom: number;
   remember_size: boolean;
   window_width: number;
   window_height: number;
@@ -15,6 +14,7 @@ export interface Config {
   serve_http: boolean;
   http_port: number;
   serve_api: boolean;
+  api_token: string;
 }
 
 export interface BundleInfo {
@@ -32,6 +32,7 @@ export interface APIStatus {
   enabled: boolean;
   available: boolean;
   urls: string[];
+  token: string;
 }
 
 export interface OpenResult {
@@ -72,6 +73,7 @@ export const api = {
   current: () => call<BundleInfo>("Current"),
   serverStatus: () => call<ServerStatus>("ServerStatus"),
   apiStatus: () => call<APIStatus>("APIStatus"),
+  regenerateAPIToken: () => call<APIStatus>("RegenerateAPIToken"),
   bundleURL: () => call<string>("BundleURL"),
 };
 

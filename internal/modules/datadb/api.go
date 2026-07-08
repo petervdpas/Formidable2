@@ -3,6 +3,7 @@ package datadb
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 // Handler is the pack's read-only REST API over db, for agents and scripts. It
@@ -81,6 +82,23 @@ func getOnly(next http.Handler) http.Handler {
 			http.Error(w, "read-only API: method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+}
+
+// RequiresAuth reports whether an /api path serves protected data. Discovery
+// (the docs UI, the OpenAPI spec, the /api/ redirect) is public so an agent can
+// find the API and authorize; the data endpoints are gated. The token itself is
+// enforced by the Viewer, which holds it; this only classifies the path.
+func RequiresAuth(path string) bool {
+	switch {
+	case path == "/api" || path == "/api/":
+		return false
+	case path == "/api/openapi.json":
+		return false
+	case strings.HasPrefix(path, "/api/docs"):
+		return false
+	default:
+		return strings.HasPrefix(path, "/api/")
+	}
 }
 
 func respond(w http.ResponseWriter, v any, err error) {

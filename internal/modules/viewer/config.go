@@ -14,7 +14,6 @@ import (
 type Config struct {
 	Language      string   `json:"language"`       // "system" | "en" | "nl"
 	Theme         string   `json:"theme"`          // "system" | "light" | "dark"
-	DefaultZoom   float64  `json:"default_zoom"`   // 1.0 = 100%
 	RememberSize  bool     `json:"remember_size"`  // persist window size on close
 	WindowWidth   int      `json:"window_width"`   // last size when RememberSize
 	WindowHeight  int      `json:"window_height"`  //
@@ -32,14 +31,18 @@ type Config struct {
 	// loopback whenever it is on, and additionally on the LAN only when
 	// ServeHTTP is also on.
 	ServeAPI bool `json:"serve_api"`
+
+	// APIToken gates the data endpoints: a request must present it (X-API-Key
+	// header, Authorization Bearer, or ?key=). The user sets it in Settings; one
+	// is minted if the API is enabled while it is empty. The discovery routes
+	// (docs, spec) stay open so an agent can find the API and be handed the key.
+	APIToken string `json:"api_token"`
 }
 
 const (
 	viewerConfigDir  = "formidable-viewer"
 	viewerConfigFile = "config.json"
 	maxRecentBundles = 10
-	minZoom          = 0.5
-	maxZoom          = 3.0
 	minPort          = 1024
 	maxPort          = 65535
 	defaultHTTPPort  = 8723
@@ -50,7 +53,6 @@ func DefaultConfig() Config {
 	return Config{
 		Language:      "system",
 		Theme:         "system",
-		DefaultZoom:   1.0,
 		RememberSize:  true,
 		RecentBundles: []string{},
 		ServeHTTP:     false,
@@ -80,15 +82,6 @@ func (c *Config) normalize() {
 	case "system", "light", "dark":
 	default:
 		c.Theme = "system"
-	}
-	if c.DefaultZoom == 0 {
-		c.DefaultZoom = 1.0
-	}
-	if c.DefaultZoom < minZoom {
-		c.DefaultZoom = minZoom
-	}
-	if c.DefaultZoom > maxZoom {
-		c.DefaultZoom = maxZoom
 	}
 	if c.RecentBundles == nil {
 		c.RecentBundles = []string{}
