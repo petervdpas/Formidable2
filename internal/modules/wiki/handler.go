@@ -71,13 +71,19 @@ type EnabledTemplateFilter interface {
 	FilterEnabled(filenames []string) []string
 }
 
-// DataPacker builds the bundle's queryable data image: a SQLite database of the
-// collection-template records among the given selection, for the Viewer's agent
-// API. The packer decides which filenames are exposed collections; the rest are
-// ignored. An empty result adds no data entry. Nil packer = no data image (the
-// bundle is HTML only).
+// DataPack is the queryable half of a bundle: a SQLite image of the collection
+// records (DB) and the OpenAPI document describing them (OpenAPI). Either may be
+// empty, in which case that entry is not written.
+type DataPack struct {
+	DB      []byte
+	OpenAPI []byte
+}
+
+// DataPacker builds the DataPack for the collection templates among the given
+// selection, for the Viewer's agent API. The packer decides which filenames are
+// exposed collections; the rest are ignored. Nil packer = no data (HTML only).
 type DataPacker interface {
-	BuildDataDB(ctx context.Context, templateFilenames []string) ([]byte, error)
+	BuildDataPack(ctx context.Context, templateFilenames []string) (DataPack, error)
 }
 
 // Handler owns the read-path routes; the concrete return type lets the composition root call optional setters.

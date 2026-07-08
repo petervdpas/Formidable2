@@ -300,18 +300,19 @@ func TestExportPack_PlainIsBrandedNotRawZip(t *testing.T) {
 }
 
 type fakePacker struct {
-	db  []byte
-	got []string
+	db   []byte
+	spec []byte
+	got  []string
 }
 
-func (f *fakePacker) BuildDataDB(_ context.Context, filenames []string) ([]byte, error) {
+func (f *fakePacker) BuildDataPack(_ context.Context, filenames []string) (DataPack, error) {
 	f.got = append([]string(nil), filenames...)
-	return f.db, nil
+	return DataPack{DB: f.db, OpenAPI: f.spec}, nil
 }
 
 func TestExportBundle_EmbedsDataDB(t *testing.T) {
 	h := NewHandler(exportProvider(), newStubStorage(), &stubExpressioner{})
-	fp := &fakePacker{db: []byte("SQLITE-IMAGE-BYTES")}
+	fp := &fakePacker{db: []byte("SQLITE-IMAGE-BYTES"), spec: []byte(`{"openapi":"3.0.3"}`)}
 	h.SetDataPacker(fp)
 
 	res, err := h.ExportBundle(context.Background(), map[string][]string{"basic.yaml": nil})
@@ -321,6 +322,9 @@ func TestExportBundle_EmbedsDataDB(t *testing.T) {
 	files := unzipMap(t, res.Zip)
 	if string(files["_/data.db"]) != "SQLITE-IMAGE-BYTES" {
 		t.Fatalf("_/data.db missing or wrong: %q", files["_/data.db"])
+	}
+	if string(files["_/openapi.json"]) != `{"openapi":"3.0.3"}` {
+		t.Fatalf("_/openapi.json missing or wrong: %q", files["_/openapi.json"])
 	}
 	// The packer is handed the selected templates (it filters to collections).
 	found := false

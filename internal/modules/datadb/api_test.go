@@ -10,7 +10,7 @@ import (
 
 func apiServer(t *testing.T) http.Handler {
 	t.Helper()
-	return Handler(openSample(t))
+	return Handler(openSample(t), nil)
 }
 
 func getJSON(t *testing.T, h http.Handler, path string, into any) int {
@@ -83,6 +83,71 @@ func TestAPIRejectsNonGET(t *testing.T) {
 		if rec.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("%s = %d, want 405", method, rec.Code)
 		}
+	}
+}
+
+func TestAPIRootRedirectsToDocs(t *testing.T) {
+	rec := httptest.NewRecorder()
+	apiServer(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/", nil))
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/api/docs/" {
+		t.Fatalf("/api/ = %d -> %q, want 302 -> /api/docs/", rec.Code, rec.Header().Get("Location"))
+	}
+}
+
+func TestAPIOpenAPISpec(t *testing.T) {
+	h := apiServer(t)
+	var spec map[string]any
+	if code := getJSON(t, h, "/api/openapi.json", &spec); code != http.StatusOK {
+		t.Fatalf("openapi.json status %d", code)
+	}
+	if spec["openapi"] != "3.0.3" {
+		t.Fatalf("spec not an openapi doc: %+v", spec["openapi"])
+	}
+	if _, ok := spec["paths"].(map[string]any)["/api/templates"]; !ok {
+		t.Fatal("spec missing /api/templates path")
+	}
+}
+
+func TestBuildOpenAPIEnrichesFromTemplates(t *testing.T) {
+	spec := BuildOpenAPI([]TemplateSpec{
+		{Filename: "kostenplaats.yaml", Name: "Kostenplaats", Fields: []FieldSpec{
+			{Key: "code", Label: "Code", Type: "string"},
+			{Key: "budget", Label: "Budget", Type: "number"},
+		}},
+	})
+	if !strings.Contains(string(spec), "Fields_kostenplaats") {
+		t.Fatal("per-template schema not generated")
+	}
+	if !strings.Contains(string(spec), "\"kostenplaats.yaml\"") {
+		t.Fatal("template filename not enumerated on the tpl parameter")
+	}
+	if !strings.Contains(string(spec), "budget") {
+		t.Fatal("field not in the schema")
+	}
+}
+
+func TestAPIServesPackedSpec(t *testing.T) {
+	packed := BuildOpenAPI([]TemplateSpec{{Filename: "z.yaml", Name: "Zed"}})
+	h := Handler(openSample(t), packed)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/openapi.json", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "z.yaml") {
+		t.Fatalf("packed spec not served: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAPIDocsShellAndAssets(t *testing.T) {
+	h := apiServer(t)
+	if rec := httptest.NewRecorder(); true {
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/docs/", nil))
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "swagger-ui") {
+			t.Fatalf("/api/docs/ = %d, body missing swagger-ui", rec.Code)
+		}
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/docs/swagger-ui.css", nil))
+	if rec.Code != http.StatusOK || len(rec.Body.Bytes()) == 0 {
+		t.Fatalf("swagger-ui.css = %d, len %d", rec.Code, rec.Body.Len())
 	}
 }
 

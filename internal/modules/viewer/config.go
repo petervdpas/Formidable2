@@ -26,6 +26,12 @@ type Config struct {
 	// can be opened in a browser or shared on the machine.
 	ServeHTTP bool `json:"serve_http"`
 	HTTPPort  int  `json:"http_port"`
+
+	// ServeAPI exposes the bundle's data as a read-only REST API for agents
+	// (see datadb). Opt-in, default off, and independent of ServeHTTP: on
+	// loopback whenever it is on, and additionally on the LAN only when
+	// ServeHTTP is also on.
+	ServeAPI bool `json:"serve_api"`
 }
 
 const (

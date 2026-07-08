@@ -581,7 +581,7 @@ func New(d Deps) (*App, error) {
 
 	// Queryable data image: pack the collection-template records (fields +
 	// facets + tags + relations) so the Viewer can serve an agent API.
-	wikiHandler.SetDataPacker(exportDataPacker{dp: dpM, sto: stoM, rel: relationM})
+	wikiHandler.SetDataPacker(exportDataPacker{dp: dpM, sto: stoM, rel: relationM, tpl: tplM})
 
 	// stoM appears twice: Storage (LoadForm) and Writer (SaveForm/
 	// DeleteForm). Same instance, narrow per-concern interfaces. apiRelations

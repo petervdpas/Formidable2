@@ -16,6 +16,7 @@ const emptyBundle: BundleInfo = {
   author: "",
   created: "",
   encrypted: false,
+  hasData: false,
 };
 const bundle = ref<BundleInfo>({ ...emptyBundle });
 

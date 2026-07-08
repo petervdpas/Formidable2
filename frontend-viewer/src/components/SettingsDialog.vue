@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { api, type Config, type ServerStatus } from "../api";
+import { api, type Config, type ServerStatus, type APIStatus } from "../api";
 import { loadMessages } from "../i18n";
 import { applyTheme } from "../theme";
 import { reportError, bundleZoom } from "../state";
@@ -14,6 +14,7 @@ const { t } = useI18n();
 const cfg = ref<Config | null>(null);
 const langs = ref<string[]>([]);
 const status = ref<ServerStatus>({ running: false, port: 0, urls: [] });
+const apiStat = ref<APIStatus>({ enabled: false, available: false, urls: [] });
 
 const languageOptions = computed(() => [
   { value: "system", label: t("settings.language_system") },
@@ -30,6 +31,7 @@ async function load(): Promise<void> {
     cfg.value = await api.getConfig();
     langs.value = await api.languages();
     status.value = await api.serverStatus();
+    apiStat.value = await api.apiStatus();
   } catch (e) {
     reportError(e);
   }
@@ -45,6 +47,7 @@ async function apply(): Promise<void> {
     applyTheme(applied.theme);
     bundleZoom.value = applied.default_zoom;
     status.value = await api.serverStatus();
+    apiStat.value = await api.apiStatus();
     await loadMessages();
   } catch (e) {
     reportError(e);
@@ -72,6 +75,12 @@ function setRememberSize(v: boolean): void {
 function setServeHTTP(v: boolean): void {
   if (cfg.value) {
     cfg.value.serve_http = v;
+    void apply();
+  }
+}
+function setServeAPI(v: boolean): void {
+  if (cfg.value) {
+    cfg.value.serve_api = v;
     void apply();
   }
 }
@@ -129,6 +138,22 @@ async function clearRecents(): Promise<void> {
           <li v-for="u in status.urls" :key="u"><code>{{ u }}</code></li>
         </ul>
       </div>
+
+      <div class="switch-row">
+        <SwitchField :model-value="cfg.serve_api" @update:model-value="setServeAPI" />
+        <span>{{ $t("settings.serve_api") }}</span>
+      </div>
+      <p class="field-help">{{ $t("settings.serve_api_help") }}</p>
+
+      <div class="lan" v-if="apiStat.enabled && apiStat.available && apiStat.urls.length">
+        <div class="lan-title">{{ $t("settings.api_urls") }}</div>
+        <ul>
+          <li v-for="u in apiStat.urls" :key="u"><code>{{ u }}</code></li>
+        </ul>
+      </div>
+      <p v-else-if="cfg.serve_api && !apiStat.available" class="field-help">
+        {{ $t("settings.api_no_data") }}
+      </p>
 
       <button class="btn ghost small" @click="clearRecents">{{ $t("settings.clear_recents") }}</button>
 

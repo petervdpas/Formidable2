@@ -9,10 +9,13 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/relation"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/template"
+	"github.com/petervdpas/formidable2/internal/modules/wiki"
 )
 
 // exportDataPacker implements wiki.DataPacker: it turns the collection templates
-// among an export selection into the bundle's queryable data image. Each record
+// among an export selection into the bundle's queryable data (a SQLite image of
+// the records plus an OpenAPI spec built from the actual templates). Each record
 // carries its field values, facets, tags, and outgoing relation edges; the
 // flattened text feeds the full-text index. Non-collection templates
 // (presentations, documents that are not collections) are skipped.
@@ -20,17 +23,20 @@ type exportDataPacker struct {
 	dp  *dataprovider.Manager
 	sto *storage.Manager
 	rel *relation.Manager
+	tpl *template.Manager
 }
 
-func (p exportDataPacker) BuildDataDB(ctx context.Context, filenames []string) ([]byte, error) {
+func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string) (wiki.DataPack, error) {
 	var records []datadb.Record
+	var specs []datadb.TemplateSpec
 	for _, fn := range filenames {
 		if !p.dp.IsCollectionExposed(ctx, fn) {
 			continue
 		}
+		specs = append(specs, p.templateSpec(fn))
 		forms, err := p.dp.ListForms(ctx, fn, dataprovider.ListOpts{})
 		if err != nil {
-			return nil, err
+			return wiki.DataPack{}, err
 		}
 		edges := p.outgoingEdges(fn) // record guid -> target template -> [to-guid]
 		for _, fs := range forms {
@@ -54,9 +60,53 @@ func (p exportDataPacker) BuildDataDB(ctx context.Context, filenames []string) (
 		}
 	}
 	if len(records) == 0 {
-		return nil, nil
+		return wiki.DataPack{}, nil
 	}
-	return datadb.Build(records)
+	db, err := datadb.Build(records)
+	if err != nil {
+		return wiki.DataPack{}, err
+	}
+	return wiki.DataPack{DB: db, OpenAPI: datadb.BuildOpenAPI(specs)}, nil
+}
+
+// templateSpec describes one collection template for the OpenAPI document: its
+// display name and top-level fields, each with a JSON Schema type.
+func (p exportDataPacker) templateSpec(filename string) datadb.TemplateSpec {
+	spec := datadb.TemplateSpec{Filename: filename, Name: filename}
+	t, err := p.tpl.LoadTemplate(filename)
+	if err != nil || t == nil {
+		return spec
+	}
+	if n := strings.TrimSpace(t.Name); n != "" {
+		spec.Name = n
+	}
+	for _, f := range t.Fields {
+		if f.Key == "" {
+			continue
+		}
+		spec.Fields = append(spec.Fields, datadb.FieldSpec{
+			Key:   f.Key,
+			Label: f.Label,
+			Type:  jsonType(f.Type),
+		})
+	}
+	return spec
+}
+
+// jsonType maps a Formidable field type to a JSON Schema type for the spec.
+func jsonType(fieldType string) string {
+	switch fieldType {
+	case "number", "range":
+		return "number"
+	case "boolean", "checkbox", "switch":
+		return "boolean"
+	case "table", "loop", "list":
+		return "array"
+	case "object", "group":
+		return "object"
+	default:
+		return "string"
+	}
 }
 
 // outgoingEdges indexes a template's relation edges by source record guid, then

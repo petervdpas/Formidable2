@@ -9,12 +9,32 @@ import (
 // is GET-only: any other method is refused with 405 before routing, so the pack
 // can never be mutated through it. Responses are JSON.
 //
+//	GET /api/                     Swagger UI (redirect to /api/docs/)
+//	GET /api/openapi.json         the OpenAPI spec
 //	GET /api/templates            list templates with record counts
 //	GET /api/templates/{tpl}      records of one template (guid + title)
 //	GET /api/records/{guid}       one record with its full payload
 //	GET /api/search?q=            full-text search across records
-func Handler(db *DB) http.Handler {
+//
+// openAPI is the packed per-collection spec; when nil the generic spec is
+// served instead.
+func Handler(db *DB, openAPI []byte) http.Handler {
 	mux := http.NewServeMux()
+
+	// Discovery: /api/ opens the interactive docs; the spec and UI assets sit
+	// beside it so an agent (or a human) can explore the API offline.
+	mux.HandleFunc("/api/{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/api/docs/", http.StatusFound)
+	})
+	mux.HandleFunc("/api/docs/", serveDocs)
+	mux.HandleFunc("/api/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if len(openAPI) > 0 {
+			_, _ = w.Write(openAPI)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(baseOpenAPISpec())
+	})
 
 	mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
 		tcs, err := db.Templates()

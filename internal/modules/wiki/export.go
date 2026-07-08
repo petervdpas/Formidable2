@@ -111,16 +111,19 @@ func (h *Handler) ExportBundle(ctx context.Context, selections map[string][]stri
 	}
 	entries = append(entries, assets...)
 
-	// Pack the queryable data image for the collection templates in the bundle,
-	// so the Viewer can expose an agent API over it. The packer ignores
-	// non-collections; an empty result adds nothing.
+	// Pack the queryable data (a SQLite image + its OpenAPI spec) for the
+	// collection templates in the bundle, so the Viewer can expose an agent API
+	// over it. The packer ignores non-collections; empty parts add nothing.
 	if h.data != nil {
-		dbBytes, err := h.data.BuildDataDB(ctx, filenames)
+		pack, err := h.data.BuildDataPack(ctx, filenames)
 		if err != nil {
 			return ExportResult{}, err
 		}
-		if len(dbBytes) > 0 {
-			entries = append(entries, exportEntry{name: "_/data.db", data: dbBytes})
+		if len(pack.DB) > 0 {
+			entries = append(entries, exportEntry{name: "_/data.db", data: pack.DB})
+		}
+		if len(pack.OpenAPI) > 0 {
+			entries = append(entries, exportEntry{name: "_/openapi.json", data: pack.OpenAPI})
 		}
 	}
 

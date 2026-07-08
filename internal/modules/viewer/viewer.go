@@ -10,19 +10,33 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/petervdpas/formidable2/internal/modules/bundle"
+	"github.com/petervdpas/formidable2/internal/modules/datadb"
+)
+
+// dataEntry is the archive path of the pack's queryable data image, and
+// specEntry the OpenAPI document describing it (both written by the exporter
+// under the assets folder).
+const (
+	dataEntry = "_/data.db"
+	specEntry = "_/openapi.json"
 )
 
 // Bundle is a read-only view over one opened pack: the decrypted payload archive
-// plus its cleartext manifest. Entries are read on demand through the archive's
-// random-access reader; nothing is written to disk.
+// plus its cleartext manifest, and (when present) the queryable data image
+// behind the agent API. Entries are read on demand through the archive's
+// random-access reader; the data image is mounted in memory. Nothing is written
+// to disk.
 type Bundle struct {
 	name     string
 	reader   *zip.Reader
 	h        http.Handler
 	manifest bundle.Manifest
+	data     *datadb.DB
+	api      http.Handler
 }
 
 func newBundle(name string, zr *zip.Reader) *Bundle {
@@ -30,14 +44,53 @@ func newBundle(name string, zr *zip.Reader) *Bundle {
 }
 
 // BundleFromBytes wraps an in-memory archive (the decrypted bundle payload, or a
-// zip just produced by the exporter) with no round-trip through disk.
+// zip just produced by the exporter) with no round-trip through disk. A data
+// image inside the archive is mounted for the agent API; if it is absent or
+// unreadable the bundle still opens for reading, just without an API.
 func BundleFromBytes(b []byte, name string) (*Bundle, error) {
 	zr, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
 		return nil, err
 	}
-	return newBundle(name, zr), nil
+	bnd := newBundle(name, zr)
+	if db, err := openData(zr); err == nil && db != nil {
+		bnd.data = db
+		bnd.api = datadb.Handler(db, readEntry(zr, specEntry))
+	}
+	return bnd, nil
 }
+
+// openData reads the data image out of the archive and mounts it. Returns
+// (nil, nil) when the archive carries no data image.
+func openData(zr *zip.Reader) (*datadb.DB, error) {
+	raw := readEntry(zr, dataEntry)
+	if raw == nil {
+		return nil, nil // no data image in this bundle
+	}
+	return datadb.Open(raw)
+}
+
+// readEntry returns the bytes of one archive entry, or nil if it is absent or
+// unreadable.
+func readEntry(zr *zip.Reader, name string) []byte {
+	f, err := zr.Open(name)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// HasData reports whether the bundle carries a queryable data image.
+func (b *Bundle) HasData() bool { return b.data != nil }
+
+// ServeAPI serves the read-only agent API over the bundle's data image. It must
+// only be called when HasData is true.
+func (b *Bundle) ServeAPI(w http.ResponseWriter, r *http.Request) { b.api.ServeHTTP(w, r) }
 
 // Name is the bundle's display name (its file base name, or the name given
 // to BundleFromBytes).
@@ -58,18 +111,26 @@ func (b *Bundle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b.h.ServeHTTP(w, r)
 }
 
-// Close releases any resources held by the bundle. Bundles are byte-backed and
-// hold none, so it is a no-op; it exists so the server can uniformly close the
-// previous bundle on a swap.
-func (b *Bundle) Close() error { return nil }
+// Close releases the mounted data image, if any. The archive itself is
+// byte-backed and holds nothing to release. Called by the server when a bundle
+// is swapped out.
+func (b *Bundle) Close() error {
+	if b.data != nil {
+		return b.data.Close()
+	}
+	return nil
+}
 
 // Server serves whichever Bundle is currently loaded, or a landing page when
-// none is. It is safe for concurrent use so the loaded bundle can be swapped
-// at runtime (e.g. from a native Open dialog) while the webview is live.
+// none is. It also fronts the read-only agent API under /api/, gated by the
+// opt-in ServeAPI setting. It is safe for concurrent use so the loaded bundle
+// can be swapped at runtime (e.g. from a native Open dialog) while the webview
+// is live.
 type Server struct {
 	mu      sync.RWMutex
 	bundle  *Bundle
 	landing http.Handler
+	apiOn   bool
 }
 
 // NewServer returns a Server with no bundle loaded; it serves the landing
@@ -80,13 +141,40 @@ func NewServer() *Server {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
-	b := s.bundle
+	b, apiOn := s.bundle, s.apiOn
 	s.mu.RUnlock()
+
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		// The agent API answers only when opted in and the bundle carries data;
+		// otherwise it is invisible (404), never the HTML fallback.
+		if apiOn && b != nil && b.HasData() {
+			b.ServeAPI(w, r)
+			return
+		}
+		http.NotFound(w, r)
+		return
+	}
+
 	if b == nil {
 		s.landing.ServeHTTP(w, r)
 		return
 	}
 	b.ServeHTTP(w, r)
+}
+
+// SetAPIEnabled turns the agent API on or off at runtime, reflecting the
+// ServeAPI setting.
+func (s *Server) SetAPIEnabled(on bool) {
+	s.mu.Lock()
+	s.apiOn = on
+	s.mu.Unlock()
+}
+
+// APIEnabled reports whether the agent API is currently on.
+func (s *Server) APIEnabled() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.apiOn
 }
 
 // SetBundle installs b as the current bundle and returns the previous one, if

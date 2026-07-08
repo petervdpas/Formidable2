@@ -14,6 +14,7 @@ export interface Config {
   recent_bundles: string[];
   serve_http: boolean;
   http_port: number;
+  serve_api: boolean;
 }
 
 export interface BundleInfo {
@@ -24,6 +25,13 @@ export interface BundleInfo {
   author: string;
   created: string;
   encrypted: boolean;
+  hasData: boolean;
+}
+
+export interface APIStatus {
+  enabled: boolean;
+  available: boolean;
+  urls: string[];
 }
 
 export interface OpenResult {
@@ -63,6 +71,7 @@ export const api = {
   takePendingOpen: () => call<string>("TakePendingOpen"),
   current: () => call<BundleInfo>("Current"),
   serverStatus: () => call<ServerStatus>("ServerStatus"),
+  apiStatus: () => call<APIStatus>("APIStatus"),
   bundleURL: () => call<string>("BundleURL"),
 };
 

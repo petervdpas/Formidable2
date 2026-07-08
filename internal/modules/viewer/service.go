@@ -21,6 +21,7 @@ type BundleInfo struct {
 	Author      string `json:"author"`
 	Created     string `json:"created"`
 	Encrypted   bool   `json:"encrypted"`
+	HasData     bool   `json:"hasData"` // carries a queryable data image (agent API)
 }
 
 // OpenResult is the outcome of an open attempt. When the pack is encrypted and
@@ -52,6 +53,14 @@ type ServerStatus struct {
 	Running bool     `json:"running"`
 	Port    int      `json:"port"`
 	URLs    []string `json:"urls"`
+}
+
+// APIStatus reflects the read-only agent API: whether it is enabled, whether a
+// bundle with data is open to serve, and the base URLs to call.
+type APIStatus struct {
+	Enabled   bool     `json:"enabled"`
+	Available bool     `json:"available"`
+	URLs      []string `json:"urls"`
 }
 
 // Service is the viewer's bound Wails surface. The Vue shell calls it to open
@@ -131,6 +140,7 @@ func (s *Service) SetConfig(cfg Config) (Config, error) {
 func (s *Service) Apply() error { return s.applyServer(s.store.Load()) }
 
 func (s *Service) applyServer(cfg Config) error {
+	s.server.SetAPIEnabled(cfg.ServeAPI) // gates /api/ on both loopback and LAN
 	if s.http == nil {
 		return nil
 	}
@@ -280,7 +290,27 @@ func (s *Service) Current() BundleInfo {
 	}
 	info := infoFromManifest(b.Name(), b.manifest)
 	info.Loaded = true
+	info.HasData = b.HasData()
 	return info
+}
+
+// APIStatus reports the agent API state for the UI: whether it is enabled, is
+// serving (a bundle with data is open), and the base URLs agents can call. URLs
+// are only populated when it is actually serving.
+func (s *Service) APIStatus() APIStatus {
+	st := APIStatus{Enabled: s.server.APIEnabled()}
+	if b := s.server.Current(); b != nil {
+		st.Available = b.HasData()
+	}
+	if st.Enabled && st.Available {
+		st.URLs = append(st.URLs, s.BundleURL()+"api/") // loopback frame server
+		if s.http != nil && s.http.Running() {
+			for _, u := range s.http.URLs() {
+				st.URLs = append(st.URLs, u+"/api/")
+			}
+		}
+	}
+	return st
 }
 
 // ServerStatus reports the LAN server state.
