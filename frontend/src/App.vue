@@ -13,6 +13,7 @@ import { useRestartGate } from "./composables/useRestartGate";
 import { useConfig } from "./composables/useConfig";
 import { setPctDecimals } from "./components/stat/grid";
 import { useRibbonAvailability } from "./composables/useRibbonAvailability";
+import { useSyncNudge } from "./composables/useSyncNudge";
 import { confirmLeave } from "./composables/useNavGuard";
 import { Service as SystemSvc } from "../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
@@ -23,6 +24,9 @@ const { bootConfig } = useRestartGate();
 const { config, update, reload } = useConfig();
 const { hasTemplates, hasProfiles, isDisabled, fallbackFor } =
   useRibbonAvailability();
+
+// Read-only remote check that nudges the user to pull/sync when behind.
+useSyncNudge();
 
 // Suppress the WebView's default context menu (back/forward/reload/inspect)
 // unless development_enable is on. Reads the live config at fire time so

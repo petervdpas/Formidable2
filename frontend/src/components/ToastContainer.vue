@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import { useToast } from "../composables/useToast";
+import { useToast, type Toast } from "../composables/useToast";
 
 const { t } = useI18n();
 const { toasts, dismiss } = useToast();
+
+function runAction(toast: Toast): void {
+  toast.action?.run();
+  dismiss(toast.id);
+}
 </script>
 
 <template>
@@ -18,6 +23,12 @@ const { toasts, dismiss } = useToast();
         @click="dismiss(toast.id)"
       >
         <span class="toast-text">{{ toast.text }}</span>
+        <button
+          v-if="toast.action"
+          type="button"
+          class="toast-action"
+          @click.stop="runAction(toast)"
+        >{{ toast.action.label }}</button>
         <button
           type="button"
           class="toast-close"

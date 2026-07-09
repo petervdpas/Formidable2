@@ -57,6 +57,26 @@
     outline: none;
 }
 
+.toast-action {
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 4px 10px;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.toast-action:hover,
+.toast-action:focus-visible {
+    filter: brightness(1.08);
+    outline: none;
+}
+
 .toast.info    { border-left-color: var(--color-accent); }
 .toast.success { border-left-color: var(--color-success); }
 .toast.warn    { border-left-color: var(--color-warning); }

@@ -7,6 +7,14 @@ const TOAST_FALLBACK_MS = 5000;
 
 export type ToastVariant = "info" | "success" | "warn" | "error";
 
+/** An inline call-to-action rendered beside the toast text (e.g. the
+ *  "Open Collaboration" button on the behind-remote nudge). `label` is
+ *  already-translated; `run` fires on click, after which the toast dismisses. */
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface Toast {
   id: string;
   variant: ToastVariant;
@@ -14,6 +22,8 @@ export interface Toast {
   text: string;
   /** ms before auto-dismiss; 0 = sticky. */
   duration: number;
+  /** Optional inline action button. */
+  action?: ToastAction;
 }
 
 export interface ToastOpts {
@@ -39,6 +49,8 @@ export interface ToastOpts {
   /** ms after which the status bar reverts to "ready". 0 = sticky.
    *  Default 0 (status persists until the next set/clear). */
   statusResetMs?: number;
+  /** Optional inline call-to-action button. */
+  action?: ToastAction;
 }
 
 const toasts = ref<Toast[]>([]);
@@ -84,7 +96,7 @@ function show(
   const defaultMs = configured && configured > 0 ? configured * 1000 : TOAST_FALLBACK_MS;
   const duration = opts.sticky ? 0 : (opts.duration ?? defaultMs);
   const id = nextId();
-  toasts.value = [...toasts.value, { id, variant, text, duration }];
+  toasts.value = [...toasts.value, { id, variant, text, duration, action: opts.action }];
 
   if (duration > 0) {
     setTimeout(() => dismiss(id), duration);
