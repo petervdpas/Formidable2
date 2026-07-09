@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { Events } from "@wailsio/runtime";
 import { api, BundleChangedEvent, type BundleInfo, type OpenResult } from "./api";
-import { reportError } from "./state";
+import { reportError, viewerTheme } from "./state";
 import { applyTheme } from "./theme";
 import HomeScreen from "./components/HomeScreen.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
@@ -54,10 +54,24 @@ let dragDepth = 0;
 // there, so its button only appears on a record page.
 const currentPage = ref("");
 const isRecordPage = computed(() => currentPage.value.startsWith("form-"));
+const frameEl = ref<HTMLIFrameElement | null>(null);
+
+// A bundle page announces itself on load; we track it (to root the graph) and
+// reply with the display state it should adopt: the user's theme, chrome shown
+// (the graph panel hides it instead). Scoped to the main frame so the graph's
+// detail iframe, which wants different state, isn't answered here.
 function onFrameMessage(e: MessageEvent): void {
+  if (e.source !== frameEl.value?.contentWindow) return;
   const p = (e.data as { formidablePage?: unknown } | null)?.formidablePage;
-  if (typeof p === "string") currentPage.value = p;
+  if (typeof p !== "string") return;
+  currentPage.value = p;
+  (e.source as Window).postMessage({ viewerTheme: viewerTheme.value, bare: false }, "*");
 }
+
+// Push a live theme change to the open bundle page without a reload.
+watch(viewerTheme, (t) => {
+  frameEl.value?.contentWindow?.postMessage({ viewerTheme: t, bare: false }, "*");
+});
 
 async function refresh(): Promise<void> {
   try {
@@ -258,6 +272,7 @@ function closeSettings(): void {
 
     <div v-else class="frame-wrap">
       <iframe
+        ref="frameEl"
         :key="frameKey"
         class="bundle-frame"
         :src="bundleUrl"

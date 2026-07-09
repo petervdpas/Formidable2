@@ -68,14 +68,14 @@ body {
   height: 2.1rem;
   border-radius: 0.55rem;
   border: 1px solid var(--border);
-  background: rgba(27, 30, 36, 0.82);
+  background: var(--panel);
   color: var(--text);
   cursor: pointer;
   font-size: 1.05rem;
   line-height: 1;
   display: grid;
   place-items: center;
-  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
 }
 
 .fc-btn:hover {
@@ -398,7 +398,7 @@ body {
   flex: 1;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: transparent;
 }
 .graph-detail-empty {
   flex: 1;
@@ -492,9 +492,9 @@ body {
 .force-graph {
   width: 100%;
   height: 100%;
-  background: var(--color-surface-2, var(--color-surface));
-  border: 1px solid var(--color-border, #2a3142);
-  border-radius: var(--radius-md, 6px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   touch-action: none;
   cursor: grab;
 }
@@ -502,13 +502,11 @@ body {
 .force-tip {
   position: absolute;
   z-index: 2;
-  /* max-width / max-height are set inline, sized to the canvas, so the tooltip
-     grows with the dialog and never overflows it. */
   padding: 0.4rem 0.6rem;
-  background: var(--color-bg, #1a2230);
-  color: var(--color-text, #e6e9ef);
-  border: 1px solid var(--color-border, #2a3142);
-  border-radius: var(--radius-md, 6px);
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   font-size: 0.8rem;
   line-height: 1.35;
@@ -523,21 +521,21 @@ body {
 .force-tip-body {
   margin-top: 0.2rem;
   white-space: pre-line;
-  color: var(--color-text-muted, #b6bdc9);
+  color: var(--muted);
 }
 
 .force-tip-table {
   margin-top: 0.3rem;
   border-collapse: collapse;
   font-size: 0.74rem;
-  color: var(--color-text-muted, #b6bdc9);
+  color: var(--muted);
 }
 .force-tip-table th {
   padding: 1px 0.6rem 2px 0;
   text-align: left;
   font-weight: 600;
-  color: var(--color-text, #e6e9ef);
-  border-bottom: 1px solid var(--color-border, #2a3142);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 .force-tip-table td {
@@ -545,13 +543,10 @@ body {
   white-space: nowrap;
   vertical-align: top;
 }
-.force-tip-table tr:nth-child(even) td {
-  background: rgba(255, 255, 255, 0.03);
-}
 .force-tip-more {
   margin-top: 0.2rem;
   font-size: 0.72rem;
-  color: var(--color-text-muted, #8a93a6);
+  color: var(--faint);
 }
 
 .force-zoom {
@@ -571,19 +566,19 @@ body {
   justify-content: center;
   font-size: 1rem;
   line-height: 1;
-  color: var(--color-text, #d7dce5);
-  background: var(--color-surface, #1c2230);
-  border: 1px solid var(--color-border, #2a3142);
-  border-radius: var(--radius-sm, 4px);
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
   cursor: pointer;
 }
 
 .force-zoom button:hover {
-  background: var(--color-surface-2, #232a3a);
+  background: var(--panel-2);
 }
 
 .force-edge {
-  stroke: var(--color-border-strong, #5b6377);
+  stroke: var(--faint);
   stroke-width: 1;
   opacity: 0.6;
 }
@@ -597,38 +592,38 @@ body {
 }
 
 .force-node circle {
-  stroke: var(--color-surface, #1c2230);
+  stroke: var(--panel);
   stroke-width: 1.5;
 }
 
 .force-node--root circle {
-  fill: var(--color-accent, #4a90e2);
+  fill: var(--accent);
 }
 .force-node--related-cross circle {
   fill: #9b6bd4;
 }
 .force-node--focus circle {
-  fill: var(--color-warn, #e2a24a);
-  stroke: var(--color-text, #1a2230);
+  fill: #e2a24a;
+  stroke: var(--text);
   stroke-width: 2;
 }
 
 .force-node--row circle {
-  fill: var(--color-text-muted, #8a93a6);
+  fill: var(--faint);
 }
 
 .force-node--field circle {
-  fill: var(--color-success, #5fc37a);
+  fill: #5fc37a;
 }
 
 .force-node--field text {
   font-size: 10px;
-  fill: var(--color-text-muted, #b6bdc9);
+  fill: var(--muted);
 }
 
 .force-node text {
   font-size: 11px;
-  fill: var(--color-text, #d7dce5);
+  fill: var(--text);
   pointer-events: none;
   user-select: none;
 }

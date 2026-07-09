@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ForceGraph from "./ForceGraph.vue";
 import { api, type Graph, type GraphNode } from "../api";
-import { reportError } from "../state";
+import { reportError, viewerTheme } from "../state";
 
 // The relations graph as Formidable does it: a bouncy force-directed web rooted
 // at the record you opened it from (the focus hub, pinned centre). Fan out with
@@ -20,6 +20,19 @@ const notFound = ref(false);
 const selectedTitle = ref("");
 const selectedPage = ref("");
 const detailSrc = computed(() => (selectedPage.value ? props.bundleUrl + selectedPage.value : ""));
+
+// The detail iframe shows the record's page chrome-less (no top bar) in the
+// user's theme. The page asks for its state on load; reply for our iframe only.
+const detailEl = ref<HTMLIFrameElement | null>(null);
+function onDetailMessage(e: MessageEvent): void {
+  if (e.source !== detailEl.value?.contentWindow) return;
+  const p = (e.data as { formidablePage?: unknown } | null)?.formidablePage;
+  if (typeof p !== "string") return;
+  (e.source as Window).postMessage({ viewerTheme: viewerTheme.value, bare: true }, "*");
+}
+watch(viewerTheme, (t) => {
+  detailEl.value?.contentWindow?.postMessage({ viewerTheme: t, bare: true }, "*");
+});
 
 const byGuid = new Map<string, GraphNode>();
 const adj = new Map<string, Set<string>>();
@@ -118,11 +131,13 @@ onMounted(async () => {
 
   window.addEventListener("mousemove", onDrag);
   window.addEventListener("mouseup", endDrag);
+  window.addEventListener("message", onDetailMessage);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("mousemove", onDrag);
   window.removeEventListener("mouseup", endDrag);
+  window.removeEventListener("message", onDetailMessage);
 });
 
 // --- splitter ---
@@ -166,7 +181,7 @@ function endDrag(): void {
           <div class="graph-detail-head">
             <strong>{{ selectedTitle || $t("graph.select_node") }}</strong>
           </div>
-          <iframe v-if="detailSrc" :src="detailSrc" class="graph-detail-frame" title="record"></iframe>
+          <iframe v-if="detailSrc" ref="detailEl" :src="detailSrc" class="graph-detail-frame" title="record"></iframe>
           <div v-else class="graph-detail-empty">{{ $t("graph.select_node") }}</div>
         </div>
       </template>

@@ -430,10 +430,17 @@ const offlineCrumbsJS = `(function () {
   document.addEventListener('keydown', function (e) {
     if (e.key === '/' && q && !q.disabled && document.activeElement !== q) { e.preventDefault(); q.focus(); }
   });
-  // Tell the Viewer shell which bundle page is showing, so it can root the
-  // relations graph at the record you are on (harmless outside the Viewer).
+  // Sync with the Viewer shell (harmless outside it): report which page is
+  // showing (so it can root the graph here), and apply the display state it
+  // sends back: the user's theme, and whether to hide the chrome (graph panel).
   try {
     if (window.parent && window.parent !== window) {
+      window.addEventListener('message', function (e) {
+        var d = e.data || {};
+        if (d.viewerTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        else if (d.viewerTheme === 'light') document.documentElement.removeAttribute('data-theme');
+        if (typeof d.bare === 'boolean') document.documentElement.classList.toggle('fm-bare', d.bare);
+      });
       window.parent.postMessage({ formidablePage: location.pathname.replace(/^\/+/, '') }, '*');
     }
   } catch (e) {}

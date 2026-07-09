@@ -59,3 +59,44 @@ ul.template-list a.selected, ul.form-picker-list a.selected{ background:#d7e2f7;
 .tag-badges{ display:none !important; }
 .inline-tag{ display:none !important; } /* if markdown rendered #tags */
 .hidden{ display:none !important; }
+
+/* --- Viewer-driven display state (inert in the standalone wiki) --- */
+
+/* Chrome-less mode: the Viewer's graph detail panel hides the fixed top bar
+   and reclaims its space, so only the record content shows. */
+.fm-bare #topbar{ display:none !important; }
+.fm-bare .page-wrap{ padding-top:16px !important; }
+
+/* Dark theme: applied only when the Viewer sets data-theme="dark"; the
+   standalone wiki never sets it, so it stays light. */
+html[data-theme="dark"] body{ background:#1b1e24; color:#c9ced8; }
+html[data-theme="dark"] h1{ color:#6ea8fe; }
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4{ color:#e7e9ee; }
+html[data-theme="dark"] a{ color:#6ea8fe; }
+html[data-theme="dark"] footer{ color:#7f8794; }
+html[data-theme="dark"] code{ background:#2a2f38; color:#e7e9ee; }
+html[data-theme="dark"] pre{ background:#2a2f38; }
+html[data-theme="dark"] pre.hljs{ background:#20242c; }
+html[data-theme="dark"] th,
+html[data-theme="dark"] td{ border-color:#3a414d; }
+html[data-theme="dark"] th{ background:#262b34; color:#e7e9ee; }
+html[data-theme="dark"] table{ color:#c9ced8; }
+html[data-theme="dark"] ul.template-list a,
+html[data-theme="dark"] ul.form-picker-list a{ background:#20242c; border-color:#333a45; color:#c9ced8; }
+html[data-theme="dark"] ul.template-list a:hover,
+html[data-theme="dark"] ul.form-picker-list a:hover{ background:#2a3550; border-color:#6ea8fe; color:#cfe0ff; }
+html[data-theme="dark"] ul.template-list a.selected,
+html[data-theme="dark"] ul.form-picker-list a.selected{ background:#2a3550; border-color:#6ea8fe; }
+html[data-theme="dark"] .facet-chip{
+  background: color-mix(in srgb, var(--facet-color, var(--facet-color-default)) 24%, #1b1e24);
+  color: color-mix(in srgb, var(--facet-color, var(--facet-color-default)) 55%, #e7e9ee);
+  border-color: color-mix(in srgb, var(--facet-color, var(--facet-color-default)) 45%, transparent);
+}
+html[data-theme="dark"] .facet-filter-strip{ background:#20242c; border-color:#333a45; }
+html[data-theme="dark"] .facet-filter{ color:#c9ced8; }
+html[data-theme="dark"] .facet-filter-key{ color:#aab1bd; }
+html[data-theme="dark"] .facet-filter-select{ background:#262b34; border-color:#3a414d; color:#e7e9ee; }
+html[data-theme="dark"] .facet-filter-clear{ background:#262b34; border-color:#3a414d; color:#aab1bd; }
+html[data-theme="dark"] .facet-filter-clear:hover{ background:#2a3550; color:#e7e9ee; }
