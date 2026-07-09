@@ -23,11 +23,13 @@ const dbFileName = "data.db"
 
 const schemaSQL = `
 CREATE TABLE records (
-  template TEXT NOT NULL,
-  guid     TEXT NOT NULL,
-  title    TEXT NOT NULL DEFAULT '',
-  page     TEXT NOT NULL DEFAULT '',
-  payload  TEXT NOT NULL,
+  template    TEXT NOT NULL,
+  guid        TEXT NOT NULL,
+  title       TEXT NOT NULL DEFAULT '',
+  page        TEXT NOT NULL DEFAULT '',
+  node_prefix TEXT NOT NULL DEFAULT '',
+  node_color  TEXT NOT NULL DEFAULT '',
+  payload     TEXT NOT NULL,
   PRIMARY KEY (template, guid)
 );
 CREATE INDEX idx_records_template ON records(template);
@@ -49,9 +51,13 @@ type Record struct {
 	GUID     string
 	Title    string
 	Page     string // bundle HTML page filename, for the graph detail panel
-	Payload  map[string]any
-	Text     string
-	Links    []Link
+	// NodePrefix and NodeColor come from the template's Graph node settings, so
+	// the graph labels/colours match Formidable ("Gaps: <title>", tinted).
+	NodePrefix string
+	NodeColor  string
+	Payload    map[string]any
+	Text       string
+	Links      []Link
 }
 
 // Link is one outgoing relation edge from a record to a target record.
@@ -109,8 +115,8 @@ func Build(records []Record) ([]byte, error) {
 			return nil, fmt.Errorf("datadb: marshal %s/%s: %w", r.Template, r.GUID, err)
 		}
 		if _, err := conn.ExecContext(ctx,
-			`INSERT INTO records(template, guid, title, page, payload) VALUES(?, ?, ?, ?, ?)`,
-			r.Template, r.GUID, r.Title, r.Page, string(payload)); err != nil {
+			`INSERT INTO records(template, guid, title, page, node_prefix, node_color, payload) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+			r.Template, r.GUID, r.Title, r.Page, r.NodePrefix, r.NodeColor, string(payload)); err != nil {
 			return nil, fmt.Errorf("datadb: insert %s/%s: %w", r.Template, r.GUID, err)
 		}
 		if _, err := conn.ExecContext(ctx,
@@ -249,13 +255,16 @@ func (d *DB) Search(query string) ([]RecordRef, error) {
 	return scanRefs(rows)
 }
 
-// GraphNode is one record in the relations graph. Page is its bundle HTML page,
-// which the Viewer loads in the detail panel.
+// GraphNode is one record in the relations graph. Page is its bundle HTML page
+// (loaded in the detail panel); Prefix and Color come from the template's Graph
+// node settings, mirroring Formidable's node labels and tints.
 type GraphNode struct {
 	GUID     string `json:"guid"`
 	Template string `json:"template"`
 	Title    string `json:"title"`
 	Page     string `json:"page"`
+	Prefix   string `json:"prefix"`
+	Color    string `json:"color"`
 }
 
 // GraphEdge is one relation link between two records in the graph.
@@ -275,14 +284,14 @@ type Graph struct {
 func (d *DB) Graph() (Graph, error) {
 	g := Graph{Nodes: []GraphNode{}, Edges: []GraphEdge{}}
 
-	nrows, err := d.sql.Query(`SELECT guid, template, title, page FROM records ORDER BY template, title, guid`)
+	nrows, err := d.sql.Query(`SELECT guid, template, title, page, node_prefix, node_color FROM records ORDER BY template, title, guid`)
 	if err != nil {
 		return g, err
 	}
 	defer nrows.Close()
 	for nrows.Next() {
 		var n GraphNode
-		if err := nrows.Scan(&n.GUID, &n.Template, &n.Title, &n.Page); err != nil {
+		if err := nrows.Scan(&n.GUID, &n.Template, &n.Title, &n.Page, &n.Prefix, &n.Color); err != nil {
 			return g, err
 		}
 		g.Nodes = append(g.Nodes, n)

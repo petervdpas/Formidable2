@@ -78,12 +78,16 @@ const rootTpl = computed(() => byGuid.get(root.value)?.template ?? "");
 const graphNodes = computed(() =>
   [...visible.value].map((guid) => {
     const n = byGuid.get(guid)!;
+    // Label + colour mirror Formidable's Graph node settings: "<prefix>: <title>"
+    // and the template's authored tint (falling back to a palette hue).
+    const title = n.title || guid;
+    const label = n.prefix ? `${n.prefix}: ${title}` : title;
     return {
       id: guid,
-      label: n.title || guid,
-      detail: n.title || guid,
+      label,
+      detail: label,
       kind: guid === root.value ? "focus" : "related-cross",
-      color: guid === root.value ? undefined : colorOf(n.template),
+      color: guid === root.value ? undefined : n.color || colorOf(n.template),
     };
   }),
 );

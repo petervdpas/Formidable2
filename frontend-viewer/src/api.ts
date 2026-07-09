@@ -53,6 +53,8 @@ export interface GraphNode {
   template: string;
   title: string;
   page: string;
+  prefix: string;
+  color: string;
 }
 export interface GraphEdge {
   from: string;

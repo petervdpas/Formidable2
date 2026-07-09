@@ -100,3 +100,19 @@ html[data-theme="dark"] .facet-filter-key{ color:#aab1bd; }
 html[data-theme="dark"] .facet-filter-select{ background:#262b34; border-color:#3a414d; color:#e7e9ee; }
 html[data-theme="dark"] .facet-filter-clear{ background:#262b34; border-color:#3a414d; color:#aab1bd; }
 html[data-theme="dark"] .facet-filter-clear:hover{ background:#2a3550; color:#e7e9ee; }
+
+/* Dark theme for the rendered record content (.formidable-prose has its own
+   light surface with higher specificity, so darken it explicitly). */
+html[data-theme="dark"] .formidable-prose{ background:#1b1e24; color:#c9ced8; }
+html[data-theme="dark"] .formidable-prose h1{ color:#6ea8fe; }
+html[data-theme="dark"] .formidable-prose h2,
+html[data-theme="dark"] .formidable-prose h3,
+html[data-theme="dark"] .formidable-prose h4{ color:#e7e9ee; }
+html[data-theme="dark"] .formidable-prose a{ color:#6ea8fe; }
+html[data-theme="dark"] .formidable-prose code{ background:#2a2f38; color:#e7e9ee; }
+html[data-theme="dark"] .formidable-prose pre{ background:#2a2f38; }
+html[data-theme="dark"] .formidable-prose pre.hljs-chroma{ background:#20242c; }
+html[data-theme="dark"] .formidable-prose blockquote{ background:#20242c; border-color:#3a414d; }
+html[data-theme="dark"] .formidable-prose th,
+html[data-theme="dark"] .formidable-prose td{ border-color:#3a414d; }
+html[data-theme="dark"] .formidable-prose th{ background:#262b34; color:#e7e9ee; }

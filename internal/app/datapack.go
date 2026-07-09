@@ -34,7 +34,12 @@ func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string)
 		if !p.dp.IsCollectionExposed(ctx, fn) {
 			continue
 		}
-		cols = append(cols, p.collection(fn))
+		t, _ := p.tpl.LoadTemplate(fn) // may be nil; graph prefix/color optional
+		cols = append(cols, collectionOf(fn, t))
+		var prefix, color string
+		if t != nil {
+			prefix, color = t.GraphPrefixField, t.GraphColor
+		}
 		forms, err := p.dp.ListForms(ctx, fn, dataprovider.ListOpts{})
 		if err != nil {
 			return wiki.DataPack{}, err
@@ -47,10 +52,12 @@ func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string)
 			}
 			guid := form.Meta.ID
 			records = append(records, datadb.Record{
-				Template: fn,
-				GUID:     guid,
-				Title:    fs.Title,
-				Page:     wiki.RecordPageName(strings.TrimSuffix(fn, ".yaml"), fs.Filename),
+				Template:   fn,
+				GUID:       guid,
+				Title:      fs.Title,
+				Page:       wiki.RecordPageName(strings.TrimSuffix(fn, ".yaml"), fs.Filename),
+				NodePrefix: prefix,
+				NodeColor:  color,
 				Payload: map[string]any{
 					"fields":    form.Data,
 					"facets":    form.Meta.Facets,
@@ -76,14 +83,13 @@ func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string)
 	}, nil
 }
 
-// collection describes one collection for the bundle's spec/context. Its data
-// schema comes from the live API's own builder (api.DataSchemaForTemplate), so
-// field typing (loops, tables, lists, relations, dates, enums) mirrors the real
-// Formidable API rather than being re-derived.
-func (p exportDataPacker) collection(filename string) datadb.Collection {
+// collectionOf describes one collection for the bundle's spec/context from an
+// already-loaded template. Its data schema comes from the live API's own builder
+// (api.DataSchemaForTemplate), so field typing (loops, tables, lists, relations,
+// dates, enums) mirrors the real Formidable API rather than being re-derived.
+func collectionOf(filename string, t *template.Template) datadb.Collection {
 	col := datadb.Collection{Filename: filename, Name: filename}
-	t, err := p.tpl.LoadTemplate(filename)
-	if err != nil || t == nil {
+	if t == nil {
 		return col
 	}
 	if n := strings.TrimSpace(t.Name); n != "" {
