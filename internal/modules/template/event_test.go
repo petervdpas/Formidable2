@@ -3,12 +3,13 @@ package template
 import "testing"
 
 func TestParseEventDoc_RoundTrip(t *testing.T) {
-	in := map[string]any{"start": "2026-06-27", "end": "2026-08-16", "kind": "task", "resource": "Ferry"}
+	in := map[string]any{"start": "2026-06-27", "end": "2026-08-16", "kind": "task", "resource": "ferry", "description": "build the thing"}
 	doc, err := ParseEventDoc(in)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if doc.Start != "2026-06-27" || doc.End != "2026-08-16" || doc.Kind != "task" || doc.Resource != "Ferry" {
+	if doc.Start != "2026-06-27" || doc.End != "2026-08-16" || doc.Kind != "task" ||
+		doc.Resource != "ferry" || doc.Description != "build the thing" {
 		t.Errorf("round-trip mismatch: %+v", doc)
 	}
 }
@@ -30,18 +31,6 @@ func TestParseEventDoc_WrongInnerType(t *testing.T) {
 	}
 }
 
-func TestIsEventKind(t *testing.T) {
-	for _, k := range []string{"task", "milestone", "absence"} {
-		if !IsEventKind(k) {
-			t.Errorf("%q should be a valid kind", k)
-		}
-	}
-	for _, k := range []string{"", "vacation", "TASK"} {
-		if IsEventKind(k) {
-			t.Errorf("%q should not be a valid kind", k)
-		}
-	}
-}
 
 func TestReservedKey_Event(t *testing.T) {
 	// "event" is owned by the event type, like "slide"/"slideset"/"id".
@@ -139,13 +128,27 @@ func TestValidate_ProjectModeNeedsProject(t *testing.T) {
 	}
 }
 
-func TestEventKinds_DefensiveCopy(t *testing.T) {
-	a := EventKinds()
-	if len(a) != 3 {
-		t.Fatalf("want 3 kinds, got %d", len(a))
+func TestValidate_EventNeedsKinds(t *testing.T) {
+	// An event field with no kind options can't be saved.
+	noKinds := &Template{ProjectMode: true, Fields: []Field{
+		{Key: "project", Type: "project"},
+		{Key: "events", Type: "loopstart"},
+		{Key: "event", Type: "event"},
+		{Key: "events", Type: "loopstop"},
+	}}
+	if errs := Validate(noKinds); !hasErr(errs, "event-needs-kinds") {
+		t.Errorf("event without kind options should be flagged; got %+v", errs)
 	}
-	a[0].Name = "mutated"
-	if b := EventKinds(); b[0].Name != EventKindTask {
-		t.Errorf("EventKinds not a defensive copy: %q", b[0].Name)
+	// With at least one kind option, no such error.
+	withKinds := &Template{ProjectMode: true, Fields: []Field{
+		{Key: "project", Type: "project"},
+		{Key: "events", Type: "loopstart"},
+		{Key: "event", Type: "event", Options: []any{
+			map[string]any{"value": "task", "label": "Task"},
+		}},
+		{Key: "events", Type: "loopstop"},
+	}}
+	if errs := Validate(withKinds); hasErr(errs, "event-needs-kinds") {
+		t.Errorf("event with a kind option should be fine; got %+v", errs)
 	}
 }

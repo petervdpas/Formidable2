@@ -12,14 +12,14 @@ func TestAbilities_ExpressionItem_OnlyOnScalarValueTypes(t *testing.T) {
 	allowed := stringSet(
 		"text", "number", "range", "date",
 		"boolean", "dropdown", "radio",
-		"facet", "slideset",
+		"facet", "slideset", "project",
 	)
 	assertAbilityMatchesSet(t, "ExpressionItem", allowed, func(a Abilities) bool { return a.ExpressionItem })
 }
 
 func TestAbilities_Options_OnlyOnChoiceAndCollectionTypes(t *testing.T) {
 	allowed := stringSet(
-		"boolean", "number", "range", "slide", "slideset", "project",
+		"boolean", "number", "range", "slide", "slideset", "project", "event",
 		"dropdown", "multioption", "radio",
 		"list", "table",
 		"file-path",

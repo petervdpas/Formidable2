@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { computed, ref, onMounted, inject, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { TextField, SelectField, DateInput, type SelectOption } from "../fields";
 import { Service as TemplateSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-// FormFieldEvent - a single time-bar on a project board: ISO start/end,
-// a kind (task/milestone/absence), and a resource. A milestone is a
-// zero-span point, so its end is hidden and cleared. The kind palette is
-// backend-owned (TemplateSvc.EventKinds), never a hardcoded JS list.
+// FormFieldEvent - a placement on the project board's two axes: X (time) via
+// start/end, Y (resource) via a picker sourced from the project's resources.
+// Kind (task/milestone/absence) is backend-owned; description is a free-text
+// note. A milestone is a zero-span point, so its end is hidden.
 
 const props = defineProps<{
   field: Field;
@@ -19,19 +19,24 @@ const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
 const { t } = useI18n();
 
-type EventValue = { start: string; end: string; kind: string; resource: string };
+type EventValue = {
+  start: string;
+  end: string;
+  kind: string;
+  resource: string;
+  description: string;
+};
 
 function normalize(v: unknown): EventValue {
-  if (v && typeof v === "object") {
-    const o = v as Record<string, unknown>;
-    return {
-      start: typeof o.start === "string" ? o.start : "",
-      end: typeof o.end === "string" ? o.end : "",
-      kind: typeof o.kind === "string" ? o.kind : "task",
-      resource: typeof o.resource === "string" ? o.resource : "",
-    };
-  }
-  return { start: "", end: "", kind: "task", resource: "" };
+  const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  const str = (x: unknown, d = "") => (typeof x === "string" ? x : d);
+  return {
+    start: str(o.start),
+    end: str(o.end),
+    kind: str(o.kind, "task"),
+    resource: str(o.resource),
+    description: str(o.description),
+  };
 }
 
 const cur = computed<EventValue>(() => normalize(props.modelValue));
@@ -42,9 +47,10 @@ function patch(part: Partial<EventValue>) {
 
 const start = computed<string>({ get: () => cur.value.start, set: (v) => patch({ start: v }) });
 const end = computed<string>({ get: () => cur.value.end, set: (v) => patch({ end: v }) });
-const resource = computed<string>({
-  get: () => cur.value.resource,
-  set: (v) => patch({ resource: v }),
+const resource = computed<string>({ get: () => cur.value.resource, set: (v) => patch({ resource: v }) });
+const description = computed<string>({
+  get: () => cur.value.description,
+  set: (v) => patch({ description: v }),
 });
 const kind = computed<string>({
   get: () => cur.value.kind,
@@ -54,28 +60,50 @@ const kind = computed<string>({
 
 const isMilestone = computed(() => cur.value.kind === "milestone");
 
-// Backend-owned kind palette; its labels are i18n keys, translated here.
-const kindOptions = ref<SelectOption[]>([]);
-onMounted(async () => {
-  try {
-    const kinds = (await TemplateSvc.EventKinds()) ?? [];
-    kindOptions.value = kinds.map((k) => ({ value: k.name, label: t(k.label_key) }));
-  } catch {
-    kindOptions.value = [];
-  }
+// Kind vocabulary is author-defined on the event field's options. No fallback:
+// the template can't be saved without at least one kind (backend enforces it).
+const kindOptions = computed<SelectOption[]>(() => {
+  const opts = (props.field.options ?? []) as Array<Record<string, unknown>>;
+  return opts
+    .map((o) => ({
+      value: typeof o.value === "string" ? o.value : "",
+      label: typeof o.label === "string" && o.label ? o.label : String(o.value ?? ""),
+    }))
+    .filter((o) => o.value);
 });
+
+// Resource palette (the Y axis) comes from the project field's options on the
+// same template. Backend drives it: TemplateSvc.ProjectResources, never a local
+// list.
+const templateFilename = inject<Ref<string>>("templateFilename", ref(""));
+const resourceOptions = ref<SelectOption[]>([]);
+async function loadResources() {
+  const tpl = templateFilename.value;
+  if (!tpl) {
+    resourceOptions.value = [];
+    return;
+  }
+  try {
+    const rs = (await TemplateSvc.ProjectResources(tpl)) ?? [];
+    resourceOptions.value = rs.map((r) => ({ value: r.value, label: r.label || r.value }));
+  } catch {
+    resourceOptions.value = [];
+  }
+}
+onMounted(loadResources);
+watch(() => templateFilename.value, loadResources);
 </script>
 
 <template>
   <div class="event-field" :data-event-field="field.key">
     <div class="event-field-row">
       <div class="event-field-stack">
-        <label class="stacked-label">{{ t("field.event.kind") }}</label>
-        <SelectField v-model="kind" :options="kindOptions" :disabled="field.readonly" />
+        <label class="stacked-label">{{ t("field.event.resource") }}</label>
+        <SelectField v-model="resource" :options="resourceOptions" :disabled="field.readonly" />
       </div>
       <div class="event-field-stack">
-        <label class="stacked-label">{{ t("field.event.resource") }}</label>
-        <TextField v-model="resource" :readonly="field.readonly" />
+        <label class="stacked-label">{{ t("field.event.kind") }}</label>
+        <SelectField v-model="kind" :options="kindOptions" :disabled="field.readonly" />
       </div>
     </div>
     <div class="event-field-row">
@@ -86,6 +114,12 @@ onMounted(async () => {
       <div v-if="!isMilestone" class="event-field-stack">
         <label class="stacked-label">{{ t("field.event.end") }}</label>
         <DateInput v-model="end" :readonly="field.readonly" />
+      </div>
+    </div>
+    <div class="event-field-row">
+      <div class="event-field-stack">
+        <label class="stacked-label">{{ t("field.event.description") }}</label>
+        <TextField v-model="description" :readonly="field.readonly" />
       </div>
     </div>
   </div>

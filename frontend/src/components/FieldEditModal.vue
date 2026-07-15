@@ -18,6 +18,8 @@ import {
   columnsFor,
   fixedRowsFor,
   lockedColumnsFor,
+  allowExtraRowsFor,
+  extraRowsLabelKeyFor,
   supportsOptions,
 } from "../types/option-presets";
 import { Service as TemplateSvc, Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -559,6 +561,11 @@ const optionsSupported = computed(() => supportsOptions(draft.value?.type || "")
 const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
 const optionFixedRows = computed(() => fixedRowsFor(draft.value?.type || "") ?? undefined);
 const optionLockedColumns = computed(() => lockedColumnsFor(draft.value?.type || ""));
+const optionAllowExtraRows = computed(() => allowExtraRowsFor(draft.value?.type || ""));
+const optionExtraRowsLabel = computed(() => {
+  const key = extraRowsLabelKeyFor(draft.value?.type || "");
+  return key ? t(key) : "";
+});
 
 const optionRows = computed<OptionRow[]>({
   get: () => {
@@ -577,6 +584,40 @@ const optionRows = computed<OptionRow[]>({
   set: (rows) => {
     if (!draft.value) return;
     draft.value.options = rows;
+  },
+});
+
+// project splits its options into two widgets: the fixed time axis
+// (from/to/timeblock) shown in the main options editor, and a separate resources
+// list (the Y axis rows). Both persist in the same options array; the axis keys
+// come from the backend fixed shape so nothing is hardcoded here.
+const isProjectOptions = computed(() => draft.value?.type === "project");
+const projectAxisKeys = computed(
+  () =>
+    new Set(
+      (optionFixedRows.value ?? [])
+        .map((r) => String(r.defaults?.value ?? ""))
+        .filter(Boolean),
+    ),
+);
+const axisOptionRows = computed<OptionRow[]>({
+  get: () => optionRows.value.filter((r) => projectAxisKeys.value.has(String(r.value ?? ""))),
+  set: (rows) => {
+    optionRows.value = [...rows, ...resourceOptionRows.value];
+  },
+});
+const resourceOptionRows = computed<OptionRow[]>({
+  get: () => optionRows.value.filter((r) => !projectAxisKeys.value.has(String(r.value ?? ""))),
+  set: (rows) => {
+    optionRows.value = [...axisOptionRows.value, ...rows];
+  },
+});
+// The main options editor binds the axis rows for project, the whole list otherwise.
+const mainOptionRows = computed<OptionRow[]>({
+  get: () => (isProjectOptions.value ? axisOptionRows.value : optionRows.value),
+  set: (rows) => {
+    if (isProjectOptions.value) axisOptionRows.value = rows;
+    else optionRows.value = rows;
   },
 });
 
@@ -909,14 +950,27 @@ const dialogStyle = computed<Record<string, string>>(() => {
         >
           <OptionsEditor
             v-if="optionsSupported"
-            v-model="optionRows"
+            v-model="mainOptionRows"
             :columns="optionColumns"
             :fixed-rows="optionFixedRows"
             :locked-columns="optionLockedColumns"
+            :allow-extra-rows="optionAllowExtraRows"
+            :extra-rows-label="optionExtraRowsLabel"
           />
           <p v-else class="muted small options-unavailable">
             {{ t('workspace.templates.field_edit.row.options_unavailable') }}
           </p>
+        </FormRow>
+
+        <FormRow
+          v-if="isProjectOptions"
+          :label="t('workspace.templates.project.resources')"
+        >
+          <OptionsEditor
+            v-model="resourceOptionRows"
+            :columns="optionColumns"
+            :extra-rows-label="t('workspace.templates.project.resource')"
+          />
         </FormRow>
 
         <FormRow

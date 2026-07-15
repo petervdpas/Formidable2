@@ -92,10 +92,26 @@ const props = defineProps<{
    *  structural "value" of a boolean / range fixed shape, where only
    *  the label is editable. */
   lockedColumns?: string[];
+  /** Allow free-form rows AFTER the fixed rows: the fixed rows stay locked,
+   *  and the user can add/remove extra value/label rows below them. Used by
+   *  `project` (fixed axis rows + author-added lanes). */
+  allowExtraRows?: boolean;
+  /** Translated label for the extra rows + add button (project: "Lane"), so the
+   *  free-form section isn't a mystery "+". */
+  extraRowsLabel?: string;
 }>();
 
-function isLocked(key: string): boolean {
-  return !!props.lockedColumns?.includes(key);
+const fixedCount = computed(() => props.fixedRows?.length ?? 0);
+// A row is "fixed" when its index falls within the fixed-rows shape; rows beyond
+// it are free-form extras (lanes).
+function isFixedRow(i: number): boolean {
+  return i < fixedCount.value;
+}
+
+// Locked columns apply only to fixed rows; extra rows are fully editable (a
+// lane's value is its author-chosen id).
+function isLocked(key: string, i: number): boolean {
+  return isFixedRow(i) && !!props.lockedColumns?.includes(key);
 }
 
 const model = defineModel<OptionRow[]>({ default: () => [] });
@@ -132,15 +148,19 @@ watch(
   () => {
     if (!props.fixedRows) return;
     const total = props.fixedRows.length;
-    const aligned = props.fixedRows.map((fr, i) => {
+    const fixedAligned = props.fixedRows.map((fr, i) => {
       const existing = model.value[i];
       return existing ? { ...fr.defaults, ...existing } : { ...fr.defaults };
     });
+    // Preserve any extra (lane) rows the user added below the fixed rows.
+    const extras = props.allowExtraRows ? model.value.slice(total) : [];
+    const aligned = [...fixedAligned, ...extras];
     // Skip the assignment when the shape already matches to avoid an
-    // infinite watcher loop.
+    // infinite watcher loop. Extras are the same object refs, so only the
+    // fixed portion and the total length can differ.
     const same =
-      model.value.length === total &&
-      aligned.every(
+      model.value.length === aligned.length &&
+      fixedAligned.every(
         (r, i) =>
           model.value[i] &&
           Object.keys(r).every((k) => model.value[i][k] === r[k]),
@@ -219,16 +239,20 @@ function getCell(row: OptionRow, col: ColumnDef): string {
             aria-hidden="true"
           >⠿</span>
           <span
-            v-if="isFixed && fixedRows && fixedRows[i]"
+            v-if="isFixedRow(i) && fixedRows && fixedRows[i]"
             class="options-row-label small"
           >{{ t(fixedRows[i].labelKey) }}</span>
+          <span
+            v-else-if="!isFixedRow(i) && extraRowsLabel"
+            class="options-row-label small"
+          >{{ extraRowsLabel }}</span>
           <template v-for="col in columns" :key="col.key">
             <!-- Fixed shapes hide the locked structural cell (its snake_case value
                  key is redundant with the gutter label), leaving label + control. -->
-            <template v-if="isFixed && isLocked(col.key)"></template>
+            <template v-if="isLocked(col.key, i)"></template>
             <!-- Per-row input override (fixed shapes): the editable "label" cell
                  can be a colour picker / number / preset dropdown per row. -->
-            <template v-else-if="isFixed && fixedRows && fixedRows[i] && fixedRows[i].input && col.key === 'label'">
+            <template v-else-if="isFixedRow(i) && fixedRows && fixedRows[i] && fixedRows[i].input && col.key === 'label'">
               <input
                 v-if="fixedRows[i].input === 'color'"
                 type="color" class="options-cell options-color"
@@ -267,7 +291,7 @@ function getCell(row: OptionRow, col: ColumnDef): string {
               :model-value="getCell(row, col)"
               @update:model-value="(v) => setCell(i, col, v)"
               :placeholder="col.placeholder"
-              :readonly="isLocked(col.key)"
+              :readonly="isLocked(col.key, i)"
               class="options-cell"
             />
             <SelectField
@@ -275,12 +299,12 @@ function getCell(row: OptionRow, col: ColumnDef): string {
               :model-value="getCell(row, col)"
               @update:model-value="(v) => setCell(i, col, v)"
               :options="col.options.map((o) => ({ value: o, label: o }))"
-              :disabled="isLocked(col.key)"
+              :disabled="isLocked(col.key, i)"
               class="options-cell"
             />
           </template>
           <button
-            v-if="!isFixed"
+            v-if="!isFixedRow(i)"
             type="button"
             class="btn-ghost-icon"
             @click="removeRow(i)"
@@ -300,12 +324,12 @@ function getCell(row: OptionRow, col: ColumnDef): string {
       </template>
     </draggable>
     <button
-      v-if="!isFixed"
+      v-if="!isFixed || allowExtraRows"
       type="button"
       class="btn-ghost-block"
       @click="addRow"
-      title="Add option"
-      aria-label="Add option"
-    >+</button>
+      :title="extraRowsLabel ? `+ ${extraRowsLabel}` : 'Add option'"
+      :aria-label="extraRowsLabel ? `Add ${extraRowsLabel}` : 'Add option'"
+    >{{ extraRowsLabel ? `+ ${extraRowsLabel}` : "+" }}</button>
   </div>
 </template>

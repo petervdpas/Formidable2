@@ -98,9 +98,12 @@ func TestProjectFieldDescriptor_IsSingletonRequiringCollection(t *testing.T) {
 	if !a.Options {
 		t.Errorf("project must advertise options (the board's from/to/timeblock axis)")
 	}
+	if !a.ExpressionItem {
+		t.Errorf("project must advertise Expression field (root-level item-field candidate)")
+	}
 	if a.Label || a.Description || a.Default ||
-		a.PrimaryKey || a.UseInStatistics || a.ExpressionItem {
-		t.Errorf("project modal stays lean apart from axis options; got %+v", a)
+		a.PrimaryKey || a.UseInStatistics {
+		t.Errorf("project modal stays lean apart from axis options + expression; got %+v", a)
 	}
 	if got.OptionsShape == nil || len(got.OptionsShape.Rows) != 3 {
 		t.Errorf("project axis is a fixed 3-row shape (from/to/timeblock); got %+v", got.OptionsShape)

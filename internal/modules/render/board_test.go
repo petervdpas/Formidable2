@@ -77,6 +77,8 @@ func TestBuildBoard_AxisAndBars(t *testing.T) {
 			map[string]any{"value": "from", "label": "2026-06-29"},
 			map[string]any{"value": "to", "label": "2026-08-24"},
 			map[string]any{"value": "timeblock", "label": "week"},
+			map[string]any{"value": "dev", "label": "Development"},
+			map[string]any{"value": "qa", "label": "QA"},
 		}},
 		{Key: "events", Type: "loopstart"},
 		{Key: "event", Type: "event"},
@@ -87,7 +89,7 @@ func TestBuildBoard_AxisAndBars(t *testing.T) {
 			"project": map[string]any{"name": "Test"},
 			"events": []any{
 				map[string]any{"event": map[string]any{
-					"start": "2026-07-06", "end": "2026-07-20", "kind": "task", "resource": "Ferry",
+					"start": "2026-07-06", "end": "2026-07-20", "kind": "task", "resource": "dev",
 				}},
 			},
 		}},
@@ -104,11 +106,14 @@ func TestBuildBoard_AxisAndBars(t *testing.T) {
 	if len(board.Ticks) != 9 {
 		t.Errorf("ticks = %d, want 9", len(board.Ticks))
 	}
+	if len(board.Resources) != 2 || board.Resources[0].Value != "dev" || board.Resources[0].Label != "Development" {
+		t.Errorf("resources = %+v, want [dev/Development, qa/QA]", board.Resources)
+	}
 	if len(board.Bars) != 1 {
 		t.Fatalf("bars = %d, want 1", len(board.Bars))
 	}
 	b := board.Bars[0]
-	if b.Resource != "Ferry" || b.Kind != "task" || b.StartTick != 1 || b.EndTick != 3 {
+	if b.Resource != "dev" || b.Kind != "task" || b.StartTick != 1 || b.EndTick != 3 {
 		t.Errorf("bar = %+v", b)
 	}
 }

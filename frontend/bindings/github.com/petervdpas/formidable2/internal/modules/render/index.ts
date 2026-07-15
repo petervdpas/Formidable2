@@ -7,6 +7,9 @@ export {
 };
 
 export {
+    Board,
+    BoardBar,
+    BoardTick,
     Diagnostic,
     HelperCategory,
     HelperDescriptor,

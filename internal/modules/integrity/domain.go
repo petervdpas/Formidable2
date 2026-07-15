@@ -823,13 +823,8 @@ func checkEvent(m map[string]any, path string) []Issue {
 		}}
 	}
 	var out []Issue
-	if doc.Kind != "" && !template.IsEventKind(doc.Kind) {
-		out = append(out, Issue{
-			Kind:   IssueTypeMismatch,
-			Path:   path + ".kind",
-			Detail: fmt.Sprintf("unknown event kind %q", doc.Kind),
-		})
-	}
+	// Kind is author-defined on the event field's options, so there's no built-in
+	// vocabulary to check it against here; it's just a string.
 	for _, d := range []struct{ name, val string }{{"start", doc.Start}, {"end", doc.End}} {
 		if d.val == "" {
 			continue

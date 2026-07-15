@@ -135,6 +135,16 @@ fields:
 		return nil
 	})
 
+	ctx.Step(`^the event field has a kind "([^"]*)"$`, func(kind string) error {
+		for i := range w.tmpl.Fields {
+			if w.tmpl.Fields[i].Type == "event" {
+				w.tmpl.Fields[i].Options = append(w.tmpl.Fields[i].Options,
+					map[string]any{"value": kind, "label": kind})
+			}
+		}
+		return nil
+	})
+
 	ctx.Step(`^the template has facet "([^"]*)" with icon "([^"]*)" and options:$`, func(key, icon string, table *godog.Table) error {
 		if w.tmpl == nil {
 			return fmt.Errorf("no template under construction")

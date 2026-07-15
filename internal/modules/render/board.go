@@ -29,23 +29,27 @@ type BoardTick struct {
 // indices (clamped to the axis); Milestone marks a zero-span point (a task with
 // no end, or kind "milestone").
 type BoardBar struct {
-	Resource  string `json:"resource"`
-	Kind      string `json:"kind"`
-	Start     string `json:"start"`
-	End       string `json:"end"`
-	StartTick int    `json:"start_tick"`
-	EndTick   int    `json:"end_tick"`
-	Milestone bool   `json:"milestone"`
+	Resource    string `json:"resource"`
+	Description string `json:"description"`
+	Kind        string `json:"kind"`
+	Start       string `json:"start"`
+	End         string `json:"end"`
+	StartTick   int    `json:"start_tick"`
+	EndTick     int    `json:"end_tick"`
+	Milestone   bool   `json:"milestone"`
 }
 
-// Board is the structured layout of a single plan-board record.
+// Board is the structured layout of a single plan-board record: the X axis
+// (Ticks), the Y axis (Resources), and the events placed on both (Bars). Each
+// bar's Resource names the row it belongs to.
 type Board struct {
-	Name      string      `json:"name"`
-	From      string      `json:"from"`
-	To        string      `json:"to"`
-	TimeBlock string      `json:"time_block"`
-	Ticks     []BoardTick `json:"ticks"`
-	Bars      []BoardBar  `json:"bars"`
+	Name      string                        `json:"name"`
+	From      string                        `json:"from"`
+	To        string                        `json:"to"`
+	TimeBlock string                        `json:"time_block"`
+	Ticks     []BoardTick                   `json:"ticks"`
+	Resources []template.ResourceDescriptor `json:"resources"`
+	Bars      []BoardBar                    `json:"bars"`
 }
 
 // BuildBoard reads one record's project axis and events loop and returns the
@@ -79,6 +83,7 @@ func (m *Manager) BuildBoard(templateName, datafile string) (Board, error) {
 		}
 	}
 
+	board.Resources = template.ProjectResources(*project)
 	board.Ticks = boardTicks(from, to, tb)
 	if len(board.Ticks) == 0 {
 		return board, nil
@@ -191,13 +196,14 @@ func placeBar(doc template.EventDoc, ticks []BoardTick) (BoardBar, bool) {
 		endTick = startTick
 	}
 	return BoardBar{
-		Resource:  doc.Resource,
-		Kind:      doc.Kind,
-		Start:     doc.Start,
-		End:       doc.End,
-		StartTick: startTick,
-		EndTick:   endTick,
-		Milestone: milestone,
+		Resource:    doc.Resource,
+		Description: doc.Description,
+		Kind:        doc.Kind,
+		Start:       doc.Start,
+		End:         doc.End,
+		StartTick:   startTick,
+		EndTick:     endTick,
+		Milestone:   milestone,
 	}, true
 }
 

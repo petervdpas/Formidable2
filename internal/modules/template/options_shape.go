@@ -36,7 +36,13 @@ type FixedOptionRow struct {
 
 // FixedOptionsShape declares an options array's fixed arity; nil/empty Rows means free-form.
 // LockedColumns are rendered read-only across every row (e.g. the structural "value" key).
+// AllowExtraRows lets the author add free-form value/label rows AFTER the fixed rows
+// (e.g. project: fixed axis rows from/to/timeblock, then author-added lanes).
 type FixedOptionsShape struct {
-	Rows          []FixedOptionRow `json:"rows"`
-	LockedColumns []string         `json:"locked_columns,omitempty"`
+	Rows           []FixedOptionRow `json:"rows"`
+	LockedColumns  []string         `json:"locked_columns,omitempty"`
+	AllowExtraRows bool             `json:"allow_extra_rows,omitempty"`
+	// ExtraRowsLabelKey is the i18n key labelling each author-added row and the
+	// add button (e.g. project's "Lane"), so the free-form section reads clearly.
+	ExtraRowsLabelKey string `json:"extra_rows_label_key,omitempty"`
 }

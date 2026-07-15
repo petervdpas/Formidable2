@@ -16,12 +16,24 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * BuildBoard lays one plan-board record onto its project time axis for the board
+ * previewer: axis ticks (from/to by time-block) plus each event mapped to the
+ * tick range it spans. Unlike a deck, a board is a single record, so it takes
+ * one datafile, not a deck-ordered list.
+ */
+export function BuildBoard(templateName: string, datafile: string): $CancellablePromise<$models.Board> {
+    return $Call.ByID(1615951182, templateName, datafile).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * BuildDeck renders ordered records into reveal.js slide sections for the deck
  * previewer. datafiles come from form.DeckOrder / SequenceOrder (deck order).
  */
 export function BuildDeck(templateName: string, datafiles: string[]): $CancellablePromise<$models.RevealDeck> {
     return $Call.ByID(4200783279, templateName, datafiles).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -33,7 +45,7 @@ export function BuildDeck(templateName: string, datafiles: string[]): $Cancellab
  */
 export function ListHelpers(): $CancellablePromise<$models.HelperDescriptor[]> {
     return $Call.ByID(3874415751).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -43,7 +55,7 @@ export function ListHelpers(): $CancellablePromise<$models.HelperDescriptor[]> {
  */
 export function RenderForm(templateName: string, datafile: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(679525684, templateName, datafile).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -100,14 +112,15 @@ export function SanitizeSVG(raw: string): $CancellablePromise<string> {
  */
 export function ValidateMarkdownTemplate(src: string): $CancellablePromise<$models.ValidationReport> {
     return $Call.ByID(1954975287, src).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.RevealDeck.createFrom;
-const $$createType1 = $models.HelperDescriptor.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.Result.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = $models.ValidationReport.createFrom;
+const $$createType0 = $models.Board.createFrom;
+const $$createType1 = $models.RevealDeck.createFrom;
+const $$createType2 = $models.HelperDescriptor.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.Result.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $models.ValidationReport.createFrom;

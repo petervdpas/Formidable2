@@ -75,6 +75,9 @@ func Validate(t *Template) []ValidationError {
 	if e := eventLoopError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := eventKindsError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
 	if e := presentationSequenceError(t); e != nil {
 		errs = append(errs, *e)
 	}
@@ -982,6 +985,28 @@ func projectModeError(t *Template) *ValidationError {
 		Type:    "project-mode-needs-project",
 		Message: "`Project Mode` needs a `project` field for the board's time axis. Add one or turn Project Mode off.",
 	}
+}
+
+// eventKindsError flags an event field with no kind options. Kinds are
+// author-defined (the "kind" vocabulary lives on the event's options), so an
+// event with none can't be filled in and must not be saveable.
+func eventKindsError(fields []Field) *ValidationError {
+	for i := range fields {
+		f := fields[i]
+		if f.Type != "event" {
+			continue
+		}
+		if len(f.Options) == 0 {
+			ff := f
+			return &ValidationError{
+				Type:    "event-needs-kinds",
+				Key:     f.Key,
+				Field:   &ff,
+				Message: "An `event` field needs at least one `kind` option. Add one in the field editor.",
+			}
+		}
+	}
+	return nil
 }
 
 // eventProjectModeError flags an event field on a template that is not in

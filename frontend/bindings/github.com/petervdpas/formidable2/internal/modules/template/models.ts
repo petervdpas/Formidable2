@@ -184,35 +184,6 @@ export class Descriptor {
 }
 
 /**
- * EventKindDescriptor names one event kind for the editor's kind picker.
- * Name is the stored token; LabelKey is its i18n label.
- */
-export class EventKindDescriptor {
-    "name": string;
-    "label_key": string;
-
-    /** Creates a new EventKindDescriptor instance. */
-    constructor($$source: Partial<EventKindDescriptor> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("label_key" in $$source)) {
-            this["label_key"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new EventKindDescriptor instance from a string or object.
-     */
-    static createFrom($$source: any = {}): EventKindDescriptor {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new EventKindDescriptor($$parsedSource as Partial<EventKindDescriptor>);
-    }
-}
-
-/**
  * Facet is one named meta-classification dimension: a stable Key (the FormMeta.Facets map key),
  * an Icon, and mutually-exclusive Options. Templates may declare up to 16 facets, each up to 16 options.
  */
@@ -647,10 +618,19 @@ export class FixedOptionRow {
 /**
  * FixedOptionsShape declares an options array's fixed arity; nil/empty Rows means free-form.
  * LockedColumns are rendered read-only across every row (e.g. the structural "value" key).
+ * AllowExtraRows lets the author add free-form value/label rows AFTER the fixed rows
+ * (e.g. project: fixed axis rows from/to/timeblock, then author-added lanes).
  */
 export class FixedOptionsShape {
     "rows": FixedOptionRow[];
     "locked_columns"?: string[];
+    "allow_extra_rows"?: boolean;
+
+    /**
+     * ExtraRowsLabelKey is the i18n key labelling each author-added row and the
+     * add button (e.g. project's "Lane"), so the free-form section reads clearly.
+     */
+    "extra_rows_label_key"?: string;
 
     /** Creates a new FixedOptionsShape instance. */
     constructor($$source: Partial<FixedOptionsShape> = {}) {
@@ -912,6 +892,35 @@ export class PDFCoverConfig {
     static createFrom($$source: any = {}): PDFCoverConfig {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new PDFCoverConfig($$parsedSource as Partial<PDFCoverConfig>);
+    }
+}
+
+/**
+ * ResourceDescriptor is one row of the board's Y axis: a resource id (value) and
+ * its display label.
+ */
+export class ResourceDescriptor {
+    "value": string;
+    "label": string;
+
+    /** Creates a new ResourceDescriptor instance. */
+    constructor($$source: Partial<ResourceDescriptor> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResourceDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResourceDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ResourceDescriptor($$parsedSource as Partial<ResourceDescriptor>);
     }
 }
 

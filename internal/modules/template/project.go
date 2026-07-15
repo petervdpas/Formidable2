@@ -74,6 +74,48 @@ func ProjectTimeBlock(f Field) string {
 	return TimeBlockWeek
 }
 
+// projectAxisKeys are the reserved option rows that hold the X (time) axis; every
+// other option row is a Y-axis resource.
+var projectAxisKeys = map[string]bool{"from": true, "to": true, "timeblock": true}
+
+// ResourceDescriptor is one row of the board's Y axis: a resource id (value) and
+// its display label.
+type ResourceDescriptor struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// ProjectResources reads the board's author-defined resources (the Y axis) from
+// the project field options: every option row that isn't a reserved axis row.
+// Like slideset's decks, resources are a free-form value/label list; an event
+// references one resource by its value (which row it sits in).
+func ProjectResources(f Field) []ResourceDescriptor {
+	var out []ResourceDescriptor
+	for _, opt := range f.Options {
+		m, ok := opt.(map[string]any)
+		if !ok {
+			continue
+		}
+		val, _ := m["value"].(string)
+		if strings.TrimSpace(val) == "" || projectAxisKeys[val] {
+			continue
+		}
+		label, _ := m["label"].(string)
+		out = append(out, ResourceDescriptor{Value: val, Label: label})
+	}
+	return out
+}
+
+// IsProjectResource reports whether value names one of the project's resources.
+func IsProjectResource(f Field, value string) bool {
+	for _, r := range ProjectResources(f) {
+		if r.Value == value {
+			return true
+		}
+	}
+	return false
+}
+
 // ParseProjectDoc decodes a stored project value (a decoded map[string]any) into
 // a ProjectDoc. A nil value is an empty doc. Round-trips via JSON so the shape is
 // preserved exactly.

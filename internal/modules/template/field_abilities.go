@@ -131,10 +131,17 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		KeyReadonly: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
-			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			// Options are the author-defined "kind" vocabulary (free-form
+			// value/label). Required: an event with no kinds can't be saved.
+			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
 			FacetKey: false,
+		},
+		OptionsShape: &FixedOptionsShape{
+			// No fixed rows: the whole list is author-defined kinds. The label
+			// makes the options read as "Kind", not a generic value/label list.
+			ExtraRowsLabelKey: "workspace.templates.event.kind_label",
 		},
 	},
 	"project": {
@@ -147,7 +154,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
-			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			ExpressionItem: true, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
 			FacetKey: false,
 		},
@@ -158,6 +165,8 @@ var fieldDescriptors = map[string]FieldDescriptor{
 				{LabelKey: "workspace.templates.project.timeblock", Input: "timeblock", Defaults: map[string]any{"value": "timeblock", "label": "week"}},
 			},
 			LockedColumns: []string{"value"},
+			// Resources (the Y axis) are edited in their own widget in the field
+			// editor, not appended here; they persist as the non-axis option rows.
 		},
 	},
 	"date": {

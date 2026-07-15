@@ -88,14 +88,27 @@ func (s *Service) SlideFormats() []string { return SlideFormats() }
 // editor reads it instead of hardcoding the set.
 func (s *Service) SlideBlockKinds() []SlideBlockKindDescriptor { return SlideBlockKinds() }
 
-// EventKinds returns the event kind palette (task/milestone/absence); the event
-// editor reads it instead of hardcoding the set.
-func (s *Service) EventKinds() []EventKindDescriptor { return EventKinds() }
-
 // TimeBlocks returns the project axis granularities (day/week/2-week/3-week/
 // month) for the options editor's time-block dropdown; the frontend must not
 // duplicate the set.
 func (s *Service) TimeBlocks() []string { return TimeBlocks() }
+
+// ProjectResources returns a plan-board template's author-defined resources (the
+// Y axis), read from its project field options. The event editor's resource
+// picker reads this so a bar can be placed in a row. Empty when there's no
+// project field or no resources are defined.
+func (s *Service) ProjectResources(templateName string) ([]ResourceDescriptor, error) {
+	tpl, err := s.m.LoadTemplate(templateName)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tpl.Fields {
+		if tpl.Fields[i].Type == "project" {
+			return ProjectResources(tpl.Fields[i]), nil
+		}
+	}
+	return nil, nil
+}
 
 // SlideFonts returns the font vocabulary for slide text blocks; the style
 // controls read it instead of hardcoding a font list.

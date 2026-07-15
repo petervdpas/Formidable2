@@ -442,8 +442,8 @@ func defaultForType(t string) any {
 		// Sanitize preserves it verbatim.
 		return map[string]any{"blocks": []any{}}
 	case "event":
-		// Object-shaped time-bar; kind defaults to task, dates unset.
-		return map[string]any{"start": "", "end": "", "kind": "task", "resource": ""}
+		// Object-shaped time-bar; kind defaults to task, dates/resource unset.
+		return map[string]any{"start": "", "end": "", "kind": "task", "resource": "", "description": ""}
 	case "project":
 		// Object-shaped plan-board value; just the board name (the axis lives in
 		// the field options, not per-record data).

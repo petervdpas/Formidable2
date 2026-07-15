@@ -224,3 +224,26 @@ export function lockedColumnsFor(typeId: string): string[] {
   const shape = def?.options_shape as FixedOptionsShape | null | undefined;
   return shape?.locked_columns ? [...shape.locked_columns] : [];
 }
+
+// allowExtraRowsFor reports whether a fixed-shape type also lets the author add
+// free-form rows after the fixed ones (project: axis rows + lanes). Backend-owned
+// via FieldDescriptor.OptionsShape.AllowExtraRows.
+export function allowExtraRowsFor(typeId: string): boolean {
+  const def = _fieldDescriptors[typeId];
+  const shape = def?.options_shape as
+    | (FixedOptionsShape & { allow_extra_rows?: boolean })
+    | null
+    | undefined;
+  return shape?.allow_extra_rows === true;
+}
+
+// extraRowsLabelKeyFor is the i18n key labelling the free-form (extra) rows and
+// the add button (project: "Lane"). Empty when the type has no such section.
+export function extraRowsLabelKeyFor(typeId: string): string {
+  const def = _fieldDescriptors[typeId];
+  const shape = def?.options_shape as
+    | (FixedOptionsShape & { extra_rows_label_key?: string })
+    | null
+    | undefined;
+  return shape?.extra_rows_label_key ?? "";
+}

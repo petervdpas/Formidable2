@@ -393,7 +393,17 @@ Feature: Template management
       | events  | loopstart |
       | event   | event     |
       | events  | loopstop  |
+    And the event field has a kind "task"
     Then validation reports no errors
+
+  Scenario: Event field needs at least one kind
+    Given a template in project mode with fields:
+      | key     | type      |
+      | project | project   |
+      | events  | loopstart |
+      | event   | event     |
+      | events  | loopstop  |
+    Then validation reports a "event-needs-kinds" error
 
   Scenario: Project Mode needs a project field
     Given a template in project mode with fields:

@@ -5,6 +5,160 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as template$0 from "../template/models.js";
+
+/**
+ * Board is the structured layout of a single plan-board record: the X axis
+ * (Ticks), the Y axis (Resources), and the events placed on both (Bars). Each
+ * bar's Resource names the row it belongs to.
+ */
+export class Board {
+    "name": string;
+    "from": string;
+    "to": string;
+    "time_block": string;
+    "ticks": BoardTick[];
+    "resources": template$0.ResourceDescriptor[];
+    "bars": BoardBar[];
+
+    /** Creates a new Board instance. */
+    constructor($$source: Partial<Board> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("time_block" in $$source)) {
+            this["time_block"] = "";
+        }
+        if (!("ticks" in $$source)) {
+            this["ticks"] = [];
+        }
+        if (!("resources" in $$source)) {
+            this["resources"] = [];
+        }
+        if (!("bars" in $$source)) {
+            this["bars"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Board instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Board {
+        const $$createField4_0 = $$createType1;
+        const $$createField5_0 = $$createType3;
+        const $$createField6_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ticks" in $$parsedSource) {
+            $$parsedSource["ticks"] = $$createField4_0($$parsedSource["ticks"]);
+        }
+        if ("resources" in $$parsedSource) {
+            $$parsedSource["resources"] = $$createField5_0($$parsedSource["resources"]);
+        }
+        if ("bars" in $$parsedSource) {
+            $$parsedSource["bars"] = $$createField6_0($$parsedSource["bars"]);
+        }
+        return new Board($$parsedSource as Partial<Board>);
+    }
+}
+
+/**
+ * BoardBar is one event laid onto the axis. StartTick/EndTick are inclusive tick
+ * indices (clamped to the axis); Milestone marks a zero-span point (a task with
+ * no end, or kind "milestone").
+ */
+export class BoardBar {
+    "resource": string;
+    "description": string;
+    "kind": string;
+    "start": string;
+    "end": string;
+    "start_tick": number;
+    "end_tick": number;
+    "milestone": boolean;
+
+    /** Creates a new BoardBar instance. */
+    constructor($$source: Partial<BoardBar> = {}) {
+        if (!("resource" in $$source)) {
+            this["resource"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("start" in $$source)) {
+            this["start"] = "";
+        }
+        if (!("end" in $$source)) {
+            this["end"] = "";
+        }
+        if (!("start_tick" in $$source)) {
+            this["start_tick"] = 0;
+        }
+        if (!("end_tick" in $$source)) {
+            this["end_tick"] = 0;
+        }
+        if (!("milestone" in $$source)) {
+            this["milestone"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BoardBar instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BoardBar {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BoardBar($$parsedSource as Partial<BoardBar>);
+    }
+}
+
+/**
+ * BoardTick is one column of the board's time axis: a half-open date range
+ * [Start, End) and a display label (ISO week for week-based blocks, the date for
+ * days, YYYY-MM for months).
+ */
+export class BoardTick {
+    "start": string;
+    "end": string;
+    "label": string;
+
+    /** Creates a new BoardTick instance. */
+    constructor($$source: Partial<BoardTick> = {}) {
+        if (!("start" in $$source)) {
+            this["start"] = "";
+        }
+        if (!("end" in $$source)) {
+            this["end"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BoardTick instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BoardTick {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BoardTick($$parsedSource as Partial<BoardTick>);
+    }
+}
+
 /**
  * Diagnostic is one finding from ValidateMarkdownTemplate. Errors are
  * fatal; warnings flag suspicious things like unknown helper names that
@@ -235,7 +389,7 @@ export class ValidationReport {
      * Creates a new ValidationReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationReport {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("diagnostics" in $$parsedSource) {
             $$parsedSource["diagnostics"] = $$createField1_0($$parsedSource["diagnostics"]);
@@ -245,5 +399,11 @@ export class ValidationReport {
 }
 
 // Private type creation functions
-const $$createType0 = Diagnostic.createFrom;
+const $$createType0 = BoardTick.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = template$0.ResourceDescriptor.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = BoardBar.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = Diagnostic.createFrom;
+const $$createType7 = $Create.Array($$createType6);

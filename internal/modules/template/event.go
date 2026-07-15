@@ -9,53 +9,22 @@ import "encoding/json"
 // event onto its assigned project's shared axis; a later step caps Start/End to
 // that project's date range.
 
-// Event kind discriminator. A task is a work bar, a milestone a point marker,
-// an absence a resource's unavailability (e.g. a vacation).
-const (
-	EventKindTask      = "task"
-	EventKindMilestone = "milestone"
-	EventKindAbsence   = "absence"
-)
+// EventKindMilestone is the one reserved kind token: a bar whose kind is
+// "milestone" renders as a zero-span point. Every other kind is author-defined
+// on the event field's options; there is no built-in vocabulary.
+const EventKindMilestone = "milestone"
 
-// EventKindDescriptor names one event kind for the editor's kind picker.
-// Name is the stored token; LabelKey is its i18n label.
-type EventKindDescriptor struct {
-	Name     string `json:"name"`
-	LabelKey string `json:"label_key"`
-}
-
-// builtinEventKinds is the event kind palette; display order is significant.
-var builtinEventKinds = []EventKindDescriptor{
-	{Name: EventKindTask, LabelKey: "workspace.templates.event.kind.task"},
-	{Name: EventKindMilestone, LabelKey: "workspace.templates.event.kind.milestone"},
-	{Name: EventKindAbsence, LabelKey: "workspace.templates.event.kind.absence"},
-}
-
-// EventDoc is the stored value of an event field. Start/End are ISO dates; an
-// empty End (or End == Start) is a zero-span point (a milestone).
+// EventDoc is the stored value of an event field: a placement on the project
+// board's two axes. Start/End are the X (time) span (ISO dates; an empty End, or
+// End == Start, is a zero-span milestone). Resource is the Y axis: which of the
+// project's author-defined resources (rows) this event sits in. Description is a
+// free-text note.
 type EventDoc struct {
-	Start    string `json:"start"`
-	End      string `json:"end,omitempty"`
-	Kind     string `json:"kind"`
-	Resource string `json:"resource,omitempty"`
-}
-
-// EventKinds returns a defensive copy of the kind vocabulary (Wails-exposed so
-// the editor reads the set from the backend, never a hardcoded JS list).
-func EventKinds() []EventKindDescriptor {
-	out := make([]EventKindDescriptor, len(builtinEventKinds))
-	copy(out, builtinEventKinds)
-	return out
-}
-
-// IsEventKind reports whether kind is an allowed event kind.
-func IsEventKind(kind string) bool {
-	for _, k := range builtinEventKinds {
-		if k.Name == kind {
-			return true
-		}
-	}
-	return false
+	Start       string `json:"start"`
+	End         string `json:"end,omitempty"`
+	Kind        string `json:"kind"`
+	Resource    string `json:"resource,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // ParseEventDoc decodes a stored event value (a decoded map[string]any) into an
