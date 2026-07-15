@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -31,6 +32,14 @@ func init() {
 }
 
 func main() {
+	// WebKitGTK 2.52+ (Debian trixie) defaults to the DMABUF/GPU compositing
+	// path, which paints a black corner on the frameless splash window before
+	// the page background lands. Disabling that renderer clears the artifact;
+	// it must be set before the web process spawns. Linux-only, no-op elsewhere.
+	if runtime.GOOS == "linux" {
+		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+	}
+
 	cwd, _ := os.Getwd()
 
 	a, err := app.New(app.Deps{AppRoot: cwd})
