@@ -444,6 +444,10 @@ func defaultForType(t string) any {
 	case "event":
 		// Object-shaped time-bar; kind defaults to task, dates unset.
 		return map[string]any{"start": "", "end": "", "kind": "task", "resource": ""}
+	case "project":
+		// Object-shaped plan-board value; just the board name (the axis lives in
+		// the field options, not per-record data).
+		return map[string]any{"name": ""}
 	case "api":
 		// nil = unpicked. A picked value is a reference id (single) or a list of ids (to-many).
 		return nil

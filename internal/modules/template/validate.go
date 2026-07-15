@@ -63,6 +63,18 @@ func Validate(t *Template) []ValidationError {
 	if e := singleSlidesetError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := projectCollectionError(t); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := singleProjectError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := eventCollectionError(t); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := eventProjectError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
 	if e := presentationSequenceError(t); e != nil {
 		errs = append(errs, *e)
 	}
@@ -92,6 +104,7 @@ var reservedKeys = map[string]string{
 	"slide":    "slide",
 	"slideset": "slideset",
 	"event":    "event",
+	"project":  "project",
 }
 
 // reservedKeyErrors flags a field using a reserved key but not the type that
@@ -883,6 +896,93 @@ func singleSlidesetError(fields []Field) *ValidationError {
 		}
 	}
 	return nil
+}
+
+// projectCollectionError flags a project field on a non-collection template. A
+// project-bearing template holds many referenceable projects, so the field is
+// meaningless without a collection (same asymmetric gate as the slideset one).
+func projectCollectionError(t *Template) *ValidationError {
+	hasProject := false
+	for _, f := range t.Fields {
+		if f.Type == "project" {
+			hasProject = true
+			break
+		}
+	}
+	if !hasProject || t.EnableCollection {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "project-needs-collection",
+		Message: "A `project` field needs `Enable Collection`. Enable collection mode or remove the project field.",
+	}
+}
+
+// singleProjectError flags more than one project field; a record defines one
+// plan board, so two would make "which project" ambiguous.
+func singleProjectError(fields []Field) *ValidationError {
+	var keys []string
+	for _, f := range fields {
+		if f.Type == "project" {
+			k := f.Key
+			if k == "" {
+				k = "(no key)"
+			}
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 1 {
+		return &ValidationError{
+			Type:    "multiple-project-fields",
+			Keys:    keys,
+			Message: fmt.Sprintf("Only one 'project' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
+		}
+	}
+	return nil
+}
+
+// eventCollectionError flags an event field on a non-collection template. Events
+// are the records of a plan board, so the field only means something on a
+// collection (same asymmetric gate as the slideset/project ones).
+func eventCollectionError(t *Template) *ValidationError {
+	hasEvent := false
+	for _, f := range t.Fields {
+		if f.Type == "event" {
+			hasEvent = true
+			break
+		}
+	}
+	if !hasEvent || t.EnableCollection {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "event-needs-collection",
+		Message: "An `event` field needs `Enable Collection`. Enable collection mode or remove the event field.",
+	}
+}
+
+// eventProjectError flags an event field without a project field ("project
+// mode"). An event is a bar on a board, meaningless unless the template defines a
+// project (its shared axis). Mirrors slidesetSlideError with the roles flipped:
+// here the item (event) requires the container (project). Asymmetric gate: no
+// event field, no requirement, so a lone project board is fine.
+func eventProjectError(fields []Field) *ValidationError {
+	hasEvent, hasProject := false, false
+	for _, f := range fields {
+		switch f.Type {
+		case "event":
+			hasEvent = true
+		case "project":
+			hasProject = true
+		}
+	}
+	if !hasEvent || hasProject {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "event-needs-project",
+		Message: "An `event` field needs a `project` field to place its bar on. Add a project field or remove the event field.",
+	}
 }
 
 // presentationSequenceError flags presentation mode without a sequence field.

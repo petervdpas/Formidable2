@@ -106,6 +106,14 @@
     --field-type-event-badge:  #5361c9;
     --field-type-event-text:   #ffffff;
 
+    /* Project (plan board) - the board that holds events; a deep steel-blue
+       slot in the same blue family as the event indigo but darker and less
+       saturated, so the container reads as distinct from its bars. */
+    --field-type-project-bg:     #2a4d69;
+    --field-type-project-border: #6b9bc3;
+    --field-type-project-badge:  #3d6d94;
+    --field-type-project-text:   #ffffff;
+
     /* Range */
     --field-type-range-bg:     #3c3f77;
     --field-type-range-border: #7986cb;
@@ -415,6 +423,12 @@
     border-left-color: var(--field-type-event-border);
     color: var(--field-type-event-text);
     --field-row-badge-bg: var(--field-type-event-badge);
+}
+.field-row[data-type="project"] {
+    background: var(--field-type-project-bg);
+    border-left-color: var(--field-type-project-border);
+    color: var(--field-type-project-text);
+    --field-row-badge-bg: var(--field-type-project-badge);
 }
 .field-row[data-type="range"] {
     background: var(--field-type-range-bg);

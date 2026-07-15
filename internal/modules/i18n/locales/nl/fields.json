@@ -89,6 +89,7 @@
   "field.event.resource": "Resource",
   "field.event.start": "Start",
   "field.event.end": "Einde",
+  "field.project.name": "Naam",
   "field.readonly": "Alleen-lezen",
   "paste.cancel": "Annuleren",
   "paste.list.title": "Lijstitems plakken",

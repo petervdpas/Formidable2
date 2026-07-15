@@ -92,6 +92,17 @@ func fieldTypeCases() []fieldTypeCase {
 			wantKind:   IssueTypeMismatch,
 			emptyValue: map[string]any{"start": "", "end": "", "kind": "task", "resource": ""},
 		},
+
+		// project: an object with a board name (the axis lives in field options,
+		// not record data). A deeply wrong type (number) is drift; the empty
+		// value is what Sanitize seeds.
+		{
+			fieldType:  "project",
+			happy:      map[string]any{"name": "HR2DAY connector"},
+			unhappy:    float64(7),
+			wantKind:   IssueTypeMismatch,
+			emptyValue: map[string]any{"name": ""},
+		},
 	}
 }
 

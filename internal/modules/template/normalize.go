@@ -61,6 +61,10 @@ func Normalize(t *Template) {
 		if t.Fields[i].Type == "event" {
 			t.Fields[i].Key = "event"
 		}
+		// A project is the plan-board singleton: one per record, forced key.
+		if t.Fields[i].Type == "project" {
+			t.Fields[i].Key = "project"
+		}
 		stripDisabledAttributes(&t.Fields[i])
 	}
 }

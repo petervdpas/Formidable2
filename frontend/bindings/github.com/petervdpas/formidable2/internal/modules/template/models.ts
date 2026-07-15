@@ -502,6 +502,7 @@ export class FieldDescriptor {
     "key_readonly": boolean;
     "requires_collection": boolean;
     "requires_slide": boolean;
+    "requires_project": boolean;
     "abilities": Abilities;
     "options_shape"?: FixedOptionsShape | null;
     "default_value": any;
@@ -529,6 +530,9 @@ export class FieldDescriptor {
         if (!("requires_slide" in $$source)) {
             this["requires_slide"] = false;
         }
+        if (!("requires_project" in $$source)) {
+            this["requires_project"] = false;
+        }
         if (!("abilities" in $$source)) {
             this["abilities"] = (new Abilities());
         }
@@ -543,14 +547,14 @@ export class FieldDescriptor {
      * Creates a new FieldDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldDescriptor {
-        const $$createField7_0 = $$createType12;
-        const $$createField8_0 = $$createType14;
+        const $$createField8_0 = $$createType12;
+        const $$createField9_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
-            $$parsedSource["abilities"] = $$createField7_0($$parsedSource["abilities"]);
+            $$parsedSource["abilities"] = $$createField8_0($$parsedSource["abilities"]);
         }
         if ("options_shape" in $$parsedSource) {
-            $$parsedSource["options_shape"] = $$createField8_0($$parsedSource["options_shape"]);
+            $$parsedSource["options_shape"] = $$createField9_0($$parsedSource["options_shape"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }

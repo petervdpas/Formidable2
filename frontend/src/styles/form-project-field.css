@@ -1,0 +1,22 @@
+/* Project field (plan-board definition): name on its own row, start + end on
+   the next. Reuses the global .stacked-label. */
+
+.project-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.project-field-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.project-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 12rem;
+  min-width: 0;
+}

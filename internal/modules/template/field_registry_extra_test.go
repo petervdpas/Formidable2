@@ -77,11 +77,53 @@ func TestNormalize_EventForcesKeyAndStripsDisabled(t *testing.T) {
 
 func TestValidate_EventPassesAfterNormalize(t *testing.T) {
 	tpl := &Template{
-		Fields: []Field{{Key: "event", Type: "event"}},
+		EnableCollection: true,
+		Fields: []Field{
+			{Key: "id", Type: "guid"},
+			{Key: "project", Type: "project"},
+			{Key: "event", Type: "event"},
+		},
 	}
 	Normalize(tpl)
 	if errs := Validate(tpl); anyForbiddenFor(errs, "event") {
 		t.Errorf("event should validate after Normalize; got %+v", errs)
+	}
+}
+
+func TestNormalize_ProjectForcesKeyAndStripsDisabled(t *testing.T) {
+	tpl := &Template{
+		Fields: []Field{{
+			Key:         "whatever",
+			Type:        "project",
+			Label:       "My project",
+			Description: "x",
+			PrimaryKey:  true,
+		}},
+	}
+	Normalize(tpl)
+	f := tpl.Fields[0]
+	if f.Key != "project" {
+		t.Errorf("project Key should be forced to \"project\"; got %q", f.Key)
+	}
+	if f.Label != "" {
+		t.Errorf("project Label should be stripped; got %q", f.Label)
+	}
+	if f.Description != "" {
+		t.Errorf("project Description should be stripped; got %q", f.Description)
+	}
+	if f.PrimaryKey {
+		t.Errorf("project PrimaryKey should be stripped to false")
+	}
+}
+
+func TestValidate_ProjectPassesAfterNormalize(t *testing.T) {
+	tpl := &Template{
+		EnableCollection: true,
+		Fields:           []Field{{Key: "project", Type: "project"}},
+	}
+	Normalize(tpl)
+	if errs := Validate(tpl); anyForbiddenFor(errs, "project") {
+		t.Errorf("project should validate after Normalize; got %+v", errs)
 	}
 }
 

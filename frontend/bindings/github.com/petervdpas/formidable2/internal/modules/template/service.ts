@@ -222,6 +222,17 @@ export function TemplatesDir(): $CancellablePromise<string> {
 }
 
 /**
+ * TimeBlocks returns the project axis granularities (day/week/2-week/3-week/
+ * month) for the options editor's time-block dropdown; the frontend must not
+ * duplicate the set.
+ */
+export function TimeBlocks(): $CancellablePromise<string[]> {
+    return $Call.ByID(1484356647).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
+/**
  * ValidateField returns only the validation errors a candidate field would
  * introduce into the template (duplicate/missing keys, bindings, type/level
  * rules), so the editor can gate its Confirm button on the backend instead of

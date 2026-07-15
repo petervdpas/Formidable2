@@ -92,6 +92,11 @@ func (s *Service) SlideBlockKinds() []SlideBlockKindDescriptor { return SlideBlo
 // editor reads it instead of hardcoding the set.
 func (s *Service) EventKinds() []EventKindDescriptor { return EventKinds() }
 
+// TimeBlocks returns the project axis granularities (day/week/2-week/3-week/
+// month) for the options editor's time-block dropdown; the frontend must not
+// duplicate the set.
+func (s *Service) TimeBlocks() []string { return TimeBlocks() }
+
 // SlideFonts returns the font vocabulary for slide text blocks; the style
 // controls read it instead of hardcoding a font list.
 func (s *Service) SlideFonts() []SlideFontDescriptor { return SlideFonts() }

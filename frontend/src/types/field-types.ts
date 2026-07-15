@@ -42,6 +42,10 @@ export interface FieldTypeDef {
    *  field on the template, so the Type dropdown hides it until one exists.
    *  Currently just `slideset` (decks group slides). */
   requiresSlide?: boolean;
+  /** Backend-owned (FieldDescriptor.RequiresProject): the type needs a project
+   *  field on the template ("project mode"), so the Type dropdown hides it until
+   *  one exists. Currently just `event` (a bar needs a board axis). */
+  requiresProject?: boolean;
 }
 
 const registry: Ref<FieldTypeDef[]> = ref([]);
@@ -70,6 +74,8 @@ async function load(): Promise<void> {
       (d as { requires_collection?: boolean }).requires_collection === true,
     requiresSlide:
       (d as { requires_slide?: boolean }).requires_slide === true,
+    requiresProject:
+      (d as { requires_project?: boolean }).requires_project === true,
     abilities: d.abilities,
   }));
 }
@@ -142,6 +148,7 @@ export function selectableTypes(
   isNew = false,
   enableCollection = false,
   hasSlideField = false,
+  hasProjectField = false,
 ): FieldTypeDef[] {
   return registry.value.filter((t) => {
     if (t.id === "loopstart" || t.id === "loopstop") {
@@ -156,6 +163,11 @@ export function selectableTypes(
     // A slideset needs a slide field on the template (decks group slides), so
     // hide it until one exists - except when the field already is that type.
     if (t.requiresSlide && !hasSlideField) {
+      return t.id === currentType;
+    }
+    // An event needs a project field ("project mode"), so hide it until one
+    // exists - except when the field already is that type.
+    if (t.requiresProject && !hasProjectField) {
       return t.id === currentType;
     }
     return true;

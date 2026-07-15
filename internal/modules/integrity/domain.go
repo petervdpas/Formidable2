@@ -776,9 +776,37 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 			}}
 		}
 		return checkEvent(m, path)
+
+	case "project":
+		m, ok := v.(map[string]any)
+		if !ok {
+			if s, ok := v.(string); ok && s == "" {
+				return nil // legacy unset sentinel
+			}
+			return []Issue{{
+				Kind:   IssueTypeMismatch,
+				Path:   path,
+				Detail: fmt.Sprintf("expected project object, got %T", v),
+			}}
+		}
+		return checkProject(m, path)
 	}
 
 	// Unknown field type: permissive. Template validation owns the bogus-type check.
+	return nil
+}
+
+// checkProject validates a project value: the per-record board name. The axis
+// (dates + granularity) is author-time config in the field options, not record
+// data, so it isn't validated here. A wrong-typed name fails ParseProjectDoc.
+func checkProject(m map[string]any, path string) []Issue {
+	if _, err := template.ParseProjectDoc(m); err != nil {
+		return []Issue{{
+			Kind:   IssueTypeMismatch,
+			Path:   path,
+			Detail: fmt.Sprintf("malformed project: %v", err),
+		}}
+	}
 	return nil
 }
 

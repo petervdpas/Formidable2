@@ -77,8 +77,9 @@ export type OptionRow = Record<string, unknown>;
 export type FixedRowConfig = {
   labelKey: string;
   defaults: OptionRow;
-  /** Overrides how this row's editable (label) cell renders: "format" (a
-   *  dropdown of `choices`), "color" (a picker), "number", else text. */
+  /** Overrides how this row's editable (label) cell renders: "format" /
+   *  "timeblock" (a dropdown of `choices`), "color" (a picker), "number",
+   *  "date" (a date picker), else text. */
   input?: string;
   choices?: string[];
 };
@@ -239,8 +240,14 @@ function getCell(row: OptionRow, col: ColumnDef): string {
                 :value="getCell(row, col)"
                 @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
               />
+              <input
+                v-else-if="fixedRows[i].input === 'date'"
+                type="date" class="options-cell"
+                :value="getCell(row, col)"
+                @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
+              />
               <SelectField
-                v-else-if="fixedRows[i].input === 'format'"
+                v-else-if="fixedRows[i].input === 'format' || fixedRows[i].input === 'timeblock'"
                 :model-value="getCell(row, col)"
                 @update:model-value="(v) => setCell(i, col, v)"
                 :options="(fixedRows[i].choices ?? []).map((o) => ({ value: o, label: o }))"

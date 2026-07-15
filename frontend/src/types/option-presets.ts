@@ -49,17 +49,19 @@ export const SUPPORTED_OPTION_TYPES = new Set([
 let _tableColumnTypes: TableColumnTypeDescriptor[] = [];
 let _listItemTypes: string[] = ["fixed", "custom"];
 let _slideFormats: string[] = ["1280 x 720 (16:9)", "1920 x 1080 (16:9)", "1024 x 768 (4:3)"];
+let _timeBlocks: string[] = ["day", "week", "2-week", "3-week", "month"];
 let _fieldDescriptors: Record<string, FieldDescriptor> = {};
 
 let loadPromise: Promise<void> | null = null;
 
 async function load(): Promise<void> {
   try {
-    const [tcols, ltypes, ftypes, sfmts] = await Promise.all([
+    const [tcols, ltypes, ftypes, sfmts, tblocks] = await Promise.all([
       TemplateSvc.TableColumnTypes(),
       TemplateSvc.ListItemTypes(),
       TemplateSvc.FieldTypes(),
       TemplateSvc.SlideFormats(),
+      TemplateSvc.TimeBlocks(),
     ]);
     if (tcols && tcols.length > 0) {
       _tableColumnTypes = tcols;
@@ -69,6 +71,9 @@ async function load(): Promise<void> {
     }
     if (sfmts && sfmts.length > 0) {
       _slideFormats = sfmts;
+    }
+    if (tblocks && tblocks.length > 0) {
+      _timeBlocks = tblocks;
     }
     if (ftypes && ftypes.length > 0) {
       _fieldDescriptors = {};
@@ -214,6 +219,7 @@ export function fixedRowsFor(typeId: string): FixedRowConfig[] | null {
     if (input) {
       cfg.input = input;
       if (input === "format") cfg.choices = [..._slideFormats];
+      if (input === "timeblock") cfg.choices = [..._timeBlocks];
     }
     return cfg;
   });

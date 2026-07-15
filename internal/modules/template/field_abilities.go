@@ -125,15 +125,43 @@ var fieldDescriptors = map[string]FieldDescriptor{
 	"event": {
 		// A per-record time-bar (task/milestone/absence) on a project board.
 		// Singleton like slide: one event per record, forced key. Placement is
-		// ISO start/end; a later step caps it to the assigned project's range.
-		ID:          "event",
-		KeyReadonly: true,
+		// ISO start/end, capped to the template's project axis. Needs a collection
+		// (events are the board's records) and a project field ("project mode"),
+		// just as a slideset needs a slide.
+		ID:                 "event",
+		RequiresCollection: true,
+		RequiresProject:    true,
+		KeyReadonly:        true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
 			FacetKey: false,
+		},
+	},
+	"project": {
+		// A plan-board definition (name + shared date-range axis). Singleton like
+		// event: one project per record, forced key. Requires a collection so a
+		// project-bearing template holds many referenceable projects; events in
+		// another template reference one project cross-template.
+		ID:                 "project",
+		RequiresCollection: true,
+		KeyReadonly:        true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: false, Description: false,
+			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "workspace.templates.project.from", Input: "date", Defaults: map[string]any{"value": "from", "label": ""}},
+				{LabelKey: "workspace.templates.project.to", Input: "date", Defaults: map[string]any{"value": "to", "label": ""}},
+				{LabelKey: "workspace.templates.project.timeblock", Input: "timeblock", Defaults: map[string]any{"value": "timeblock", "label": "week"}},
+			},
+			LockedColumns: []string{"value"},
 		},
 	},
 	"date": {
@@ -338,7 +366,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 
 // orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
-	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "slideset", "event", "date",
+	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "slideset", "event", "project", "date",
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
@@ -360,6 +388,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"slide":       "workspace.templates.field_type.slide",
 	"slideset":    "workspace.templates.field_type.slideset",
 	"event":       "workspace.templates.field_type.event",
+	"project":     "workspace.templates.field_type.project",
 	"date":        "workspace.templates.field_type.date",
 	"boolean":     "workspace.templates.field_type.boolean",
 	"dropdown":    "workspace.templates.field_type.dropdown",

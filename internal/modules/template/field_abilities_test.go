@@ -19,7 +19,7 @@ func TestAbilities_ExpressionItem_OnlyOnScalarValueTypes(t *testing.T) {
 
 func TestAbilities_Options_OnlyOnChoiceAndCollectionTypes(t *testing.T) {
 	allowed := stringSet(
-		"boolean", "number", "range", "slide", "slideset",
+		"boolean", "number", "range", "slide", "slideset", "project",
 		"dropdown", "multioption", "radio",
 		"list", "table",
 		"file-path",
@@ -129,7 +129,7 @@ func TestAbilities_KeyAndTypeAlwaysEnabled(t *testing.T) {
 // forced by Normalize: guid -> "id", sequence -> "sequence", slide -> "slide",
 // slideset -> "slideset", event -> "event".
 func TestDescriptor_KeyReadonly_OnlySingletons(t *testing.T) {
-	readonly := stringSet("guid", "sequence", "slide", "slideset", "event")
+	readonly := stringSet("guid", "sequence", "slide", "slideset", "event", "project")
 	for id, def := range fieldDescriptors {
 		want := readonly[id]
 		if def.KeyReadonly != want {

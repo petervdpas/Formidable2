@@ -53,6 +53,71 @@ func TestReservedKey_Event(t *testing.T) {
 	}
 }
 
+// event is the plan-board time-bar: like slideset it needs a collection and a
+// companion field, but the roles are flipped: the item (event) requires the
+// container (project), not the other way round.
+func TestEventFieldDescriptor_RequiresCollectionAndProject(t *testing.T) {
+	got, ok := fieldDescriptors["event"]
+	if !ok {
+		t.Fatalf("event descriptor missing")
+	}
+	if !got.KeyReadonly {
+		t.Errorf("event key must be read-only (forced singleton)")
+	}
+	if !got.RequiresCollection {
+		t.Errorf("events are a board's records, so event requires collection mode")
+	}
+	if !got.RequiresProject {
+		t.Errorf("an event is a bar on a project axis, so it requires project mode")
+	}
+	if got.RequiresSlide {
+		t.Errorf("event has nothing to do with slides")
+	}
+}
+
+func TestValidate_EventNeedsCollection(t *testing.T) {
+	// Without collection, an event field is flagged (even with a project present).
+	if errs := Validate(&Template{Fields: []Field{
+		{Key: "project", Type: "project"},
+		{Key: "event", Type: "event"},
+	}}); !hasErr(errs, "event-needs-collection") {
+		t.Errorf("event without collection should be flagged; got %+v", errs)
+	}
+	// With collection and a project, no such error.
+	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
+		{Key: "id", Type: "guid"},
+		{Key: "project", Type: "project"},
+		{Key: "event", Type: "event"},
+	}}); hasErr(errs, "event-needs-collection") {
+		t.Errorf("event on a collection should be fine; got %+v", errs)
+	}
+}
+
+func TestValidate_EventNeedsProject(t *testing.T) {
+	// An event without a project field is flagged (needs the shared axis).
+	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
+		{Key: "id", Type: "guid"},
+		{Key: "event", Type: "event"},
+	}}); !hasErr(errs, "event-needs-project") {
+		t.Errorf("event without a project field should be flagged; got %+v", errs)
+	}
+	// With a project field present, no such error.
+	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
+		{Key: "id", Type: "guid"},
+		{Key: "project", Type: "project"},
+		{Key: "event", Type: "event"},
+	}}); hasErr(errs, "event-needs-project") {
+		t.Errorf("event with a project field should be fine; got %+v", errs)
+	}
+	// A lone project (no event) is fine: the gate is asymmetric.
+	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
+		{Key: "id", Type: "guid"},
+		{Key: "project", Type: "project"},
+	}}); hasErr(errs, "event-needs-project") {
+		t.Errorf("a lone project board should not require an event; got %+v", errs)
+	}
+}
+
 func TestEventKinds_DefensiveCopy(t *testing.T) {
 	a := EventKinds()
 	if len(a) != 3 {

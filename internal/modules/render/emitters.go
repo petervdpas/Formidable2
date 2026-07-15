@@ -395,6 +395,8 @@ func emitFieldValue(v any, f *template.Field, opts *Options) string {
 		return emitMermaid(v)
 	case "event":
 		return emitEvent(v)
+	case "project":
+		return emitProject(v, f)
 	case "slide":
 		return renderSlide(v, f, opts)
 	case "textarea":
@@ -432,6 +434,30 @@ func emitEvent(v any) string {
 		return label + " (" + doc.Kind + ")"
 	}
 	return label
+}
+
+// emitProject renders a plan-board definition as a compact one-line label: the
+// board name (per-record value) and its authored axis window (from/to, held in
+// the field options). The rich board layout is a later render surface; this is
+// the fallback text surface (wiki/PDF/viewer) for a lone project value.
+func emitProject(v any, f *template.Field) string {
+	doc, _ := template.ParseProjectDoc(v)
+	if f == nil {
+		f = &template.Field{}
+	}
+	from, to := template.ProjectDateRange(*f)
+	span := from
+	if to != "" && to != from {
+		span = from + " / " + to
+	}
+	var parts []string
+	if doc.Name != "" {
+		parts = append(parts, doc.Name)
+	}
+	if span != "" {
+		parts = append(parts, span)
+	}
+	return strings.Join(parts, ": ")
 }
 
 // emitMermaid wraps the diagram source in a ```mermaid fenced block: the

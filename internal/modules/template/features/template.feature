@@ -379,23 +379,57 @@ Feature: Template management
     And the registry contains "slide"
     And the registry contains "slideset"
     And the registry contains "event"
+    And the registry contains "project"
     And the registry contains "formula"
     And the registry first id is "text"
-    And the registry size is 28
+    And the registry size is 29
 
   # ── Event field (project-board time bar) ──────────────────────────
 
-  Scenario: Event field validates cleanly
-    Given a template with fields:
-      | key   | type  |
-      | event | event |
+  Scenario: Event field validates cleanly in project mode
+    Given a template with collections enabled and fields:
+      | key     | type    |
+      | id      | guid    |
+      | project | project |
+      | event   | event   |
     Then validation reports no errors
 
-  Scenario: Event field forbids a label (key-driven singleton)
+  Scenario: Event field needs a collection
     Given a template with fields:
-      | key   | type  | label   |
-      | event | event | My plan |
+      | key     | type    |
+      | project | project |
+      | event   | event   |
+    Then validation reports a "event-needs-collection" error
+
+  Scenario: Event field needs a project field (project mode)
+    Given a template with collections enabled and fields:
+      | key   | type  |
+      | id    | guid  |
+      | event | event |
+    Then validation reports a "event-needs-project" error
+
+  Scenario: Event field forbids a label (key-driven singleton)
+    Given a template with collections enabled and fields:
+      | key     | type    | label   |
+      | id      | guid    |         |
+      | project | project |         |
+      | event   | event   | My plan |
     Then validation reports a "forbidden-attribute" error for key "event" and attr "label"
+
+  # ── Project field (plan-board definition) ─────────────────────────
+
+  Scenario: Project field validates cleanly on a collection
+    Given a template with collections enabled and fields:
+      | key     | type    |
+      | id      | guid    |
+      | project | project |
+    Then validation reports no errors
+
+  Scenario: Project field needs a collection
+    Given a template with fields:
+      | key     | type    |
+      | project | project |
+    Then validation reports a "project-needs-collection" error
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 

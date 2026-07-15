@@ -9,6 +9,7 @@ import FormFieldTextarea from "./FormFieldTextarea.vue";
 import FormFieldMermaid from "./FormFieldMermaid.vue";
 import FormFieldSlide from "./FormFieldSlide.vue";
 import FormFieldEvent from "./FormFieldEvent.vue";
+import FormFieldProject from "./FormFieldProject.vue";
 import FormFieldNumber from "./FormFieldNumber.vue";
 import FormFieldSequence from "./FormFieldSequence.vue";
 import FormFieldSlideset from "./FormFieldSlideset.vue";
@@ -48,6 +49,7 @@ const DISPATCH: Record<string, Component> = {
   mermaid: FormFieldMermaid,
   slide: FormFieldSlide,
   event: FormFieldEvent,
+  project: FormFieldProject,
   number: FormFieldNumber,
   sequence: FormFieldSequence,
   range: FormFieldRange,
