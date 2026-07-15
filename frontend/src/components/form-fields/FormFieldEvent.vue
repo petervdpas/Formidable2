@@ -77,10 +77,16 @@ const kindOptions = computed<SelectOption[]>(() => {
 // list.
 const templateFilename = inject<Ref<string>>("templateFilename", ref(""));
 const resourceOptions = ref<SelectOption[]>([]);
-async function loadResources() {
+// The project's authored axis window; events can't be dated outside it, so the
+// Start/End pickers clamp to [from, to].
+const rangeFrom = ref("");
+const rangeTo = ref("");
+async function loadProject() {
   const tpl = templateFilename.value;
   if (!tpl) {
     resourceOptions.value = [];
+    rangeFrom.value = "";
+    rangeTo.value = "";
     return;
   }
   try {
@@ -89,9 +95,17 @@ async function loadResources() {
   } catch {
     resourceOptions.value = [];
   }
+  try {
+    const range = (await TemplateSvc.ProjectDateRange(tpl)) ?? [];
+    rangeFrom.value = range[0] ?? "";
+    rangeTo.value = range[1] ?? "";
+  } catch {
+    rangeFrom.value = "";
+    rangeTo.value = "";
+  }
 }
-onMounted(loadResources);
-watch(() => templateFilename.value, loadResources);
+onMounted(loadProject);
+watch(() => templateFilename.value, loadProject);
 </script>
 
 <template>
@@ -109,11 +123,11 @@ watch(() => templateFilename.value, loadResources);
     <div class="event-field-row">
       <div class="event-field-stack">
         <label class="stacked-label">{{ t("field.event.start") }}</label>
-        <DateInput v-model="start" :readonly="field.readonly" />
+        <DateInput v-model="start" :readonly="field.readonly" :min="rangeFrom" :max="rangeTo" />
       </div>
       <div v-if="!isMilestone" class="event-field-stack">
         <label class="stacked-label">{{ t("field.event.end") }}</label>
-        <DateInput v-model="end" :readonly="field.readonly" />
+        <DateInput v-model="end" :readonly="field.readonly" :min="start || rangeFrom" :max="rangeTo" />
       </div>
     </div>
     <div class="event-field-row">

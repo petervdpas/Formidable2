@@ -449,7 +449,10 @@ func (m *Manager) SeedBasicIfEmpty() error {
 	return m.fs.SaveFile(full, string(bytes))
 }
 
-// TopLevelTextFields returns type-"text" fields outside any loopstart/loopstop pair.
+// TopLevelTextFields returns the item-field candidates: fields outside any
+// loopstart/loopstop pair (level 0) that can title a record. A field qualifies
+// when it is a plain "text" field (the classic case) or has the Expression field
+// flag set (an expression item, e.g. a project titling records by its name).
 func TopLevelTextFields(fields []Field) []ItemField {
 	out := []ItemField{}
 	depth := 0
@@ -464,7 +467,7 @@ func TopLevelTextFields(fields []Field) []ItemField {
 			}
 			continue
 		}
-		if depth == 0 && f.Type == "text" && f.Key != "" {
+		if depth == 0 && f.Key != "" && (f.Type == "text" || f.ExpressionItem) {
 			label := f.Label
 			if label == "" {
 				label = f.Key

@@ -58,6 +58,12 @@ func (s *Service) BuildBoard(templateName, datafile string) (Board, error) {
 	return s.m.BuildBoard(templateName, datafile)
 }
 
+// BuildBoardLive lays in-progress events onto the template's project axis so the
+// form editor can render a live board as the user edits, without saving first.
+func (s *Service) BuildBoardLive(templateName, name string, events any) (Board, error) {
+	return s.m.BuildBoardLive(templateName, name, events)
+}
+
 // RenderFullHTML - self-contained HTML document (DOCTYPE + head + body)
 // with the formidable-prose stylesheet inlined. Used by the storage
 // workspace's "Copy HTML" action so what the user pastes into a .html

@@ -77,6 +77,10 @@ export class Board {
  * no end, or kind "milestone").
  */
 export class BoardBar {
+    /**
+     * source events-loop entry index (for click-to-edit)
+     */
+    "index": number;
     "resource": string;
     "description": string;
     "kind": string;
@@ -88,6 +92,9 @@ export class BoardBar {
 
     /** Creates a new BoardBar instance. */
     constructor($$source: Partial<BoardBar> = {}) {
+        if (!("index" in $$source)) {
+            this["index"] = 0;
+        }
         if (!("resource" in $$source)) {
             this["resource"] = "";
         }

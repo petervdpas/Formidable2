@@ -28,6 +28,16 @@ export function BuildBoard(templateName: string, datafile: string): $Cancellable
 }
 
 /**
+ * BuildBoardLive lays in-progress events onto the template's project axis so the
+ * form editor can render a live board as the user edits, without saving first.
+ */
+export function BuildBoardLive(templateName: string, name: string, events: any): $CancellablePromise<$models.Board> {
+    return $Call.ByID(4144187580, templateName, name, events).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * BuildDeck renders ordered records into reveal.js slide sections for the deck
  * previewer. datafiles come from form.DeckOrder / SequenceOrder (deck order).
  */

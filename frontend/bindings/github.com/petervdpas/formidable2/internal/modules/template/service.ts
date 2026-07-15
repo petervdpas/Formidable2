@@ -131,6 +131,17 @@ export function LoadTemplate(name: string): $CancellablePromise<$models.Template
 }
 
 /**
+ * ProjectDateRange returns a plan-board template's authored axis window (ISO
+ * [from, to]) so the event editor can clamp its date pickers to it. Empty slice
+ * when there's no project field.
+ */
+export function ProjectDateRange(templateName: string): $CancellablePromise<string[]> {
+    return $Call.ByID(2198251846, templateName).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * ProjectResources returns a plan-board template's author-defined resources (the
  * Y axis), read from its project field options. The event editor's resource
  * picker reads this so a bar can be placed in a row. Empty when there's no

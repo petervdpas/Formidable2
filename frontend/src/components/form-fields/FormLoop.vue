@@ -209,6 +209,22 @@ function refIds(v: unknown): string[] {
   return [];
 }
 
+// An event value is an object; summarise it as "resource: start / end (kind)"
+// (mirrors the backend emitEvent) rather than dumping raw JSON in the row.
+function eventSummary(v: unknown): string {
+  if (!v || typeof v !== "object") return "";
+  const o = v as Record<string, unknown>;
+  const s = (x: unknown) => (typeof x === "string" ? x : "");
+  const start = s(o.start), end = s(o.end);
+  const span = end && end !== start ? `${start} / ${end}` : start;
+  const parts: string[] = [];
+  if (s(o.resource)) parts.push(s(o.resource));
+  if (span) parts.push(span);
+  let label = parts.join(": ");
+  if (s(o.kind)) label = label ? `${label} (${s(o.kind)})` : `(${s(o.kind)})`;
+  return label || s(o.description);
+}
+
 function summaryFor(entry: Record<string, unknown>): string {
   const key = props.group.summary_field_key;
   if (!key) return "";
@@ -218,6 +234,9 @@ function summaryFor(entry: Record<string, unknown>): string {
     const ids = refIds(v);
     if (ids.length === 0) return "";
     return ids.map((id) => refTitles.value[id] || id).join(", ");
+  }
+  if (summaryField.value?.type === "event") {
+    return eventSummary(v);
   }
   if (typeof v === "string") {
     return v.split("\n")[0].trim() || "";

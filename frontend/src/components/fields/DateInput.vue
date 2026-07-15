@@ -11,9 +11,12 @@ import type { Locale } from "date-fns";
 
 const model = defineModel<string>({ default: "" });
 
-defineProps<{
+const props = defineProps<{
   readonly?: boolean;
   disabled?: boolean;
+  /** Optional ISO YYYY-MM-DD bounds; selectable dates are clamped to them. */
+  min?: string;
+  max?: string;
 }>();
 
 const { locale } = useI18n();
@@ -49,6 +52,9 @@ const date = computed<Date | null>({
   get: () => toDate(model.value ?? ""),
   set: (d) => { model.value = toISO(d); },
 });
+
+const minDate = computed(() => (props.min ? toDate(props.min) : null));
+const maxDate = computed(() => (props.max ? toDate(props.max) : null));
 </script>
 
 <template>
@@ -63,6 +69,8 @@ const date = computed<Date | null>({
       format="yyyy-MM-dd"
       :teleport="true"
       week-start="1"
+      :min-date="minDate ?? undefined"
+      :max-date="maxDate ?? undefined"
     />
   </div>
 </template>

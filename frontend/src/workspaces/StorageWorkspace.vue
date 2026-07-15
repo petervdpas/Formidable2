@@ -25,6 +25,7 @@ import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
 import StorageDeckFilter from "../components/StorageDeckFilter.vue";
 import DeckPreviewDialog from "../components/DeckPreviewDialog.vue";
+import BoardPreviewDialog from "../components/BoardPreviewDialog.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
 import StorageDataForm from "../components/StorageDataForm.vue";
 import Popup from "../components/Popup.vue";
@@ -669,6 +670,13 @@ function openDeckPreview() {
   deckPreviewOpen.value = true;
 }
 
+// Plan-board preview (project-mode templates): the board is one record, so it
+// previews the selected datafile (unlike a deck, which is the whole collection).
+const boardPreviewOpen = ref(false);
+function openBoardPreview() {
+  boardPreviewOpen.value = true;
+}
+
 // ── Full-text search (opt-in via config.enable_full_text_search) ─────
 // When enabled, the sidebar grows a search box that queries the FTS
 // index for this collection. searchResults holds the backend's ranked
@@ -903,9 +911,19 @@ function patchSummary(filename: string): void {
   const tpl = view.value.template;
   const itemField = tpl?.item_field ?? "";
   const titleRaw = itemField ? view.value.values?.[itemField] : "";
-  const nextTitle = typeof titleRaw === "string" && titleRaw.length > 0
-    ? titleRaw
-    : filename;
+  // A string item field titles directly; an object-valued one (e.g. a project)
+  // titles by its "name". Anything else falls back to the filename.
+  let nextTitle = filename;
+  if (typeof titleRaw === "string" && titleRaw.length > 0) {
+    nextTitle = titleRaw;
+  } else if (
+    titleRaw &&
+    typeof titleRaw === "object" &&
+    typeof (titleRaw as { name?: unknown }).name === "string" &&
+    (titleRaw as { name: string }).name.length > 0
+  ) {
+    nextTitle = (titleRaw as { name: string }).name;
+  }
   const idx = summaries.value.findIndex((s) => s.filename === filename);
   if (idx < 0) {
     summaries.value.push({
@@ -1117,6 +1135,9 @@ const ioAllowed = computed(
 // only offered when nothing is filtering the list (a filtered subset would make
 // "the order" ambiguous); the list still renders in sequence order either way.
 const presentationMode = computed(() => !!activeTemplateObj.value?.presentation);
+const projectMode = computed(
+  () => !!(activeTemplateObj.value as { project_mode?: boolean } | null)?.project_mode,
+);
 const reorderEnabled = computed(() => {
   if (!presentationMode.value || searchResults.value !== null) return false;
   // Multi-deck: ordering is per-deck, so a single deck must be selected (and no
@@ -1346,6 +1367,25 @@ setTopbarMenu(() => [
               id: "deck-normalize",
               labelKey: "workspace.storage.presentation.normalize",
               onClick: normalizeSequence,
+            },
+          ],
+        },
+      ]
+    : []),
+  // Board menu: only for project-mode templates (the plan-board viewer).
+  ...(projectMode.value
+    ? [
+        {
+          type: "group" as const,
+          id: "board",
+          labelKey: "menu.board",
+          alwaysEnabled: true,
+          items: [
+            {
+              id: "board-preview",
+              labelKey: "workspace.storage.board.preview.button",
+              disabled: !selectedDataFile.value,
+              onClick: openBoardPreview,
             },
           ],
         },
@@ -1731,6 +1771,14 @@ setTopbarMenu(() => [
     :template="selectedTemplate"
     :datafiles="deckPreviewFiles"
     @close="deckPreviewOpen = false"
+  />
+
+  <!-- Plan-board previewer (project-mode templates) -->
+  <BoardPreviewDialog
+    :open="boardPreviewOpen"
+    :template="selectedTemplate"
+    :datafile="selectedDataFile"
+    @close="boardPreviewOpen = false"
   />
 </template>
 

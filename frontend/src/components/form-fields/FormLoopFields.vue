@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import FormFieldRow from "./FormFieldRow.vue";
 import FormLoop from "./FormLoop.vue";
+import EventLoop from "./EventLoop.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 
@@ -84,8 +85,18 @@ function loopArray(key: string): unknown[] {
 
 <template>
   <template v-for="entry in entries" :key="entry.kind === 'loop' ? `loop:${entry.group.key}:${entry.group.start_index}` : entry.key">
+    <EventLoop
+      v-if="entry.kind === 'loop' && entry.group.key === 'events'"
+      :field="entry.field"
+      :group="entry.group"
+      :inner-fields="fields.slice(entry.innerStart, entry.innerStop)"
+      :inner-start-offset="startOffset + entry.innerStart"
+      :loop-groups="loopGroups"
+      :model-value="loopArray(entry.field.key)"
+      @update:model-value="(v: unknown[]) => setLoopValue(entry.field.key, v)"
+    />
     <FormLoop
-      v-if="entry.kind === 'loop'"
+      v-else-if="entry.kind === 'loop'"
       :field="entry.field"
       :group="entry.group"
       :inner-fields="fields.slice(entry.innerStart, entry.innerStop)"

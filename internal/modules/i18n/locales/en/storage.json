@@ -211,5 +211,8 @@
   "workspace.storage.relations.remove_confirm": "Remove the link to “{0}”?",
   "workspace.storage.tag_filter_placeholder": "Filter by tag(s)…",
   "workspace.storage.template_picker": "Template",
-  "workspace.storage.unselected": "Pick a form from the sidebar."
+  "workspace.storage.unselected": "Pick a form from the sidebar.",
+  "workspace.storage.board.preview.button": "Preview",
+  "workspace.storage.board.preview.title": "Plan board",
+  "workspace.storage.board.empty": "No board to show yet: set the project's From/To dates and add events."
 }

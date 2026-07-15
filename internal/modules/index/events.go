@@ -280,11 +280,20 @@ func pickSearchBody(fields []template.Field, data map[string]any) string {
 	return b.String()
 }
 
-// pickTitle returns the item_field value, falling back to the filename.
+// pickTitle returns the item_field value, falling back to the filename. A string
+// value titles directly; an object-valued item field (e.g. a project) titles by
+// its "name".
 func pickTitle(itemField string, data map[string]any, datafile string) string {
 	if itemField != "" {
-		if s, ok := data[itemField].(string); ok && s != "" {
-			return s
+		switch v := data[itemField].(type) {
+		case string:
+			if v != "" {
+				return v
+			}
+		case map[string]any:
+			if name, ok := v["name"].(string); ok && name != "" {
+				return name
+			}
 		}
 	}
 	return datafile

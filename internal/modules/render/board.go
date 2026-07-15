@@ -29,6 +29,7 @@ type BoardTick struct {
 // indices (clamped to the axis); Milestone marks a zero-span point (a task with
 // no end, or kind "milestone").
 type BoardBar struct {
+	Index       int    `json:"index"` // source events-loop entry index (for click-to-edit)
 	Resource    string `json:"resource"`
 	Description string `json:"description"`
 	Kind        string `json:"kind"`
@@ -57,41 +58,64 @@ type Board struct {
 // viewer prompts the author to set the range); events outside the axis are
 // clamped, and any event that can't be placed at all is dropped.
 func (m *Manager) BuildBoard(templateName, datafile string) (Board, error) {
+	project, err := m.projectField(templateName)
+	if err != nil {
+		return Board{}, err
+	}
+	var name string
+	var events any
+	if loaded := m.storage.LoadForm(templateName, datafile); loaded != nil {
+		if doc, derr := template.ParseProjectDoc(loaded.Data[project.Key]); derr == nil {
+			name = doc.Name
+		}
+		events = loaded.Data["events"]
+	}
+	return buildBoard(project, name, events), nil
+}
+
+// BuildBoardLive lays the given in-progress events onto the template's project
+// axis, without reading the saved record. The form editor calls this so the
+// board updates as the user edits the events loop. name titles the board (the
+// live project name); events is the loop value ([{event:{...}}, ...]).
+func (m *Manager) BuildBoardLive(templateName, name string, events any) (Board, error) {
+	project, err := m.projectField(templateName)
+	if err != nil {
+		return Board{}, err
+	}
+	return buildBoard(project, name, events), nil
+}
+
+// projectField loads a template and returns its project field.
+func (m *Manager) projectField(templateName string) (*template.Field, error) {
 	tpl, err := m.templates.LoadTemplate(templateName)
 	if err != nil {
-		return Board{}, fmt.Errorf("render: load template %q: %w", templateName, err)
+		return nil, fmt.Errorf("render: load template %q: %w", templateName, err)
 	}
-	var project *template.Field
 	for i := range tpl.Fields {
 		if tpl.Fields[i].Type == "project" {
-			project = &tpl.Fields[i]
-			break
+			return &tpl.Fields[i], nil
 		}
 	}
-	if project == nil {
-		return Board{}, fmt.Errorf("render: template %q has no project field", templateName)
-	}
+	return nil, fmt.Errorf("render: template %q has no project field", templateName)
+}
 
+// buildBoard is the shared layout core: axis + resources from the project field,
+// bars from an events value.
+func buildBoard(project *template.Field, name string, events any) Board {
 	from, to := template.ProjectDateRange(*project)
-	tb := template.ProjectTimeBlock(*project)
-	board := Board{From: from, To: to, TimeBlock: tb}
-
-	loaded := m.storage.LoadForm(templateName, datafile)
-	if loaded != nil {
-		if doc, derr := template.ParseProjectDoc(loaded.Data[project.Key]); derr == nil {
-			board.Name = doc.Name
-		}
+	board := Board{
+		Name:      name,
+		From:      from,
+		To:        to,
+		TimeBlock: template.ProjectTimeBlock(*project),
+		Resources: template.ProjectResources(*project),
 	}
-
-	board.Resources = template.ProjectResources(*project)
-	board.Ticks = boardTicks(from, to, tb)
+	board.Ticks = boardTicks(from, to, board.TimeBlock)
 	if len(board.Ticks) == 0 {
-		return board, nil
+		return board
 	}
-	if loaded != nil {
-		board.Bars = boardBars(loaded.Data["events"], board.Ticks)
-	}
-	return board, nil
+	board.Bars = boardBars(events, board.Ticks)
+	return board
 }
 
 // boardTicks divides [from, to] into contiguous half-open columns of the given
@@ -157,7 +181,7 @@ func boardBars(v any, ticks []BoardTick) []BoardBar {
 		return nil
 	}
 	var bars []BoardBar
-	for _, row := range rows {
+	for i, row := range rows {
 		m, ok := row.(map[string]any)
 		if !ok {
 			continue
@@ -170,6 +194,7 @@ func boardBars(v any, ticks []BoardTick) []BoardBar {
 		if !ok {
 			continue
 		}
+		bar.Index = i
 		bars = append(bars, bar)
 	}
 	return bars

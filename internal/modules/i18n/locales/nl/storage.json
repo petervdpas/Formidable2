@@ -211,5 +211,8 @@
   "workspace.storage.relations.remove_confirm": "Koppeling met “{0}” verwijderen?",
   "workspace.storage.tag_filter_placeholder": "Filter op tag(s)…",
   "workspace.storage.template_picker": "Sjabloon",
-  "workspace.storage.unselected": "Kies een formulier uit de zijbalk."
+  "workspace.storage.unselected": "Kies een formulier uit de zijbalk.",
+  "workspace.storage.board.preview.button": "Tonen",
+  "workspace.storage.board.preview.title": "Planbord",
+  "workspace.storage.board.empty": "Nog geen bord: stel de Van/Tot datums van het project in en voeg gebeurtenissen toe."
 }

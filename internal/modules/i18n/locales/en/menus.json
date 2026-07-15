@@ -29,5 +29,6 @@
   "menu.utilities.reconcile_relations": "Reconcile Relations",
   "menu.utilities.sync_relations": "Synchronize from relations",
   "menu.utilities.inject_pdf_frontmatter": "Inject PDF Frontmatter…",
-  "menu.utilities.migrate_pdf_frontmatter": "Migrate PDF Frontmatter…"
+  "menu.utilities.migrate_pdf_frontmatter": "Migrate PDF Frontmatter…",
+  "menu.board": "Board"
 }
