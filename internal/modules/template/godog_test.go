@@ -125,6 +125,16 @@ fields:
 		return nil
 	})
 
+	ctx.Step(`^a template in project mode with fields:$`, func(table *godog.Table) error {
+		w.tmpl = &Template{
+			Name:        "Test",
+			Filename:    "test.yaml",
+			ProjectMode: true,
+			Fields:      tableToFields(table),
+		}
+		return nil
+	})
+
 	ctx.Step(`^the template has facet "([^"]*)" with icon "([^"]*)" and options:$`, func(key, icon string, table *godog.Table) error {
 		if w.tmpl == nil {
 			return fmt.Errorf("no template under construction")

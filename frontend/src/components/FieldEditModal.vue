@@ -18,7 +18,7 @@ import {
   columnsFor,
   fixedRowsFor,
   lockedColumnsFor,
-  SUPPORTED_OPTION_TYPES,
+  supportsOptions,
 } from "../types/option-presets";
 import { Service as TemplateSvc, Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Field, Facet, Formula, ValidationError } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -51,6 +51,12 @@ const props = defineProps<{
    *  collection-only field types (sequence) in the Type dropdown. Backend
    *  owns which types require it (FieldDescriptor.RequiresCollection). */
   enableCollection?: boolean;
+  /** Whether the surrounding template is in Project Mode. Gates the `event`
+   *  field type in the Type dropdown (a board bar is meaningless off a board). */
+  projectMode?: boolean;
+  /** Force the Key input read-only regardless of type. Used for the `events`
+   *  loop that wraps an event: its key must stay "events" and cannot be renamed. */
+  lockKey?: boolean;
   /** Facets declared on the surrounding template - used to populate
    *  the facet_key binding dropdown when the user picks type "facet".
    *  Empty (the default) means "no facets configured": the facet rows
@@ -393,15 +399,12 @@ const typeOptions = computed(() => {
   const hasSlideField = (props.availableFields ?? []).some(
     (f) => f.type === "slide",
   );
-  const hasProjectField = (props.availableFields ?? []).some(
-    (f) => f.type === "project",
-  );
   let types = selectableTypes(
     draft.value.type || "text",
     props.isNew,
     props.enableCollection ?? false,
     hasSlideField,
-    hasProjectField,
+    props.projectMode ?? false,
   );
   if (props.allowedTypes && props.allowedTypes.length > 0) {
     const allow = new Set(props.allowedTypes);
@@ -551,7 +554,7 @@ const defaultAsString = computed({
 // Options - per-type column structure (boolean uses [value,label],
 // list uses [type,value,label], table uses [key,type,label], etc.).
 // Types not in the supported set get a "not available" message.
-const optionsSupported = computed(() => SUPPORTED_OPTION_TYPES.has(draft.value?.type || ""));
+const optionsSupported = computed(() => supportsOptions(draft.value?.type || ""));
 
 const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
 const optionFixedRows = computed(() => fixedRowsFor(draft.value?.type || "") ?? undefined);
@@ -713,7 +716,7 @@ const dialogStyle = computed<Record<string, string>>(() => {
         >
           <TextField
             v-model="draft.key"
-            :readonly="isKeyReadonly(draft.type || 'text')"
+            :readonly="isKeyReadonly(draft.type || 'text') || lockKey"
             placeholder="snake_case_key"
           />
           <p v-if="keyMissing" class="muted small">

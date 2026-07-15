@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import TextField from "./TextField.vue";
 import SelectField from "./SelectField.vue";
+import DateInput from "./DateInput.vue";
 import OptionsSubRow from "./OptionsSubRow.vue";
 
 const { t } = useI18n();
@@ -240,11 +241,11 @@ function getCell(row: OptionRow, col: ColumnDef): string {
                 :value="getCell(row, col)"
                 @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
               />
-              <input
+              <DateInput
                 v-else-if="fixedRows[i].input === 'date'"
-                type="date" class="options-cell"
-                :value="getCell(row, col)"
-                @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
+                :model-value="getCell(row, col)"
+                @update:model-value="(v) => setCell(i, col, v)"
+                class="options-cell"
               />
               <SelectField
                 v-else-if="fixedRows[i].input === 'format' || fixedRows[i].input === 'timeblock'"

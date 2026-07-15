@@ -42,6 +42,9 @@ const props = defineProps<{
    *  FieldEditModal so collection-only field types (sequence) are gated in
    *  the Type dropdown. */
   enableCollection?: boolean;
+  /** Whether the host template is in Project Mode. Threaded down to
+   *  FieldEditModal so the `event` field type is gated in the Type dropdown. */
+  projectMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -92,15 +95,28 @@ const editOpen = ref(false);
 const editUnit = ref<FieldUnit | null>(null);
 const editField = ref<Field | null>(null);
 const editIsNew = ref(false);
+// True while editing the "events" loop that wraps an event: its key is locked
+// to "events" (the event's enclosing loop must keep that name).
+const editLockKey = ref(false);
 // Loop summary-field candidates for the field being edited. Backend
 // (template.SummaryFieldCandidates) owns loop membership; we fetch the
 // direct child fields by the loopstart key whenever a loop is opened.
 const summaryFieldOptions = ref<SummaryFieldOption[]>([]);
 
+// isEventsLoop reports whether a unit is the "events" loop wrapping an event.
+function isEventsLoop(u: FieldUnit): boolean {
+  return (
+    u.kind === "loop" &&
+    u.start?.key === "events" &&
+    (u.items ?? []).some((it) => it.kind === "field" && it.field?.type === "event")
+  );
+}
+
 async function openEdit(u: FieldUnit) {
   if (!u) return;
   editUnit.value = u;
   editField.value = u.kind === "loop" ? (u.start ?? null) : (u.field ?? null);
+  editLockKey.value = isEventsLoop(u);
   summaryFieldOptions.value =
     u.kind === "loop" && u.start?.key
       ? (await TemplateSvc.SummaryFieldCandidates(props.fields ?? [], u.start.key)) ?? []
@@ -112,9 +128,48 @@ async function openEdit(u: FieldUnit) {
 function openAddField() {
   editUnit.value = null;
   editField.value = null;
+  editLockKey.value = false;
   summaryFieldOptions.value = [];
   editIsNew.value = true;
   editOpen.value = true;
+}
+
+// eventLoopUnit wraps an event field in a loop named "events": applying the
+// event type ALWAYS produces this shape (the backend requires it, and a board's
+// many events are loop iterations of the one event field).
+function eventLoopUnit(eventField: Field): FieldUnit {
+  return new FieldUnit({
+    kind: "loop",
+    start: { key: "events", label: "events", type: "loopstart" } as Field,
+    stop: { key: "events", label: "events", type: "loopstop" } as Field,
+    items: [new FieldUnit({ kind: "field", field: eventField })],
+  });
+}
+
+// findParentLoop returns the loop unit that directly contains target, or null.
+function findParentLoop(units: FieldUnit[], target: FieldUnit): FieldUnit | null {
+  for (const u of units) {
+    if (u.kind !== "loop" || !u.items) continue;
+    if (u.items.includes(target)) return u;
+    const deeper = findParentLoop(u.items, target);
+    if (deeper) return deeper;
+  }
+  return null;
+}
+
+// replaceUnitByRef swaps target for replacement anywhere in the tree.
+function replaceUnitByRef(units: FieldUnit[], target: FieldUnit, replacement: FieldUnit): boolean {
+  const idx = units.indexOf(target);
+  if (idx !== -1) {
+    units.splice(idx, 1, replacement);
+    return true;
+  }
+  for (const u of units) {
+    if (u.kind === "loop" && u.items && replaceUnitByRef(u.items, target, replacement)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function applyEdit(updated: Field, originalKey: string) {
@@ -139,6 +194,8 @@ function applyEdit(updated: Field, originalKey: string) {
         stop: { key, label, type: "loopstop" } as Field,
         items: [],
       }));
+    } else if (updated.type === "event") {
+      tree.value.push(eventLoopUnit(updated));
     } else {
       tree.value.push(new FieldUnit({ kind: "field", field: updated }));
     }
@@ -146,7 +203,15 @@ function applyEdit(updated: Field, originalKey: string) {
   } else if (editUnit.value) {
     const u = editUnit.value;
     if (u.kind === "field") {
-      u.field = updated;
+      // Applying the event type always wraps the field in an "events" loop -
+      // but only if it isn't already the sole item of one (editing the event
+      // in place must not nest a second loop).
+      const inEventsLoop = findParentLoop(tree.value, u)?.start?.key === "events";
+      if (updated.type === "event" && !inEventsLoop) {
+        replaceUnitByRef(tree.value, u, eventLoopUnit(updated));
+      } else {
+        u.field = updated;
+      }
     } else if (u.kind === "loop" && u.start && u.stop) {
       // loopstart/loopstop share key + label. Keep their types as
       // markers (the modal might not surface those) and propagate
@@ -203,6 +268,21 @@ watch(deleteUnit, (u) => {
   }
 });
 
+// pruneEmptyEventsLoops drops any now-empty loop keyed "events": an event field
+// is always wrapped in that loop, so removing the event should take its loop
+// with it rather than leave an orphan (the loop only ever holds the event).
+function pruneEmptyEventsLoops(units: FieldUnit[]): void {
+  for (let i = units.length - 1; i >= 0; i--) {
+    const u = units[i];
+    if (u.kind !== "loop") continue;
+    if (u.start?.key === "events" && (u.items?.length ?? 0) === 0) {
+      units.splice(i, 1);
+      continue;
+    }
+    if (u.items) pruneEmptyEventsLoops(u.items);
+  }
+}
+
 function confirmDelete() {
   const u = deleteUnit.value;
   if (!u) {
@@ -215,6 +295,8 @@ function confirmDelete() {
   // needed. Orphan markers (rendered as plain field rows) drop
   // individually, which is what the user wants.
   removeUnitByRef(tree.value, u);
+  // Deleting the event out of its "events" loop should remove the loop too.
+  pruneEmptyEventsLoops(tree.value);
   void commitTree();
   deleteOpen.value = false;
   deleteUnit.value = null;
@@ -245,6 +327,8 @@ defineExpose({ openAddField });
     :field="editField"
     :is-new="editIsNew"
     :enable-collection="enableCollection ?? false"
+    :project-mode="projectMode ?? false"
+    :lock-key="editLockKey"
     :available-facets="facets ?? []"
     :available-formulas="formulas ?? []"
     :available-fields="fields ?? []"

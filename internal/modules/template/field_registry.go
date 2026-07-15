@@ -54,7 +54,6 @@ type FieldDescriptor struct {
 	KeyReadonly        bool               `json:"key_readonly"`
 	RequiresCollection bool               `json:"requires_collection"`
 	RequiresSlide      bool               `json:"requires_slide"`
-	RequiresProject    bool               `json:"requires_project"`
 	Abilities          Abilities          `json:"abilities"`
 	OptionsShape       *FixedOptionsShape `json:"options_shape,omitempty"`
 	DefaultValue       any                `json:"default_value"`

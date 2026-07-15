@@ -108,11 +108,8 @@ func TestProjectFieldDescriptor_IsSingletonRequiringCollection(t *testing.T) {
 	if !got.KeyReadonly {
 		t.Errorf("project key must be read-only (forced singleton)")
 	}
-	if !got.RequiresCollection {
-		t.Errorf("a project-bearing template is a collection, so project requires collection mode")
-	}
-	if got.RequiresSlide {
-		t.Errorf("project references events cross-template; it must not require a companion field")
+	if got.RequiresCollection {
+		t.Errorf("a board is a single record; project must not require collection mode")
 	}
 }
 
@@ -125,7 +122,7 @@ func TestNormalize_ForcesProjectKey(t *testing.T) {
 }
 
 func TestValidate_MultipleProjectFields_Flagged(t *testing.T) {
-	errs := Validate(&Template{EnableCollection: true, Fields: []Field{
+	errs := Validate(&Template{Fields: []Field{
 		{Key: "project", Type: "project"},
 		{Key: "project2", Type: "project"},
 	}})
@@ -135,21 +132,37 @@ func TestValidate_MultipleProjectFields_Flagged(t *testing.T) {
 }
 
 func TestValidate_ProjectReservedKey(t *testing.T) {
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{{Key: "project", Type: "text"}}}); !hasErr(errs, "reserved-key") {
+	if errs := Validate(&Template{Fields: []Field{{Key: "project", Type: "text"}}}); !hasErr(errs, "reserved-key") {
 		t.Errorf("text field keyed \"project\" should be reserved-key; got %+v", errs)
 	}
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{{Key: "project", Type: "project"}}}); hasErr(errs, "reserved-key") {
+	if errs := Validate(&Template{Fields: []Field{{Key: "project", Type: "project"}}}); hasErr(errs, "reserved-key") {
 		t.Errorf("the project field may use key \"project\"; got %+v", errs)
 	}
 }
 
-func TestValidate_ProjectNeedsCollection(t *testing.T) {
-	// Without collection, a project field is flagged.
-	if errs := Validate(&Template{Fields: []Field{{Key: "project", Type: "project"}}}); !hasErr(errs, "project-needs-collection") {
-		t.Errorf("project without collection should be flagged; got %+v", errs)
+func TestValidate_PresentationAndProjectModeConflict(t *testing.T) {
+	// Both modes on is flagged (incompatible record models).
+	if errs := Validate(&Template{Presentation: true, ProjectMode: true, Fields: []Field{
+		{Key: "project", Type: "project"},
+	}}); !hasErr(errs, "presentation-project-mode-conflict") {
+		t.Errorf("both modes on should be flagged; got %+v", errs)
 	}
-	// With collection, no such error.
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{{Key: "project", Type: "project"}}}); hasErr(errs, "project-needs-collection") {
-		t.Errorf("project with collection should be fine; got %+v", errs)
+	// Either alone is fine (no conflict error).
+	if errs := Validate(&Template{ProjectMode: true, Fields: []Field{
+		{Key: "project", Type: "project"},
+	}}); hasErr(errs, "presentation-project-mode-conflict") {
+		t.Errorf("project mode alone should not conflict; got %+v", errs)
+	}
+	if errs := Validate(&Template{Presentation: true, Fields: []Field{
+		{Key: "seq", Type: "sequence"},
+	}}); hasErr(errs, "presentation-project-mode-conflict") {
+		t.Errorf("presentation alone should not conflict; got %+v", errs)
+	}
+}
+
+func TestValidate_ProjectNeedsNoCollection(t *testing.T) {
+	// A lone project board is a single record; no collection required.
+	if errs := Validate(&Template{Fields: []Field{{Key: "project", Type: "project"}}}); hasErr(errs, "project-needs-collection") {
+		t.Errorf("project must not require collection; got %+v", errs)
 	}
 }

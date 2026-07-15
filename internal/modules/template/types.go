@@ -31,6 +31,11 @@ type Template struct {
 	// the studio list sorts by the sequence field and gains drag-to-reorder.
 	// Requires a sequence field (which in turn requires collection mode).
 	Presentation      bool        `yaml:"presentation,omitempty" json:"presentation"`
+	// ProjectMode turns the template into a plan board: it gains a project field
+	// (the shared time axis) and can hold event fields (task/milestone/absence
+	// bars). Requires a project field, mirroring how Presentation needs a
+	// sequence field.
+	ProjectMode       bool        `yaml:"project_mode,omitempty" json:"project_mode"`
 	PDF               *PDFConfig  `yaml:"pdf,omitempty" json:"pdf,omitempty"`
 	Facets            []Facet     `yaml:"facets,omitempty" json:"facets"`
 	Statistics        []Statistic `yaml:"statistics,omitempty" json:"statistics"`

@@ -168,10 +168,48 @@ const presentationDraft = computed<boolean>({
     if (draft.value) (draft.value as { presentation?: boolean }).presentation = v;
   },
 });
-// Mirrors the collection gate: can't turn ON without a sequence field, but can
-// always turn OFF (recovery if the field was removed).
+// Can't turn Presentation ON without a sequence field, nor while Project Mode is
+// on (the two record models are mutually exclusive). Always allowed OFF.
 const presentationToggleDisabled = computed(() => {
-  return !hasSequenceField.value && !presentationDraft.value;
+  return (
+    !presentationDraft.value &&
+    (!hasSequenceField.value || projectModeDraft.value)
+  );
+});
+const presentationHint = computed(() => {
+  if (!presentationDraft.value && projectModeDraft.value)
+    return t("workspace.templates.setup.mode_conflict");
+  if (!presentationDraft.value && !hasSequenceField.value)
+    return t("workspace.templates.setup.presentation_needs_sequence");
+  return t("workspace.templates.setup.presentation_desc");
+});
+
+const hasProjectField = computed(() => {
+  const fields = draft.value?.fields ?? [];
+  return fields.some((f: Field) => f.type === "project");
+});
+// Project Mode lives on Template; read/write defensively until the bindings
+// regen adds it to the generated type (same pattern as presentation).
+const projectModeDraft = computed<boolean>({
+  get: () => !!(draft.value as { project_mode?: boolean } | null)?.project_mode,
+  set: (v) => {
+    if (draft.value) (draft.value as { project_mode?: boolean }).project_mode = v;
+  },
+});
+// Can't turn Project Mode ON without a project field, nor while Presentation is
+// on (mutually exclusive record models). Always allowed OFF.
+const projectModeToggleDisabled = computed(() => {
+  return (
+    !projectModeDraft.value &&
+    (!hasProjectField.value || presentationDraft.value)
+  );
+});
+const projectModeHint = computed(() => {
+  if (!projectModeDraft.value && presentationDraft.value)
+    return t("workspace.templates.setup.mode_conflict");
+  if (!projectModeDraft.value && !hasProjectField.value)
+    return t("workspace.templates.setup.project_mode_needs_project");
+  return t("workspace.templates.setup.project_mode_desc");
 });
 
 const {
@@ -739,12 +777,19 @@ setTopbarMenu(() => [
           <FormSwitchRow
             v-model="presentationDraft"
             :label="t('workspace.templates.setup.presentation')"
-            :description="presentationToggleDisabled
-              ? t('workspace.templates.setup.presentation_needs_sequence')
-              : t('workspace.templates.setup.presentation_desc')"
+            :description="presentationHint"
             :on-label="t('common.on')"
             :off-label="t('common.off')"
             :disabled="presentationToggleDisabled"
+          />
+
+          <FormSwitchRow
+            v-model="projectModeDraft"
+            :label="t('workspace.templates.setup.project_mode')"
+            :description="projectModeHint"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+            :disabled="projectModeToggleDisabled"
           />
         </FormSection>
 
@@ -755,6 +800,7 @@ setTopbarMenu(() => [
           :formulas="draft.formulas ?? []"
           :template="selectedFilename ?? ''"
           :enable-collection="!!draft.enable_collection"
+          :project-mode="projectModeDraft"
           @update="onFieldsUpdate"
           @rename="onFieldRename"
         />

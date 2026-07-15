@@ -24,24 +24,15 @@ import {
 // initial bootstrap values below match what the backend ships so the
 // first render never sees an empty dropdown if the load is mid-flight.
 //
-// Types not in `SUPPORTED_OPTION_TYPES` get a "Options not available"
-// message in the modal (OptionsEditor isn't rendered).
-
-export const SUPPORTED_OPTION_TYPES = new Set([
-  "boolean",
-  "dropdown",
-  "multioption",
-  "radio",
-  "number",
-  "range",
-  "slide",
-  "slideset",
-  "list",
-  "table",
-  // file-path uses options to declare allowed extension filters
-  // ("*.json", "*.md") that drive the native picker's filter dropdown.
-  "file-path",
-]);
+// Whether a field type supports an options array. Backend-owned: the source of
+// truth is FieldDescriptor.Abilities.Options (internal/modules/template/
+// field_abilities.go), loaded into `_fieldDescriptors` above. A hand-maintained
+// frontend list drifts (a new options-bearing type shows "not available" until
+// someone remembers to add it here), so read the ability instead. Types where
+// this is false get the "Options not available" message in the modal.
+export function supportsOptions(typeId: string): boolean {
+  return _fieldDescriptors[typeId]?.abilities?.options === true;
+}
 
 // Bootstrap fallbacks. Used until ensureOptionPresetsLoaded resolves
 // (or if it fails - degraded but functional). Match the canonical
@@ -186,7 +177,7 @@ const FILE_PATH_COLUMNS: ColumnDef[] = [
 ];
 
 export function columnsFor(typeId: string): ColumnDef[] | null {
-  if (!SUPPORTED_OPTION_TYPES.has(typeId)) return null;
+  if (!supportsOptions(typeId)) return null;
   switch (typeId) {
     case "list":
       return listColumns();

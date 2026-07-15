@@ -50,6 +50,14 @@ func (s *Service) BuildDeck(templateName string, datafiles []string) (RevealDeck
 	return s.m.BuildDeck(templateName, datafiles)
 }
 
+// BuildBoard lays one plan-board record onto its project time axis for the board
+// previewer: axis ticks (from/to by time-block) plus each event mapped to the
+// tick range it spans. Unlike a deck, a board is a single record, so it takes
+// one datafile, not a deck-ordered list.
+func (s *Service) BuildBoard(templateName, datafile string) (Board, error) {
+	return s.m.BuildBoard(templateName, datafile)
+}
+
 // RenderFullHTML - self-contained HTML document (DOCTYPE + head + body)
 // with the formidable-prose stylesheet inlined. Used by the storage
 // workspace's "Copy HTML" action so what the user pastes into a .html

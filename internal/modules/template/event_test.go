@@ -53,10 +53,23 @@ func TestReservedKey_Event(t *testing.T) {
 	}
 }
 
-// event is the plan-board time-bar: like slideset it needs a collection and a
-// companion field, but the roles are flipped: the item (event) requires the
-// container (project), not the other way round.
-func TestEventFieldDescriptor_RequiresCollectionAndProject(t *testing.T) {
+// boardTemplate is a valid plan board: Project Mode on, a project axis, and an
+// event wrapped in a loop named "events". The helper keeps the rule tests honest.
+func boardTemplate() *Template {
+	return &Template{
+		ProjectMode: true,
+		Fields: []Field{
+			{Key: "project", Type: "project"},
+			{Key: "events", Type: "loopstart"},
+			{Key: "event", Type: "event"},
+			{Key: "events", Type: "loopstop"},
+		},
+	}
+}
+
+// event is the plan-board time-bar: forced key, wrapped in an "events" loop, and
+// gated by Project Mode (a template flag), NOT by a sibling field or collection.
+func TestEventFieldDescriptor_KeyReadonlyNoStructuralRequirements(t *testing.T) {
 	got, ok := fieldDescriptors["event"]
 	if !ok {
 		t.Fatalf("event descriptor missing")
@@ -64,57 +77,65 @@ func TestEventFieldDescriptor_RequiresCollectionAndProject(t *testing.T) {
 	if !got.KeyReadonly {
 		t.Errorf("event key must be read-only (forced singleton)")
 	}
-	if !got.RequiresCollection {
-		t.Errorf("events are a board's records, so event requires collection mode")
-	}
-	if !got.RequiresProject {
-		t.Errorf("an event is a bar on a project axis, so it requires project mode")
-	}
-	if got.RequiresSlide {
-		t.Errorf("event has nothing to do with slides")
+	if got.RequiresCollection {
+		t.Errorf("event must not require collection mode")
 	}
 }
 
-func TestValidate_EventNeedsCollection(t *testing.T) {
-	// Without collection, an event field is flagged (even with a project present).
+func TestValidate_EventNeedsEventsLoop(t *testing.T) {
+	// A bare event (no enclosing loop) is flagged.
+	if errs := Validate(&Template{ProjectMode: true, Fields: []Field{
+		{Key: "project", Type: "project"},
+		{Key: "event", Type: "event"},
+	}}); !hasErr(errs, "event-needs-events-loop") {
+		t.Errorf("event outside a loop should be flagged; got %+v", errs)
+	}
+	// An event in a differently-named loop is flagged.
+	if errs := Validate(&Template{ProjectMode: true, Fields: []Field{
+		{Key: "project", Type: "project"},
+		{Key: "items", Type: "loopstart"},
+		{Key: "event", Type: "event"},
+		{Key: "items", Type: "loopstop"},
+	}}); !hasErr(errs, "event-needs-events-loop") {
+		t.Errorf("event in a non-\"events\" loop should be flagged; got %+v", errs)
+	}
+	// An event inside an "events" loop is fine.
+	if errs := Validate(boardTemplate()); hasErr(errs, "event-needs-events-loop") {
+		t.Errorf("event in an \"events\" loop should be fine; got %+v", errs)
+	}
+}
+
+func TestValidate_EventNeedsProjectMode(t *testing.T) {
+	// An event on a template not in Project Mode is flagged.
 	if errs := Validate(&Template{Fields: []Field{
-		{Key: "project", Type: "project"},
+		{Key: "events", Type: "loopstart"},
 		{Key: "event", Type: "event"},
-	}}); !hasErr(errs, "event-needs-collection") {
-		t.Errorf("event without collection should be flagged; got %+v", errs)
+		{Key: "events", Type: "loopstop"},
+	}}); !hasErr(errs, "event-needs-project-mode") {
+		t.Errorf("event without Project Mode should be flagged; got %+v", errs)
 	}
-	// With collection and a project, no such error.
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
-		{Key: "id", Type: "guid"},
-		{Key: "project", Type: "project"},
-		{Key: "event", Type: "event"},
-	}}); hasErr(errs, "event-needs-collection") {
-		t.Errorf("event on a collection should be fine; got %+v", errs)
+	// A full board (Project Mode + project + events loop) has no such error.
+	if errs := Validate(boardTemplate()); hasErr(errs, "event-needs-project-mode") {
+		t.Errorf("event in Project Mode should be fine; got %+v", errs)
 	}
 }
 
-func TestValidate_EventNeedsProject(t *testing.T) {
-	// An event without a project field is flagged (needs the shared axis).
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
+func TestValidate_ProjectModeNeedsProject(t *testing.T) {
+	// Project Mode on without a project field is flagged.
+	if errs := Validate(&Template{ProjectMode: true, Fields: []Field{
 		{Key: "id", Type: "guid"},
-		{Key: "event", Type: "event"},
-	}}); !hasErr(errs, "event-needs-project") {
-		t.Errorf("event without a project field should be flagged; got %+v", errs)
+	}}); !hasErr(errs, "project-mode-needs-project") {
+		t.Errorf("Project Mode without a project field should be flagged; got %+v", errs)
 	}
-	// With a project field present, no such error.
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
-		{Key: "id", Type: "guid"},
+	// With a project field, no such error.
+	if errs := Validate(&Template{ProjectMode: true, Fields: []Field{
 		{Key: "project", Type: "project"},
-		{Key: "event", Type: "event"},
-	}}); hasErr(errs, "event-needs-project") {
-		t.Errorf("event with a project field should be fine; got %+v", errs)
+	}}); hasErr(errs, "project-mode-needs-project") {
+		t.Errorf("Project Mode with a project field should be fine; got %+v", errs)
 	}
-	// A lone project (no event) is fine: the gate is asymmetric.
-	if errs := Validate(&Template{EnableCollection: true, Fields: []Field{
-		{Key: "id", Type: "guid"},
-		{Key: "project", Type: "project"},
-	}}); hasErr(errs, "event-needs-project") {
-		t.Errorf("a lone project board should not require an event; got %+v", errs)
+	// Project Mode off needs nothing (asymmetric gate).
+	if errs := Validate(&Template{Fields: []Field{{Key: "t", Type: "text"}}}); hasErr(errs, "project-mode-needs-project") {
+		t.Errorf("Project Mode off should require nothing; got %+v", errs)
 	}
 }
 

@@ -123,15 +123,12 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"event": {
-		// A per-record time-bar (task/milestone/absence) on a project board.
-		// Singleton like slide: one event per record, forced key. Placement is
-		// ISO start/end, capped to the template's project axis. Needs a collection
-		// (events are the board's records) and a project field ("project mode"),
-		// just as a slideset needs a slide.
-		ID:                 "event",
-		RequiresCollection: true,
-		RequiresProject:    true,
-		KeyReadonly:        true,
+		// A time-bar (task/milestone/absence) on a project board. Forced key,
+		// placement is ISO start/end capped to the template's project axis. It is
+		// always wrapped in a loop named "events", and only allowed when the
+		// template is in Project Mode (a template-level flag, gated in the editor).
+		ID:          "event",
+		KeyReadonly: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
@@ -141,13 +138,12 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"project": {
-		// A plan-board definition (name + shared date-range axis). Singleton like
-		// event: one project per record, forced key. Requires a collection so a
-		// project-bearing template holds many referenceable projects; events in
-		// another template reference one project cross-template.
-		ID:                 "project",
-		RequiresCollection: true,
-		KeyReadonly:        true,
+		// A plan-board definition: the board name (per-record value) plus its
+		// shared time axis (from/to dates + granularity) held in author-time
+		// options. One project per template (the board), forced key. A board is a
+		// single record; its events come from an "events" loop, not a collection.
+		ID:          "project",
+		KeyReadonly: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: true, SummaryField: false, PrimaryKey: false,

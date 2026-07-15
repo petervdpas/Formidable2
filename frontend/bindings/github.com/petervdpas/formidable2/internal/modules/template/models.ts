@@ -502,7 +502,6 @@ export class FieldDescriptor {
     "key_readonly": boolean;
     "requires_collection": boolean;
     "requires_slide": boolean;
-    "requires_project": boolean;
     "abilities": Abilities;
     "options_shape"?: FixedOptionsShape | null;
     "default_value": any;
@@ -530,9 +529,6 @@ export class FieldDescriptor {
         if (!("requires_slide" in $$source)) {
             this["requires_slide"] = false;
         }
-        if (!("requires_project" in $$source)) {
-            this["requires_project"] = false;
-        }
         if (!("abilities" in $$source)) {
             this["abilities"] = (new Abilities());
         }
@@ -547,14 +543,14 @@ export class FieldDescriptor {
      * Creates a new FieldDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldDescriptor {
-        const $$createField8_0 = $$createType12;
-        const $$createField9_0 = $$createType14;
+        const $$createField7_0 = $$createType12;
+        const $$createField8_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
-            $$parsedSource["abilities"] = $$createField8_0($$parsedSource["abilities"]);
+            $$parsedSource["abilities"] = $$createField7_0($$parsedSource["abilities"]);
         }
         if ("options_shape" in $$parsedSource) {
-            $$parsedSource["options_shape"] = $$createField9_0($$parsedSource["options_shape"]);
+            $$parsedSource["options_shape"] = $$createField8_0($$parsedSource["options_shape"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }
@@ -1497,6 +1493,14 @@ export class Template {
      * Requires a sequence field (which in turn requires collection mode).
      */
     "presentation": boolean;
+
+    /**
+     * ProjectMode turns the template into a plan board: it gains a project field
+     * (the shared time axis) and can hold event fields (task/milestone/absence
+     * bars). Requires a project field, mirroring how Presentation needs a
+     * sequence field.
+     */
+    "project_mode": boolean;
     "pdf"?: PDFConfig | null;
     "facets": Facet[];
     "statistics": Statistic[];
@@ -1537,6 +1541,9 @@ export class Template {
         if (!("presentation" in $$source)) {
             this["presentation"] = false;
         }
+        if (!("project_mode" in $$source)) {
+            this["project_mode"] = false;
+        }
         if (!("facets" in $$source)) {
             this["facets"] = [];
         }
@@ -1563,30 +1570,30 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField12_0 = $$createType38;
-        const $$createField13_0 = $$createType40;
-        const $$createField14_0 = $$createType42;
-        const $$createField15_0 = $$createType44;
-        const $$createField16_0 = $$createType46;
-        const $$createField17_0 = $$createType47;
+        const $$createField13_0 = $$createType38;
+        const $$createField14_0 = $$createType40;
+        const $$createField15_0 = $$createType42;
+        const $$createField16_0 = $$createType44;
+        const $$createField17_0 = $$createType46;
+        const $$createField18_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
-            $$parsedSource["pdf"] = $$createField12_0($$parsedSource["pdf"]);
+            $$parsedSource["pdf"] = $$createField13_0($$parsedSource["pdf"]);
         }
         if ("facets" in $$parsedSource) {
-            $$parsedSource["facets"] = $$createField13_0($$parsedSource["facets"]);
+            $$parsedSource["facets"] = $$createField14_0($$parsedSource["facets"]);
         }
         if ("statistics" in $$parsedSource) {
-            $$parsedSource["statistics"] = $$createField14_0($$parsedSource["statistics"]);
+            $$parsedSource["statistics"] = $$createField15_0($$parsedSource["statistics"]);
         }
         if ("scalings" in $$parsedSource) {
-            $$parsedSource["scalings"] = $$createField15_0($$parsedSource["scalings"]);
+            $$parsedSource["scalings"] = $$createField16_0($$parsedSource["scalings"]);
         }
         if ("formulas" in $$parsedSource) {
-            $$parsedSource["formulas"] = $$createField16_0($$parsedSource["formulas"]);
+            $$parsedSource["formulas"] = $$createField17_0($$parsedSource["formulas"]);
         }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField17_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField18_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }

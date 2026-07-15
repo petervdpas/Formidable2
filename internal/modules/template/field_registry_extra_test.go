@@ -77,11 +77,12 @@ func TestNormalize_EventForcesKeyAndStripsDisabled(t *testing.T) {
 
 func TestValidate_EventPassesAfterNormalize(t *testing.T) {
 	tpl := &Template{
-		EnableCollection: true,
+		ProjectMode: true,
 		Fields: []Field{
-			{Key: "id", Type: "guid"},
 			{Key: "project", Type: "project"},
+			{Key: "events", Type: "loopstart"},
 			{Key: "event", Type: "event"},
+			{Key: "events", Type: "loopstop"},
 		},
 	}
 	Normalize(tpl)

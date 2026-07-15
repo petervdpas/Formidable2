@@ -63,19 +63,22 @@ func Validate(t *Template) []ValidationError {
 	if e := singleSlidesetError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
-	if e := projectCollectionError(t); e != nil {
-		errs = append(errs, *e)
-	}
 	if e := singleProjectError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
-	if e := eventCollectionError(t); e != nil {
+	if e := projectModeError(t); e != nil {
 		errs = append(errs, *e)
 	}
-	if e := eventProjectError(t.Fields); e != nil {
+	if e := eventProjectModeError(t); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := eventLoopError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
 	if e := presentationSequenceError(t); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := presentationProjectModeError(t); e != nil {
 		errs = append(errs, *e)
 	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
@@ -898,26 +901,6 @@ func singleSlidesetError(fields []Field) *ValidationError {
 	return nil
 }
 
-// projectCollectionError flags a project field on a non-collection template. A
-// project-bearing template holds many referenceable projects, so the field is
-// meaningless without a collection (same asymmetric gate as the slideset one).
-func projectCollectionError(t *Template) *ValidationError {
-	hasProject := false
-	for _, f := range t.Fields {
-		if f.Type == "project" {
-			hasProject = true
-			break
-		}
-	}
-	if !hasProject || t.EnableCollection {
-		return nil
-	}
-	return &ValidationError{
-		Type:    "project-needs-collection",
-		Message: "A `project` field needs `Enable Collection`. Enable collection mode or remove the project field.",
-	}
-}
-
 // singleProjectError flags more than one project field; a record defines one
 // plan board, so two would make "which project" ambiguous.
 func singleProjectError(fields []Field) *ValidationError {
@@ -941,10 +924,70 @@ func singleProjectError(fields []Field) *ValidationError {
 	return nil
 }
 
-// eventCollectionError flags an event field on a non-collection template. Events
-// are the records of a plan board, so the field only means something on a
-// collection (same asymmetric gate as the slideset/project ones).
-func eventCollectionError(t *Template) *ValidationError {
+// presentationProjectModeError flags a template with both Presentation Mode and
+// Project Mode on. A presentation orders records as a slide deck; a plan board
+// treats the record as a project axis plus an events loop. The two record models
+// are incompatible, so exactly one may be on.
+func presentationProjectModeError(t *Template) *ValidationError {
+	if !t.Presentation || !t.ProjectMode {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "presentation-project-mode-conflict",
+		Message: "`Presentation Mode` and `Project Mode` can't both be on. Turn one off.",
+	}
+}
+
+// eventLoopError flags an event field that is not the body of a loop named
+// "events". A board's many events come from loop iterations, so an event must
+// always live inside that loop (the field editor synthesises it). Best-effort
+// loop pairing via a key stack, like ComputeLoopGroups; a bare event or an event
+// in a differently-named loop is flagged.
+func eventLoopError(fields []Field) *ValidationError {
+	var stack []string // enclosing loopstart keys, innermost last
+	for _, f := range fields {
+		switch f.Type {
+		case "loopstart":
+			stack = append(stack, f.Key)
+		case "loopstop":
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+		case "event":
+			if len(stack) == 0 || stack[len(stack)-1] != "events" {
+				return &ValidationError{
+					Type:    "event-needs-events-loop",
+					Message: "An `event` field must live inside a loop named `events`. Add the event through the field editor so its loop is created for you.",
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// projectModeError flags Project Mode without a project field. A plan board's
+// shared axis lives in the project field, so the mode is meaningless without
+// one. Mirrors presentationSequenceError; the gate is asymmetric (turning
+// Project Mode off needs nothing).
+func projectModeError(t *Template) *ValidationError {
+	if !t.ProjectMode {
+		return nil
+	}
+	for _, f := range t.Fields {
+		if f.Type == "project" {
+			return nil
+		}
+	}
+	return &ValidationError{
+		Type:    "project-mode-needs-project",
+		Message: "`Project Mode` needs a `project` field for the board's time axis. Add one or turn Project Mode off.",
+	}
+}
+
+// eventProjectModeError flags an event field on a template that is not in
+// Project Mode. Events are the bars of a plan board, so they only mean something
+// once the template is a board. Asymmetric gate: no event field, no requirement.
+func eventProjectModeError(t *Template) *ValidationError {
 	hasEvent := false
 	for _, f := range t.Fields {
 		if f.Type == "event" {
@@ -952,36 +995,12 @@ func eventCollectionError(t *Template) *ValidationError {
 			break
 		}
 	}
-	if !hasEvent || t.EnableCollection {
+	if !hasEvent || t.ProjectMode {
 		return nil
 	}
 	return &ValidationError{
-		Type:    "event-needs-collection",
-		Message: "An `event` field needs `Enable Collection`. Enable collection mode or remove the event field.",
-	}
-}
-
-// eventProjectError flags an event field without a project field ("project
-// mode"). An event is a bar on a board, meaningless unless the template defines a
-// project (its shared axis). Mirrors slidesetSlideError with the roles flipped:
-// here the item (event) requires the container (project). Asymmetric gate: no
-// event field, no requirement, so a lone project board is fine.
-func eventProjectError(fields []Field) *ValidationError {
-	hasEvent, hasProject := false, false
-	for _, f := range fields {
-		switch f.Type {
-		case "event":
-			hasEvent = true
-		case "project":
-			hasProject = true
-		}
-	}
-	if !hasEvent || hasProject {
-		return nil
-	}
-	return &ValidationError{
-		Type:    "event-needs-project",
-		Message: "An `event` field needs a `project` field to place its bar on. Add a project field or remove the event field.",
+		Type:    "event-needs-project-mode",
+		Message: "An `event` field needs `Project Mode`. Turn Project Mode on or remove the event field.",
 	}
 }
 
