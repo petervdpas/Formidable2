@@ -57,6 +57,10 @@ func Normalize(t *Template) {
 		if t.Fields[i].Type == "slideset" {
 			t.Fields[i].Key = "slideset"
 		}
+		// An event is a per-record time-bar singleton: one per record, forced key.
+		if t.Fields[i].Type == "event" {
+			t.Fields[i].Key = "event"
+		}
 		stripDisabledAttributes(&t.Fields[i])
 	}
 }

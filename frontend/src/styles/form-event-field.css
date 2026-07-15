@@ -1,0 +1,22 @@
+/* Event field (project-board time bar): kind + resource on one row,
+   start + end on the next. Reuses the global .stacked-label. */
+
+.event-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.event-field-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.event-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 12rem;
+  min-width: 0;
+}

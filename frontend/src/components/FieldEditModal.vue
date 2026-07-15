@@ -458,6 +458,9 @@ watch(
     if (type === "slideset") {
       draft.value.key = "slideset";
     }
+    if (type === "event") {
+      draft.value.key = "event";
+    }
   },
 );
 

@@ -122,6 +122,20 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			FacetKey: false,
 		},
 	},
+	"event": {
+		// A per-record time-bar (task/milestone/absence) on a project board.
+		// Singleton like slide: one event per record, forced key. Placement is
+		// ISO start/end; a later step caps it to the assigned project's range.
+		ID:          "event",
+		KeyReadonly: true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: false, Description: false,
+			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
 	"date": {
 		ID: "date",
 		Abilities: Abilities{
@@ -324,7 +338,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 
 // orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
-	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "slideset", "date",
+	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "slideset", "event", "date",
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
@@ -345,6 +359,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"sequence":    "workspace.templates.field_type.sequence",
 	"slide":       "workspace.templates.field_type.slide",
 	"slideset":    "workspace.templates.field_type.slideset",
+	"event":       "workspace.templates.field_type.event",
 	"date":        "workspace.templates.field_type.date",
 	"boolean":     "workspace.templates.field_type.boolean",
 	"dropdown":    "workspace.templates.field_type.dropdown",

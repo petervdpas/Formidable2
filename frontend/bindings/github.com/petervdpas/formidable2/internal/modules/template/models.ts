@@ -184,6 +184,35 @@ export class Descriptor {
 }
 
 /**
+ * EventKindDescriptor names one event kind for the editor's kind picker.
+ * Name is the stored token; LabelKey is its i18n label.
+ */
+export class EventKindDescriptor {
+    "name": string;
+    "label_key": string;
+
+    /** Creates a new EventKindDescriptor instance. */
+    constructor($$source: Partial<EventKindDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EventKindDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EventKindDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EventKindDescriptor($$parsedSource as Partial<EventKindDescriptor>);
+    }
+}
+
+/**
  * Facet is one named meta-classification dimension: a stable Key (the FormMeta.Facets map key),
  * an Icon, and mutually-exclusive Options. Templates may declare up to 16 facets, each up to 16 options.
  */

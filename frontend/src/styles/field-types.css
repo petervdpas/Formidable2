@@ -98,6 +98,14 @@
     --field-type-slideset-badge:  #3fa595;
     --field-type-slideset-text:   #ffffff;
 
+    /* Event (timeline bar) - a project-board time bar; a saturated indigo slot
+       (reads as calendar/schedule), distinct from the lighter periwinkle
+       sequence/range and the plum slide. */
+    --field-type-event-bg:     #303f9c;
+    --field-type-event-border: #7986cb;
+    --field-type-event-badge:  #5361c9;
+    --field-type-event-text:   #ffffff;
+
     /* Range */
     --field-type-range-bg:     #3c3f77;
     --field-type-range-border: #7986cb;
@@ -401,6 +409,12 @@
     border-left-color: var(--field-type-slideset-border);
     color: var(--field-type-slideset-text);
     --field-row-badge-bg: var(--field-type-slideset-badge);
+}
+.field-row[data-type="event"] {
+    background: var(--field-type-event-bg);
+    border-left-color: var(--field-type-event-border);
+    color: var(--field-type-event-text);
+    --field-row-badge-bg: var(--field-type-event-badge);
 }
 .field-row[data-type="range"] {
     background: var(--field-type-range-bg);

@@ -441,6 +441,9 @@ func defaultForType(t string) any {
 		// Object-shaped (not an array) so slide-level options can be added later;
 		// Sanitize preserves it verbatim.
 		return map[string]any{"blocks": []any{}}
+	case "event":
+		// Object-shaped time-bar; kind defaults to task, dates unset.
+		return map[string]any{"start": "", "end": "", "kind": "task", "resource": ""}
 	case "api":
 		// nil = unpicked. A picked value is a reference id (single) or a list of ids (to-many).
 		return nil

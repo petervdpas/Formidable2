@@ -49,6 +49,42 @@ func TestNormalize_GuidStripsDisabledAttributes(t *testing.T) {
 	}
 }
 
+func TestNormalize_EventForcesKeyAndStripsDisabled(t *testing.T) {
+	tpl := &Template{
+		Fields: []Field{{
+			Key:         "whatever",
+			Type:        "event",
+			Label:       "My event",
+			Description: "x",
+			PrimaryKey:  true,
+		}},
+	}
+	Normalize(tpl)
+	f := tpl.Fields[0]
+	if f.Key != "event" {
+		t.Errorf("event Key should be forced to \"event\"; got %q", f.Key)
+	}
+	if f.Label != "" {
+		t.Errorf("event Label should be stripped; got %q", f.Label)
+	}
+	if f.Description != "" {
+		t.Errorf("event Description should be stripped; got %q", f.Description)
+	}
+	if f.PrimaryKey {
+		t.Errorf("event PrimaryKey should be stripped to false")
+	}
+}
+
+func TestValidate_EventPassesAfterNormalize(t *testing.T) {
+	tpl := &Template{
+		Fields: []Field{{Key: "event", Type: "event"}},
+	}
+	Normalize(tpl)
+	if errs := Validate(tpl); anyForbiddenFor(errs, "event") {
+		t.Errorf("event should validate after Normalize; got %+v", errs)
+	}
+}
+
 func TestValidate_GuidPassesAfterNormalize(t *testing.T) {
 	tpl := &Template{
 		Fields: []Field{{

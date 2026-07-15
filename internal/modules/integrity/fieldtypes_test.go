@@ -82,6 +82,16 @@ func fieldTypeCases() []fieldTypeCase {
 			wantKind:   IssueTypeMismatch,
 			emptyValue: map[string]any{"blocks": []any{}},
 		},
+
+		// event: an object with ISO start/end, a kind, and a resource. A deeply
+		// wrong type (number) is drift; the empty value is what Sanitize seeds.
+		{
+			fieldType:  "event",
+			happy:      map[string]any{"start": "2026-06-27", "end": "2026-08-16", "kind": "task", "resource": "Ferry"},
+			unhappy:    float64(7),
+			wantKind:   IssueTypeMismatch,
+			emptyValue: map[string]any{"start": "", "end": "", "kind": "task", "resource": ""},
+		},
 	}
 }
 

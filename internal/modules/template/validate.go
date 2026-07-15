@@ -91,6 +91,7 @@ var reservedKeys = map[string]string{
 	"sequence": "sequence",
 	"slide":    "slide",
 	"slideset": "slideset",
+	"event":    "event",
 }
 
 // reservedKeyErrors flags a field using a reserved key but not the type that

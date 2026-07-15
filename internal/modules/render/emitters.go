@@ -393,6 +393,8 @@ func emitFieldValue(v any, f *template.Field, opts *Options) string {
 		return emitImage(v, opts)
 	case "mermaid":
 		return emitMermaid(v)
+	case "event":
+		return emitEvent(v)
 	case "slide":
 		return renderSlide(v, f, opts)
 	case "textarea":
@@ -400,6 +402,36 @@ func emitFieldValue(v any, f *template.Field, opts *Options) string {
 	default:
 		return stringify(v)
 	}
+}
+
+// emitEvent renders an event bar as a compact one-line label: who it belongs
+// to, its date range (a single date for a zero-span milestone), and its kind.
+// The rich timeline layout is the project field's board render; this is the
+// fallback text surface (wiki/PDF/viewer) for a lone event value.
+func emitEvent(v any) string {
+	doc, err := template.ParseEventDoc(v)
+	if err != nil || doc == (template.EventDoc{}) {
+		return ""
+	}
+	span := doc.Start
+	if doc.End != "" && doc.End != doc.Start {
+		span = doc.Start + " / " + doc.End
+	}
+	var parts []string
+	if doc.Resource != "" {
+		parts = append(parts, doc.Resource)
+	}
+	if span != "" {
+		parts = append(parts, span)
+	}
+	label := strings.Join(parts, ": ")
+	if doc.Kind != "" {
+		if label == "" {
+			return "(" + doc.Kind + ")"
+		}
+		return label + " (" + doc.Kind + ")"
+	}
+	return label
 }
 
 // emitMermaid wraps the diagram source in a ```mermaid fenced block: the

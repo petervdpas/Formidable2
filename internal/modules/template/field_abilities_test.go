@@ -127,9 +127,9 @@ func TestAbilities_KeyAndTypeAlwaysEnabled(t *testing.T) {
 
 // KeyReadonly marks singleton types whose key is shown but not editable and
 // forced by Normalize: guid -> "id", sequence -> "sequence", slide -> "slide",
-// slideset -> "slideset".
+// slideset -> "slideset", event -> "event".
 func TestDescriptor_KeyReadonly_OnlySingletons(t *testing.T) {
-	readonly := stringSet("guid", "sequence", "slide", "slideset")
+	readonly := stringSet("guid", "sequence", "slide", "slideset", "event")
 	for id, def := range fieldDescriptors {
 		want := readonly[id]
 		if def.KeyReadonly != want {

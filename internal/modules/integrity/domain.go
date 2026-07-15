@@ -762,10 +762,59 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 			}}
 		}
 		return checkSlideBlocks(m, path)
+
+	case "event":
+		m, ok := v.(map[string]any)
+		if !ok {
+			if s, ok := v.(string); ok && s == "" {
+				return nil // legacy unset sentinel
+			}
+			return []Issue{{
+				Kind:   IssueTypeMismatch,
+				Path:   path,
+				Detail: fmt.Sprintf("expected event object, got %T", v),
+			}}
+		}
+		return checkEvent(m, path)
 	}
 
 	// Unknown field type: permissive. Template validation owns the bogus-type check.
 	return nil
+}
+
+// checkEvent validates an event value: a known (or empty) kind and ISO
+// start/end dates. An empty date or empty kind is unset and allowed; a
+// wrong-typed inner field fails ParseEventDoc and is reported as drift.
+func checkEvent(m map[string]any, path string) []Issue {
+	doc, err := template.ParseEventDoc(m)
+	if err != nil {
+		return []Issue{{
+			Kind:   IssueTypeMismatch,
+			Path:   path,
+			Detail: fmt.Sprintf("malformed event: %v", err),
+		}}
+	}
+	var out []Issue
+	if doc.Kind != "" && !template.IsEventKind(doc.Kind) {
+		out = append(out, Issue{
+			Kind:   IssueTypeMismatch,
+			Path:   path + ".kind",
+			Detail: fmt.Sprintf("unknown event kind %q", doc.Kind),
+		})
+	}
+	for _, d := range []struct{ name, val string }{{"start", doc.Start}, {"end", doc.End}} {
+		if d.val == "" {
+			continue
+		}
+		if _, err := time.Parse("2006-01-02", d.val); err != nil {
+			out = append(out, Issue{
+				Kind:   IssueBadDateFormat,
+				Path:   path + "." + d.name,
+				Detail: fmt.Sprintf("not YYYY-MM-DD: %q", d.val),
+			})
+		}
+	}
+	return out
 }
 
 // checkSlideBlocks validates a slide document: each block must have a known

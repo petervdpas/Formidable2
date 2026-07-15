@@ -378,9 +378,24 @@ Feature: Template management
     And the registry contains "sequence"
     And the registry contains "slide"
     And the registry contains "slideset"
+    And the registry contains "event"
     And the registry contains "formula"
     And the registry first id is "text"
-    And the registry size is 27
+    And the registry size is 28
+
+  # ── Event field (project-board time bar) ──────────────────────────
+
+  Scenario: Event field validates cleanly
+    Given a template with fields:
+      | key   | type  |
+      | event | event |
+    Then validation reports no errors
+
+  Scenario: Event field forbids a label (key-driven singleton)
+    Given a template with fields:
+      | key   | type  | label   |
+      | event | event | My plan |
+    Then validation reports a "forbidden-attribute" error for key "event" and attr "label"
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 

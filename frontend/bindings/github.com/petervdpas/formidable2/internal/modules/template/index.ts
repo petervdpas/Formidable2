@@ -11,6 +11,7 @@ export {
     APIMap,
     Abilities,
     Descriptor,
+    EventKindDescriptor,
     Facet,
     FacetIconSpec,
     FacetMeta,
