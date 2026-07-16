@@ -70,7 +70,7 @@ func TestParseProjectDoc_Nil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse nil: %v", err)
 	}
-	if doc != (ProjectDoc{}) {
+	if doc.Name != "" || len(doc.ResourceOrder) != 0 {
 		t.Errorf("nil should decode to empty doc, got %+v", doc)
 	}
 }

@@ -80,6 +80,11 @@ export function ensureOptionPresetsLoaded(): Promise<void> {
   return loadPromise;
 }
 
+const EVENT_KIND_COLUMNS: ColumnDef[] = [
+  { key: "value", type: "text", placeholder: "kind" },
+  { key: "color", type: "color" },
+];
+
 const DEFAULT_COLUMNS: ColumnDef[] = [
   { key: "value", type: "text", placeholder: "value" },
   { key: "label", type: "text", placeholder: "label" },
@@ -185,6 +190,9 @@ export function columnsFor(typeId: string): ColumnDef[] | null {
       return tableColumns();
     case "file-path":
       return FILE_PATH_COLUMNS;
+    // event kinds are value + colour (the bar colour), no label.
+    case "event":
+      return EVENT_KIND_COLUMNS;
     // slide uses the default value/label columns; per-row `input` (from the
     // fixed-shape rows) makes each label cell a format dropdown / colour / number.
     default:

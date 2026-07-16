@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -33,6 +34,7 @@ type BoardBar struct {
 	Resource    string `json:"resource"`
 	Description string `json:"description"`
 	Kind        string `json:"kind"`
+	Color       string `json:"color"` // the kind's colour (from the event field options)
 	Start       string `json:"start"`
 	End         string `json:"end"`
 	StartTick   int    `json:"start_tick"`
@@ -58,63 +60,118 @@ type Board struct {
 // viewer prompts the author to set the range); events outside the axis are
 // clamped, and any event that can't be placed at all is dropped.
 func (m *Manager) BuildBoard(templateName, datafile string) (Board, error) {
-	project, err := m.projectField(templateName)
+	project, event, err := m.boardFields(templateName)
 	if err != nil {
 		return Board{}, err
 	}
 	var name string
 	var events any
+	var order []string
 	if loaded := m.storage.LoadForm(templateName, datafile); loaded != nil {
 		if doc, derr := template.ParseProjectDoc(loaded.Data[project.Key]); derr == nil {
 			name = doc.Name
+			order = doc.ResourceOrder
 		}
 		events = loaded.Data["events"]
 	}
-	return buildBoard(project, name, events), nil
+	return buildBoard(project, event, name, events, order), nil
 }
 
 // BuildBoardLive lays the given in-progress events onto the template's project
 // axis, without reading the saved record. The form editor calls this so the
-// board updates as the user edits the events loop. name titles the board (the
-// live project name); events is the loop value ([{event:{...}}, ...]).
-func (m *Manager) BuildBoardLive(templateName, name string, events any) (Board, error) {
-	project, err := m.projectField(templateName)
+// board updates as the user edits the events loop. name titles the board; events
+// is the loop value ([{event:{...}}, ...]); resourceOrder is this record's Y-axis
+// order (drag-to-sort persists it on the project value).
+func (m *Manager) BuildBoardLive(templateName, name string, events any, resourceOrder []string) (Board, error) {
+	project, event, err := m.boardFields(templateName)
 	if err != nil {
 		return Board{}, err
 	}
-	return buildBoard(project, name, events), nil
+	return buildBoard(project, event, name, events, resourceOrder), nil
 }
 
-// projectField loads a template and returns its project field.
-func (m *Manager) projectField(templateName string) (*template.Field, error) {
+// boardFields loads a template and returns its project field (required) and
+// event field (may be nil).
+func (m *Manager) boardFields(templateName string) (project, event *template.Field, err error) {
 	tpl, err := m.templates.LoadTemplate(templateName)
 	if err != nil {
-		return nil, fmt.Errorf("render: load template %q: %w", templateName, err)
+		return nil, nil, fmt.Errorf("render: load template %q: %w", templateName, err)
 	}
 	for i := range tpl.Fields {
-		if tpl.Fields[i].Type == "project" {
-			return &tpl.Fields[i], nil
+		switch tpl.Fields[i].Type {
+		case "project":
+			project = &tpl.Fields[i]
+		case "event":
+			event = &tpl.Fields[i]
 		}
 	}
-	return nil, fmt.Errorf("render: template %q has no project field", templateName)
+	if project == nil {
+		return nil, nil, fmt.Errorf("render: template %q has no project field", templateName)
+	}
+	return project, event, nil
 }
 
-// buildBoard is the shared layout core: axis + resources from the project field,
-// bars from an events value.
-func buildBoard(project *template.Field, name string, events any) Board {
+// orderResources sorts the resources to match `order` (by value); resources not
+// named keep their relative order after the named ones. Empty order = no change.
+func orderResources(rs []template.ResourceDescriptor, order []string) []template.ResourceDescriptor {
+	if len(order) == 0 || len(rs) == 0 {
+		return rs
+	}
+	rank := make(map[string]int, len(order))
+	for i, v := range order {
+		rank[v] = i
+	}
+	out := make([]template.ResourceDescriptor, len(rs))
+	copy(out, rs)
+	sort.SliceStable(out, func(a, b int) bool {
+		ra, oka := rank[out[a].Value]
+		rb, okb := rank[out[b].Value]
+		if oka && okb {
+			return ra < rb
+		}
+		return oka && !okb
+	})
+	return out
+}
+
+// eventKindColors maps each author-defined kind value to its colour, read from
+// the event field options ({value, color} rows).
+func eventKindColors(event *template.Field) map[string]string {
+	out := map[string]string{}
+	if event == nil {
+		return out
+	}
+	for _, opt := range event.Options {
+		m, ok := opt.(map[string]any)
+		if !ok {
+			continue
+		}
+		val, _ := m["value"].(string)
+		color, _ := m["color"].(string)
+		if val != "" {
+			out[val] = color
+		}
+	}
+	return out
+}
+
+// buildBoard is the shared layout core: axis + resources from the project field
+// (resources ordered by the record's resourceOrder), bars from an events value,
+// each bar coloured by its kind.
+func buildBoard(project, event *template.Field, name string, events any, resourceOrder []string) Board {
 	from, to := template.ProjectDateRange(*project)
 	board := Board{
 		Name:      name,
 		From:      from,
 		To:        to,
 		TimeBlock: template.ProjectTimeBlock(*project),
-		Resources: template.ProjectResources(*project),
+		Resources: orderResources(template.ProjectResources(*project), resourceOrder),
 	}
 	board.Ticks = boardTicks(from, to, board.TimeBlock)
 	if len(board.Ticks) == 0 {
 		return board
 	}
-	board.Bars = boardBars(events, board.Ticks)
+	board.Bars = boardBars(events, board.Ticks, eventKindColors(event))
 	return board
 }
 
@@ -175,7 +232,7 @@ func tickLabel(cur time.Time, tb string) string {
 
 // boardBars maps each event in the loop value onto tick indices. The loop value
 // is []any of {event: {...}} maps (one per iteration).
-func boardBars(v any, ticks []BoardTick) []BoardBar {
+func boardBars(v any, ticks []BoardTick, kindColors map[string]string) []BoardBar {
 	rows, ok := v.([]any)
 	if !ok {
 		return nil
@@ -195,6 +252,7 @@ func boardBars(v any, ticks []BoardTick) []BoardBar {
 			continue
 		}
 		bar.Index = i
+		bar.Color = kindColors[doc.Kind]
 		bars = append(bars, bar)
 	}
 	return bars

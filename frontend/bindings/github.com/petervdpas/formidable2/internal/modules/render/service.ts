@@ -31,8 +31,8 @@ export function BuildBoard(templateName: string, datafile: string): $Cancellable
  * BuildBoardLive lays in-progress events onto the template's project axis so the
  * form editor can render a live board as the user edits, without saving first.
  */
-export function BuildBoardLive(templateName: string, name: string, events: any): $CancellablePromise<$models.Board> {
-    return $Call.ByID(4144187580, templateName, name, events).then(($result: any) => {
+export function BuildBoardLive(templateName: string, name: string, events: any, resourceOrder: string[]): $CancellablePromise<$models.Board> {
+    return $Call.ByID(4144187580, templateName, name, events, resourceOrder).then(($result: any) => {
         return $$createType0($result);
     });
 }

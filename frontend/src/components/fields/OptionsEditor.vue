@@ -57,6 +57,11 @@ export type ColumnDef =
     }
   | {
       key: string;
+      type: "color";
+      placeholder?: string;
+    }
+  | {
+      key: string;
       type: "dropdown";
       options: string[];
       placeholder?: string;
@@ -293,6 +298,13 @@ function getCell(row: OptionRow, col: ColumnDef): string {
               :placeholder="col.placeholder"
               :readonly="isLocked(col.key, i)"
               class="options-cell"
+            />
+            <input
+              v-else-if="col.type === 'color'"
+              type="color"
+              class="options-cell options-color"
+              :value="getCell(row, col) || '#5361c9'"
+              @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
             />
             <SelectField
               v-else-if="col.type === 'dropdown'"

@@ -93,6 +93,7 @@ function loopArray(key: string): unknown[] {
       :inner-start-offset="startOffset + entry.innerStart"
       :loop-groups="loopGroups"
       :model-value="loopArray(entry.field.key)"
+      :values="values"
       @update:model-value="(v: unknown[]) => setLoopValue(entry.field.key, v)"
     />
     <FormLoop

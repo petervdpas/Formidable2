@@ -84,6 +84,11 @@ export class BoardBar {
     "resource": string;
     "description": string;
     "kind": string;
+
+    /**
+     * the kind's colour (from the event field options)
+     */
+    "color": string;
     "start": string;
     "end": string;
     "start_tick": number;
@@ -103,6 +108,9 @@ export class BoardBar {
         }
         if (!("kind" in $$source)) {
             this["kind"] = "";
+        }
+        if (!("color" in $$source)) {
+            this["color"] = "";
         }
         if (!("start" in $$source)) {
             this["start"] = "";

@@ -29,9 +29,8 @@
   border-right: 1px solid var(--color-border, #d0d0d8);
   display: flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   /* Y axis stays visible when the time axis scrolls. */
   position: sticky;
@@ -39,21 +38,32 @@
   z-index: 1;
   background: var(--color-bg, #fff);
 }
+.project-board-gutter .dnd-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  color: var(--color-fg-muted, #999);
+  font-weight: 400;
+}
+.project-board-res {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-/* Move-left/right controls in the header corner. */
+/* Zoom (- +) and move-left/right (‹ ›) controls in the header corner. */
 .project-board-nav {
-  gap: 6px;
-  justify-content: space-between;
+  gap: 3px;
+  padding: 4px 6px;
 }
 .project-board-navbtn {
   border: 1px solid var(--color-border, #ccc);
   background: var(--color-bg, #fff);
   border-radius: 4px;
-  width: 26px;
+  width: 24px;
   height: 26px;
   line-height: 1;
   cursor: pointer;
   font-size: 1rem;
+  padding: 0;
 }
 .project-board-navbtn:disabled {
   opacity: 0.35;

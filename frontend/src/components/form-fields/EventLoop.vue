@@ -22,6 +22,10 @@ const props = defineProps<{
   innerStartOffset: number;
   loopGroups: LoopGroup[];
   modelValue: unknown[];
+  // The form's live record values, so the board can read/write this record's
+  // resource (Y-axis) order on the project value - drag-to-sort is a normal
+  // record edit that marks the form dirty and saves with it.
+  values: Record<string, unknown>;
 }>();
 const emit = defineEmits<{ (e: "update:modelValue", v: unknown[]): void }>();
 
@@ -30,18 +34,30 @@ const { t } = useI18n();
 const templateFilename = inject<Ref<string>>("templateFilename", ref(""));
 const liveBoard = ref<Board | null>(null);
 
+// This record's resource order lives on the project value ({name, resourceOrder}).
+const resourceOrder = computed<string[]>(() => {
+  const p = props.values["project"];
+  const arr = p && typeof p === "object" ? (p as { resourceOrder?: unknown }).resourceOrder : null;
+  return Array.isArray(arr) ? (arr.filter((x) => typeof x === "string") as string[]) : [];
+});
+
 async function refresh() {
   if (!templateFilename.value) {
     liveBoard.value = null;
     return;
   }
   try {
-    liveBoard.value = await RenderSvc.BuildBoardLive(templateFilename.value, "", props.modelValue);
+    liveBoard.value = await RenderSvc.BuildBoardLive(
+      templateFilename.value,
+      "",
+      props.modelValue,
+      resourceOrder.value,
+    );
   } catch {
     liveBoard.value = null;
   }
 }
-watch([() => props.modelValue, () => templateFilename.value], refresh, {
+watch([() => props.modelValue, () => templateFilename.value, resourceOrder], refresh, {
   immediate: true,
   deep: true,
 });
@@ -65,6 +81,15 @@ const editEvent = computed<unknown>(() =>
 
 function openEdit(index: number) {
   editIndex.value = index;
+}
+
+// Drag-sorting the Y-axis writes the new order onto this record's project value.
+// That's a normal record edit: it marks the form dirty and the board rebuilds
+// (the resourceOrder watch → refresh); the user's Save persists it.
+function reorderResources(order: string[]) {
+  const p = props.values["project"];
+  const base = p && typeof p === "object" ? { ...(p as Record<string, unknown>) } : {};
+  props.values["project"] = { ...base, resourceOrder: order };
 }
 function addEvent() {
   const next = [...entries.value, { event: {} }];
@@ -94,7 +119,7 @@ function removeEditing() {
           <p v-if="field.description" class="form-loop-description">{{ field.description }}</p>
         </div>
       </div>
-      <ProjectBoard :board="liveBoard" @edit="openEdit" />
+      <ProjectBoard :board="liveBoard" @edit="openEdit" @reorder="reorderResources" />
       <button type="button" class="tool-btn primary event-loop-add" @click="addEvent">
         + {{ t("workspace.templates.field_type.event") }}
       </button>

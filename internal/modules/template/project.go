@@ -13,10 +13,13 @@ import (
 // name. Events in the same template are laid on this axis and (a later step)
 // capped to the from/to window.
 
-// ProjectDoc is the stored per-record value of a project field: the board's
-// name. The axis (dates + granularity) lives in the field options, not here.
+// ProjectDoc is the stored per-record value of a project field: the board's name
+// plus this record's resource (Y-axis) order. The axis (dates + granularity) and
+// the resource definitions live in the field options; ResourceOrder is per-record
+// so dragging lanes on the board is a normal (saveable) record edit.
 type ProjectDoc struct {
-	Name string `json:"name"`
+	Name          string   `json:"name"`
+	ResourceOrder []string `json:"resourceOrder,omitempty"`
 }
 
 // Time-block granularity for a project's axis: the width of one column on the
@@ -115,6 +118,7 @@ func IsProjectResource(f Field, value string) bool {
 	}
 	return false
 }
+
 
 // ParseProjectDoc decodes a stored project value (a decoded map[string]any) into
 // a ProjectDoc. A nil value is an empty doc. Round-trips via JSON so the shape is
