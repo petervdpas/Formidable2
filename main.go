@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,6 +63,20 @@ func main() {
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
+		},
+		// Swallow one benign GTK startup race: Wails queries the monitor
+		// list on ApplicationStartup via gtk_application_get_active_window,
+		// which is NULL before any window is realized, so GDK returns zero
+		// screens and Wails reports "screens parameter is nil or empty". The
+		// screens re-cache correctly once a window realizes, so this first
+		// failure is noise. Downgrade just this message to debug; forward
+		// every other Wails error to our logger unchanged.
+		ErrorHandler: func(err error) {
+			if err != nil && strings.Contains(err.Error(), "screens parameter is nil or empty") {
+				a.Logger().Debug("wails: ignoring pre-window screen query", "err", err)
+				return
+			}
+			a.Logger().Error(err.Error())
 		},
 	})
 
