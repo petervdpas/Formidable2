@@ -19,6 +19,7 @@ import TemplateFormulasTab from "../components/TemplateFormulasTab.vue";
 import TemplateStatisticsTab from "../components/TemplateStatisticsTab.vue";
 import Tabs from "../components/Tabs.vue";
 import TemplateGraphStyleRow from "../components/TemplateGraphStyleRow.vue";
+import TemplateTypeToggle from "../components/TemplateTypeToggle.vue";
 import {
   Service as TemplateSvc,
   GeneratorOptions,
@@ -35,7 +36,6 @@ import { backendErrMessage } from "../utils/backendError";
 import {
   FormSection,
   FormRow,
-  FormSwitchRow,
   TextField,
   FieldSelector,
 } from "../components/fields";
@@ -138,78 +138,22 @@ function doReset() {
   reset();
 }
 
-// hasGuidField gates the Enable Collection switch - collection mode
-// requires a record-level guid for the wiki/API resolver, so we don't
-// let users flip the toggle on without one. Mirrors backend
-// validation.collectionGuidError; without this gate, the user reaches
-// "Save" only to be rejected after the fact.
-//
-// Asymmetric: when Collection is already ON we let the user toggle it
-// OFF even without a guid (recovery path for templates that somehow
-// got into the broken state - e.g. a guid field was removed manually).
-const hasGuidField = computed(() => {
-  const fields = draft.value?.fields ?? [];
-  return fields.some((f: Field) => f.type === "guid");
-});
-const collectionToggleDisabled = computed(() => {
-  return !hasGuidField.value && !draft.value?.enable_collection;
-});
-
-const hasSequenceField = computed(() => {
-  const fields = draft.value?.fields ?? [];
-  return fields.some((f: Field) => f.type === "sequence");
-});
-// presentation lives on Template; read/write defensively until the bindings
-// regen adds it to the generated type. Object.assign deserialization + whole-
-// object SaveTemplate already round-trip it at runtime.
+// presentation / project_mode live on Template; read/write defensively until the
+// bindings regen adds them to the generated type. Object.assign deserialization +
+// whole-object SaveTemplate already round-trip them at runtime. TemplateTypeToggle
+// owns the "can this mode be turned on" logic; here we only bridge the two flags
+// to draft (v-model in the widget, and projectModeDraft feeds the fields section).
 const presentationDraft = computed<boolean>({
   get: () => !!(draft.value as { presentation?: boolean } | null)?.presentation,
   set: (v) => {
     if (draft.value) (draft.value as { presentation?: boolean }).presentation = v;
   },
 });
-// Can't turn Presentation ON without a sequence field, nor while Project Mode is
-// on (the two record models are mutually exclusive). Always allowed OFF.
-const presentationToggleDisabled = computed(() => {
-  return (
-    !presentationDraft.value &&
-    (!hasSequenceField.value || projectModeDraft.value)
-  );
-});
-const presentationHint = computed(() => {
-  if (!presentationDraft.value && projectModeDraft.value)
-    return t("workspace.templates.setup.mode_conflict");
-  if (!presentationDraft.value && !hasSequenceField.value)
-    return t("workspace.templates.setup.presentation_needs_sequence");
-  return t("workspace.templates.setup.presentation_desc");
-});
-
-const hasProjectField = computed(() => {
-  const fields = draft.value?.fields ?? [];
-  return fields.some((f: Field) => f.type === "project");
-});
-// Project Mode lives on Template; read/write defensively until the bindings
-// regen adds it to the generated type (same pattern as presentation).
 const projectModeDraft = computed<boolean>({
   get: () => !!(draft.value as { project_mode?: boolean } | null)?.project_mode,
   set: (v) => {
     if (draft.value) (draft.value as { project_mode?: boolean }).project_mode = v;
   },
-});
-// Can't turn Project Mode ON without a project field, nor while Presentation is
-// on (mutually exclusive record models). Always allowed OFF.
-const projectModeToggleDisabled = computed(() => {
-  return (
-    !projectModeDraft.value &&
-    (!hasProjectField.value || presentationDraft.value)
-  );
-});
-const projectModeHint = computed(() => {
-  if (!projectModeDraft.value && presentationDraft.value)
-    return t("workspace.templates.setup.mode_conflict");
-  if (!projectModeDraft.value && !hasProjectField.value)
-    return t("workspace.templates.setup.project_mode_needs_project");
-  return t("workspace.templates.setup.project_mode_desc");
 });
 
 const {
@@ -763,33 +707,11 @@ setTopbarMenu(() => [
             </Tabs>
           </div>
 
-          <FormSwitchRow
-            v-model="draft.enable_collection"
-            :label="t('workspace.templates.setup.enable_collection')"
-            :description="collectionToggleDisabled
-              ? t('workspace.templates.setup.enable_collection_needs_guid')
-              : ''"
-            :on-label="t('common.on')"
-            :off-label="t('common.off')"
-            :disabled="collectionToggleDisabled"
-          />
-
-          <FormSwitchRow
-            v-model="presentationDraft"
-            :label="t('workspace.templates.setup.presentation')"
-            :description="presentationHint"
-            :on-label="t('common.on')"
-            :off-label="t('common.off')"
-            :disabled="presentationToggleDisabled"
-          />
-
-          <FormSwitchRow
-            v-model="projectModeDraft"
-            :label="t('workspace.templates.setup.project_mode')"
-            :description="projectModeHint"
-            :on-label="t('common.on')"
-            :off-label="t('common.off')"
-            :disabled="projectModeToggleDisabled"
+          <TemplateTypeToggle
+            :fields="draft.fields ?? []"
+            v-model:enable-collection="draft.enable_collection"
+            v-model:presentation="presentationDraft"
+            v-model:project-mode="projectModeDraft"
           />
         </FormSection>
 
