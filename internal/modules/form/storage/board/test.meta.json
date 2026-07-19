@@ -1,0 +1,19 @@
+{
+  "data": {
+    "rows": [
+      {
+        "note": "first"
+      },
+      {},
+      {
+        "note": ""
+      },
+      {
+        "note": "second"
+      }
+    ]
+  },
+  "meta": {
+    "id": "abc-123"
+  }
+}

@@ -1,6 +1,9 @@
 package form
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -119,5 +122,105 @@ func TestForm_LinkEmptyStaysEmpty(t *testing.T) {
 	}
 	if got, want := res.Values["ref"], ""; got != want {
 		t.Errorf("empty link changed: got %v (%T), want empty string", got, got)
+	}
+}
+
+// newRealStackWithStorage is newRealStack plus the storage manager, so a test can
+// write a stale file straight to disk (bypassing SaveValues' sanitize) and get
+// its on-disk directory.
+func newRealStackWithStorage(t *testing.T) (*Manager, *template.Manager, *storage.Manager, *system.Manager) {
+	t.Helper()
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	tplM := template.NewManager(sys, "templates", nil)
+	sfrM := sfr.NewManager(sys, nil)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", nil)
+	formM := NewManager(tplM, stoM, nil, nil)
+	return formM, tplM, stoM, sys
+}
+
+// A plain loop (not an event board): empty-iteration pruning is a general loop
+// invariant, and a generic loop keeps the test off the event field's project-mode
+// / kinds validation.
+func boardTemplate() *template.Template {
+	return &template.Template{
+		Name: "board", Filename: "board.yaml",
+		Fields: []template.Field{
+			{Key: "rows", Type: "loopstart"},
+			{Key: "note", Type: "text"},
+			{Key: "rows", Type: "loopstop"},
+		},
+	}
+}
+
+// This is the regression the fakeStorage unit test could NOT catch: the REAL
+// storage.LoadForm sanitizes on read (pruning empty iterations in memory) but
+// does not persist, so a stale file looks clean to any check on loaded.Data.
+// BuildView must therefore detect NeedsSave against the RAW on-disk parse, and a
+// save must actually strip the empties from disk.
+func TestForm_StaleEmptyLoopIterationsHealOnLoadAndSave(t *testing.T) {
+	m, tplM, stoM, sys := newRealStackWithStorage(t)
+	if err := tplM.SaveTemplate("board.yaml", boardTemplate()); err != nil {
+		t.Fatalf("save template: %v", err)
+	}
+
+	// Write a stale envelope straight to disk (bypassing SaveValues' sanitize).
+	// TemplateStorageDir is relative to the system root, so resolve it the same
+	// way sfr does before writing.
+	dir := sys.ResolvePath(stoM.TemplateStorageDir("board.yaml"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	envelope := map[string]any{
+		"data": map[string]any{
+			"rows": []any{
+				map[string]any{"note": "first"},
+				map[string]any{},
+				map[string]any{"note": ""},
+				map[string]any{"note": "second"},
+			},
+		},
+		"meta": map[string]any{"id": "abc-123"},
+	}
+	blob, _ := json.MarshalIndent(envelope, "", "  ")
+	path := filepath.Join(dir, "test.meta.json")
+	if err := os.WriteFile(path, blob, 0o644); err != nil {
+		t.Fatalf("write stale file: %v", err)
+	}
+
+	// BuildView must flag NeedsSave (detected from the raw file, since LoadForm
+	// already sanitized loaded.Data) and present a canonical, pruned view.
+	view, err := m.BuildView("board.yaml", "test.meta.json")
+	if err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	if !view.NeedsSave {
+		t.Fatal("stale file with empty iterations must flag NeedsSave on load")
+	}
+	if got := view.Values["rows"].([]any); len(got) != 2 {
+		t.Fatalf("view not pruned to 2 real events: %+v", got)
+	}
+
+	// Persisting the view must strip the empties from the FILE.
+	if _, err := m.SaveValues("board.yaml", SavePayload{
+		Datafile: "test.meta.json",
+		Values:   view.Values,
+		Meta:     view.Meta,
+	}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if raw := stoM.LoadFormRaw("board.yaml", "test.meta.json"); raw == nil {
+		t.Fatal("raw reload nil after save")
+	} else if got := raw.Data["rows"].([]any); len(got) != 2 {
+		t.Fatalf("empties still on disk after save: %+v", got)
+	}
+
+	// Re-opening the now-clean record must NOT flag NeedsSave (no perpetual dirty).
+	reopened, err := m.BuildView("board.yaml", "test.meta.json")
+	if err != nil {
+		t.Fatalf("BuildView reopen: %v", err)
+	}
+	if reopened.NeedsSave {
+		t.Error("clean file must not flag NeedsSave on reopen")
 	}
 }
