@@ -30,16 +30,15 @@ type BoardTick struct {
 // indices (clamped to the axis); Milestone marks a zero-span point (a task with
 // no end, or kind "milestone").
 type BoardBar struct {
-	Index       int    `json:"index"` // source events-loop entry index (for click-to-edit)
-	Resource    string `json:"resource"`
-	Description string `json:"description"`
-	Kind        string `json:"kind"`
-	Color       string `json:"color"` // the kind's colour (from the event field options)
-	Start       string `json:"start"`
-	End         string `json:"end"`
-	StartTick   int    `json:"start_tick"`
-	EndTick     int    `json:"end_tick"`
-	Milestone   bool   `json:"milestone"`
+	Index     int    `json:"index"` // source events-loop entry index (for click-to-edit)
+	Resource  string `json:"resource"`
+	Kind      string `json:"kind"`
+	Color     string `json:"color"` // the kind's colour (from the event field options)
+	Start     string `json:"start"`
+	End       string `json:"end"`
+	StartTick int    `json:"start_tick"`
+	EndTick   int    `json:"end_tick"`
+	Milestone bool   `json:"milestone"`
 }
 
 // Board is the structured layout of a single plan-board record: the X axis
@@ -279,14 +278,13 @@ func placeBar(doc template.EventDoc, ticks []BoardTick) (BoardBar, bool) {
 		endTick = startTick
 	}
 	return BoardBar{
-		Resource:    doc.Resource,
-		Description: doc.Description,
-		Kind:        doc.Kind,
-		Start:       doc.Start,
-		End:         doc.End,
-		StartTick:   startTick,
-		EndTick:     endTick,
-		Milestone:   milestone,
+		Resource:  doc.Resource,
+		Kind:      doc.Kind,
+		Start:     doc.Start,
+		End:       doc.End,
+		StartTick: startTick,
+		EndTick:   endTick,
+		Milestone: milestone,
 	}, true
 }
 

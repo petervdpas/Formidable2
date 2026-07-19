@@ -109,13 +109,11 @@ function barStyle(bar: BoardBar): Record<string, string> | null {
   return style;
 }
 function barLabel(bar: BoardBar): string {
-  return bar.description || bar.kind || "";
+  return bar.kind || "";
 }
 function barTitle(bar: BoardBar): string {
   const span = bar.end && bar.end !== bar.start ? `${bar.start} / ${bar.end}` : bar.start;
-  return [bar.resource, span, bar.kind && `(${bar.kind})`, bar.description]
-    .filter(Boolean)
-    .join(" ");
+  return [bar.resource, span, bar.kind && `(${bar.kind})`].filter(Boolean).join(" ");
 }
 </script>
 

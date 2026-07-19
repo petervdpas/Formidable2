@@ -20,6 +20,7 @@ type formStore interface {
 	ListForms(templateFilename string) ([]string, error)
 	ExtendedListForms(templateFilename string) ([]storage.FormSummary, error)
 	LoadForm(templateFilename, datafile string) *storage.Form
+	LoadFormRaw(templateFilename, datafile string) *storage.Form
 	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) storage.SaveResult
 	DeleteForm(templateFilename, datafile string) error
 	SortFieldValue(templateFilename, datafile, fieldKey, column, direction string) (any, error)
@@ -140,13 +141,31 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 		}
 	}
 
+	// NeedsSave detection must read the RAW on-disk envelope, NOT loaded.Data:
+	// storage.LoadForm already sanitized (pruning empty loop iterations in memory)
+	// but does not persist that, so loaded.Data looks clean while the file is
+	// stale. If the file still carries empty iterations, flag NeedsSave so the
+	// frontend presents a one-click save that writes the cleaned shape back.
+	needsSave := false
+	if rawForm := m.storage.LoadFormRaw(templateName, datafile); rawForm != nil {
+		if _, changed := storage.PruneEmptyLoops(rawForm.Data, tpl.Fields); changed {
+			needsSave = true
+		}
+	}
+
+	// Prune loaded.Data too so the working view is canonical even if some loader
+	// path didn't sanitize (in production LoadForm already did, so this is a
+	// no-op; it makes the view robust regardless).
+	values, _ := storage.PruneEmptyLoops(loaded.Data, tpl.Fields)
+
 	return &FormView{
 		Template:   tpl,
-		Values:     loaded.Data,
+		Values:     values,
 		Meta:       loaded.Meta,
 		LoopGroups: groups,
 		Datafile:   datafile,
 		Saved:      true,
+		NeedsSave:  needsSave,
 	}, nil
 }
 

@@ -87,7 +87,6 @@
   "field.link.url.hint": "The actual address of the link",
   "field.event.kind": "Kind",
   "field.event.resource": "Resource",
-  "field.event.description": "Description",
   "field.event.start": "Start",
   "field.event.end": "End",
   "field.project.name": "Name",

@@ -19,6 +19,11 @@ export function useFormView() {
   const draft = ref<FormView | null>(null);
   const loading = ref(false);
   const error = ref<string>("");
+  // Set when BuildView healed the loaded record (empty loop iterations pruned):
+  // the draft already equals the view, so JSON-diff sees nothing, but the disk
+  // is stale. Force the form dirty so the user can persist the cleanup with one
+  // save. Cleared once the save lands (or the record is closed).
+  const healPending = ref(false);
 
   // ── undo / redo ───────────────────────────────────────────────────
   // Edit history for the working draft. Components mutate draft.values /
@@ -106,11 +111,13 @@ export function useFormView() {
       const v = await FormSvc.BuildView(templateName, datafile);
       view.value = v;
       draft.value = clone(v);
+      healPending.value = !!v?.needs_save;
       resetHistory();
     } catch (e) {
       error.value = String(e);
       view.value = null;
       draft.value = null;
+      healPending.value = false;
       resetHistory();
     } finally {
       loading.value = false;
@@ -121,6 +128,7 @@ export function useFormView() {
     view.value = null;
     draft.value = null;
     error.value = "";
+    healPending.value = false;
     resetHistory();
   }
 
@@ -130,6 +138,7 @@ export function useFormView() {
   // can swap for structural compare.
   const dirty = computed<boolean>(() => {
     if (!draft.value || !view.value) return false;
+    if (healPending.value) return true;
     return (
       JSON.stringify(draft.value.values) !== JSON.stringify(view.value.values) ||
       JSON.stringify(draft.value.meta) !== JSON.stringify(view.value.meta)
@@ -157,6 +166,7 @@ export function useFormView() {
       const next = await FormSvc.SaveValues(draft.value.template.filename, payload);
       view.value = next;
       draft.value = clone(next);
+      healPending.value = false; // the heal is now on disk
       // Rebaseline to the saved shape but keep the stacks: undo after a
       // save reverts to the pre-save edits (re-marking the form dirty).
       baseline = snap();

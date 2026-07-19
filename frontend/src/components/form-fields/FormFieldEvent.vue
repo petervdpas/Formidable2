@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, inject, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { TextField, SelectField, DateInput, type SelectOption } from "../fields";
+import { SelectField, DateInput, type SelectOption } from "../fields";
 import { Service as TemplateSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 // FormFieldEvent - a placement on the project board's two axes: X (time) via
 // start/end, Y (resource) via a picker sourced from the project's resources.
-// Kind (task/milestone/absence) is backend-owned; description is a free-text
-// note. A milestone is a zero-span point, so its end is hidden.
+// Kind is author-defined on the event field's options. A note about the bar is
+// NOT part of the event: add a sibling field to the events loop for that. A
+// milestone is a zero-span point, so its end is hidden.
 
 const props = defineProps<{
   field: Field;
@@ -24,7 +25,6 @@ type EventValue = {
   end: string;
   kind: string;
   resource: string;
-  description: string;
 };
 
 function normalize(v: unknown): EventValue {
@@ -35,23 +35,26 @@ function normalize(v: unknown): EventValue {
     end: str(o.end),
     kind: str(o.kind, "task"),
     resource: str(o.resource),
-    description: str(o.description),
   };
 }
 
 const cur = computed<EventValue>(() => normalize(props.modelValue));
 
+// Patch over the RAW value, not the normalized axes: the events looper folds
+// author-added fields (e.g. description) into the event object, so editing an
+// axis must preserve every other key rather than drop it back to {start,end,
+// kind,resource}.
 function patch(part: Partial<EventValue>) {
-  emit("update:modelValue", { ...cur.value, ...part });
+  const base =
+    props.modelValue && typeof props.modelValue === "object"
+      ? (props.modelValue as Record<string, unknown>)
+      : {};
+  emit("update:modelValue", { ...base, ...part });
 }
 
 const start = computed<string>({ get: () => cur.value.start, set: (v) => patch({ start: v }) });
 const end = computed<string>({ get: () => cur.value.end, set: (v) => patch({ end: v }) });
 const resource = computed<string>({ get: () => cur.value.resource, set: (v) => patch({ resource: v }) });
-const description = computed<string>({
-  get: () => cur.value.description,
-  set: (v) => patch({ description: v }),
-});
 const kind = computed<string>({
   get: () => cur.value.kind,
   // A milestone is zero-span: clear end when switching to it.
@@ -128,12 +131,6 @@ watch(() => templateFilename.value, loadProject);
       <div v-if="!isMilestone" class="event-field-stack">
         <label class="stacked-label">{{ t("field.event.end") }}</label>
         <DateInput v-model="end" :readonly="field.readonly" :min="start || rangeFrom" :max="rangeTo" />
-      </div>
-    </div>
-    <div class="event-field-row">
-      <div class="event-field-stack">
-        <label class="stacked-label">{{ t("field.event.description") }}</label>
-        <TextField v-model="description" :readonly="field.readonly" />
       </div>
     </div>
   </div>

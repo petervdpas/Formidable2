@@ -19,6 +19,10 @@ type FormView struct {
 	LoopGroups []LoopGroup        `json:"loop_groups"`
 	Datafile   string             `json:"datafile"`
 	Saved      bool               `json:"saved"`
+	// NeedsSave marks a loaded record whose on-disk data was not canonical and
+	// got healed in the view (empty loop iterations pruned). The frontend surfaces
+	// it as a dirty form so the user can persist the cleanup with one save.
+	NeedsSave bool `json:"needs_save"`
 }
 
 // LoopGroup is one precomputed loopstart/loopstop pair. SummaryFieldKey

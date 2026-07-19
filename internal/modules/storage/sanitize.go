@@ -25,12 +25,13 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		f := fields[i]
 		if f.Type == "loopstart" {
 			loopKey := f.Key
+			endIdx := skipLoop(fields, i+1, loopKey, skip)
 			if existing, ok := rawData[loopKey]; ok {
-				data[loopKey] = existing
+				var changed bool
+				data[loopKey] = pruneLoopValue(existing, fields[i+1:endIdx], &changed)
 			} else {
 				data[loopKey] = []any{}
 			}
-			endIdx := skipLoop(fields, i+1, loopKey, skip)
 			i = endIdx
 			continue
 		}
@@ -405,6 +406,105 @@ func splitEnvelope(raw map[string]any) (data, meta map[string]any) {
 		return raw, metaObj
 	}
 	return raw, map[string]any{}
+}
+
+// PruneEmptyLoops removes every empty iteration from every loop in a values map,
+// recursing through nested loops, and reports whether anything changed. It is the
+// load-time twin of the prune Sanitize runs on save, so BuildView can heal a
+// record and flag that it needs a normalizing save. Mutates values in place.
+func PruneEmptyLoops(values map[string]any, fields []template.Field) (map[string]any, bool) {
+	if values == nil {
+		return values, false
+	}
+	changed := false
+	pruneLoopsAtLevel(values, fields, &changed)
+	return values, changed
+}
+
+// pruneLoopsAtLevel walks the loops declared directly in `fields` and prunes each
+// one's value inside `values`. Nested loops are reached via recursion in
+// pruneLoopValue, so the invariant holds at every nesting level.
+func pruneLoopsAtLevel(values map[string]any, fields []template.Field, changed *bool) {
+	for i := 0; i < len(fields); i++ {
+		if fields[i].Type != "loopstart" {
+			continue
+		}
+		key := fields[i].Key
+		end := matchLoopstop(fields, i+1, key)
+		if raw, ok := values[key]; ok {
+			values[key] = pruneLoopValue(raw, fields[i+1:end], changed)
+		}
+		i = end
+	}
+}
+
+// pruneLoopValue drops every iteration that carries no data anywhere from a loop
+// value, first recursing into each surviving item's own nested loops. A non-slice
+// value is returned untouched; an all-empty loop collapses to a non-nil empty
+// slice so the on-disk shape stays a JSON array.
+func pruneLoopValue(v any, inner []template.Field, changed *bool) any {
+	items, ok := v.([]any)
+	if !ok {
+		return v
+	}
+	out := make([]any, 0, len(items))
+	for _, it := range items {
+		if m, ok := it.(map[string]any); ok {
+			pruneLoopsAtLevel(m, inner, changed) // nested loops first
+		}
+		if isEmptyLoopValue(it) {
+			*changed = true
+			continue
+		}
+		out = append(out, it)
+	}
+	return out
+}
+
+// matchLoopstop returns the index of the loopstop that closes the loopstart whose
+// body begins at `start` (key `key`), honoring nested loops via depth counting.
+func matchLoopstop(fields []template.Field, start int, key string) int {
+	depth := 1
+	for i := start; i < len(fields); i++ {
+		switch fields[i].Type {
+		case "loopstart":
+			depth++
+		case "loopstop":
+			depth--
+			if depth == 0 && fields[i].Key == key {
+				return i
+			}
+		}
+	}
+	return len(fields) - 1
+}
+
+// isEmptyLoopValue reports whether a value holds nothing, recursively: nil, a
+// blank/whitespace string, or a map/slice whose every element is itself empty.
+// Numbers and booleans are always data (a stored 0 or false is a real value).
+func isEmptyLoopValue(v any) bool {
+	switch t := v.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(t) == ""
+	case []any:
+		for _, e := range t {
+			if !isEmptyLoopValue(e) {
+				return false
+			}
+		}
+		return true
+	case map[string]any:
+		for _, e := range t {
+			if !isEmptyLoopValue(e) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 // skipLoop marks every loop-body key skip=true so the outer scanner skips them; returns the matching loopstop index.

@@ -3,13 +3,13 @@ package template
 import "testing"
 
 func TestParseEventDoc_RoundTrip(t *testing.T) {
-	in := map[string]any{"start": "2026-06-27", "end": "2026-08-16", "kind": "task", "resource": "ferry", "description": "build the thing"}
+	in := map[string]any{"start": "2026-06-27", "end": "2026-08-16", "kind": "task", "resource": "ferry"}
 	doc, err := ParseEventDoc(in)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	if doc.Start != "2026-06-27" || doc.End != "2026-08-16" || doc.Kind != "task" ||
-		doc.Resource != "ferry" || doc.Description != "build the thing" {
+		doc.Resource != "ferry" {
 		t.Errorf("round-trip mismatch: %+v", doc)
 	}
 }

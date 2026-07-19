@@ -7,9 +7,8 @@
 import { computed, ref, watch, inject, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import FormLoop from "./FormLoop.vue";
+import FormLoopFields from "./FormLoopFields.vue";
 import ProjectBoard from "../ProjectBoard.vue";
-import FormFieldEvent from "./FormFieldEvent.vue";
-import Modal from "../Modal.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
@@ -63,21 +62,16 @@ watch([() => props.modelValue, () => templateFilename.value, resourceOrder], ref
 });
 const showBoard = computed(() => (liveBoard.value?.ticks?.length ?? 0) > 0);
 
-// The inner event field carries the kind options; FormFieldEvent needs it.
-const eventField = computed<Field | undefined>(() =>
-  props.innerFields.find((f) => f.type === "event"),
-);
-
 type Entry = Record<string, unknown>;
 const entries = computed<Entry[]>(() =>
   props.modelValue.map((e) => (e && typeof e === "object" ? { ...(e as Entry) } : {})),
 );
 
-// Bar-click / add opens a modal editing one entry's "event" value.
+// Clicking a bar (or + Event) opens the editor for one loop iteration. The
+// editor is a real loop item: it edits EVERY inner field the author put in the
+// events loop (the event bar plus any siblings like a description), not just the
+// baked-in event value.
 const editIndex = ref<number | null>(null);
-const editEvent = computed<unknown>(() =>
-  editIndex.value != null ? (entries.value[editIndex.value]?.event ?? {}) : {},
-);
 
 function openEdit(index: number) {
   editIndex.value = index;
@@ -91,21 +85,56 @@ function reorderResources(order: string[]) {
   const base = p && typeof p === "object" ? { ...(p as Record<string, unknown>) } : {};
   props.values["project"] = { ...base, resourceOrder: order };
 }
+
+// setEntry re-emits the whole array up, keeping the value flow one-way (mirrors
+// FormLoop).
+function setEntry(i: number, key: string, val: unknown) {
+  const next = entries.value.slice();
+  next[i] = { ...next[i], [key]: val };
+  emit("update:modelValue", next);
+}
+
+// The events looper folds author-added fields INTO the event: an iteration is
+// stored as { event: { resource, kind, start, end, ...authorFields } }, not the
+// event plus sibling keys. So the editor's proxy routes every field except
+// "event" itself through entry.event: FormFieldEvent binds to the whole event
+// object, a "description" field binds to event.description, etc. Reading and
+// writing both go through event, so nothing lands as a stray sibling key.
+function eventOf(i: number): Entry {
+  const ev = entries.value[i]?.event;
+  return ev && typeof ev === "object" ? (ev as Entry) : {};
+}
+function entryProxy(i: number): Entry {
+  return new Proxy(
+    {},
+    {
+      get: (_, key) =>
+        key === "event" ? entries.value[i]?.event : eventOf(i)[key as string],
+      set: (_, key, val) => {
+        if (key === "event") setEntry(i, "event", val);
+        else setEntry(i, "event", { ...eventOf(i), [key as string]: val });
+        return true;
+      },
+    },
+  );
+}
+
 function addEvent() {
-  const next = [...entries.value, { event: {} }];
+  const next = [...entries.value, {}];
   emit("update:modelValue", next);
   editIndex.value = next.length - 1;
-}
-function writeEvent(v: unknown) {
-  if (editIndex.value == null) return;
-  const next = entries.value.slice();
-  next[editIndex.value] = { ...next[editIndex.value], event: v };
-  emit("update:modelValue", next);
 }
 function removeEditing() {
   if (editIndex.value == null) return;
   const next = entries.value.filter((_, i) => i !== editIndex.value);
   emit("update:modelValue", next);
+  editIndex.value = null;
+}
+// Abandoned-blank iterations are NOT pruned here: that "loopers never persist
+// empty entries" invariant lives in the backend (storage.Sanitize, on save), so
+// there's one source of truth. A blank event has no start, so it draws no bar
+// anyway; Save removes it from disk.
+function closeEditor() {
   editIndex.value = null;
 }
 </script>
@@ -120,9 +149,46 @@ function removeEditing() {
         </div>
       </div>
       <ProjectBoard :board="liveBoard" @edit="openEdit" @reorder="reorderResources" />
+
       <button type="button" class="tool-btn primary event-loop-add" @click="addEvent">
         + {{ t("workspace.templates.field_type.event") }}
       </button>
+
+      <!-- The event editor lives inline, not in a modal: on a board you pick a
+           bar and tweak it in place, watching the timeline react. It opens
+           below the add button so that button stays anchored to the chart.
+           It edits a whole loop iteration via FormLoopFields, so every inner
+           field the author added to the events loop shows up, not just the
+           event bar. Only one editor is open at a time (editIndex). -->
+      <div v-if="editIndex != null" class="event-loop-editor">
+        <div class="event-loop-editor-head">
+          <h4 class="event-loop-editor-title">
+            {{ t("workspace.templates.field_type.event") }} #{{ editIndex + 1 }}
+          </h4>
+          <button
+            type="button"
+            class="event-loop-editor-close"
+            :aria-label="t('common.close')"
+            @click="closeEditor"
+          >
+            &times;
+          </button>
+        </div>
+        <FormLoopFields
+          :fields="innerFields"
+          :start-offset="innerStartOffset"
+          :values="entryProxy(editIndex)"
+          :loop-groups="loopGroups"
+        />
+        <div class="event-loop-editor-actions">
+          <button type="button" class="tool-btn danger" @click="removeEditing">
+            {{ t("common.remove") }}
+          </button>
+          <button type="button" class="tool-btn" @click="closeEditor">
+            {{ t("common.close") }}
+          </button>
+        </div>
+      </div>
     </template>
 
     <FormLoop
@@ -135,28 +201,5 @@ function removeEditing() {
       :model-value="modelValue"
       @update:model-value="(v: unknown[]) => emit('update:modelValue', v)"
     />
-
-    <Modal
-      v-if="editIndex != null && eventField"
-      :open="true"
-      :title="t('workspace.templates.field_type.event')"
-      width="640px"
-      :close-on-esc="true"
-      @close="editIndex = null"
-    >
-      <FormFieldEvent
-        :field="eventField"
-        :model-value="editEvent"
-        @update:model-value="writeEvent"
-      />
-      <template #footer>
-        <button type="button" class="tool-btn danger" @click="removeEditing">
-          {{ t("common.remove") }}
-        </button>
-        <button type="button" class="tool-btn" @click="editIndex = null">
-          {{ t("common.close") }}
-        </button>
-      </template>
-    </Modal>
   </div>
 </template>

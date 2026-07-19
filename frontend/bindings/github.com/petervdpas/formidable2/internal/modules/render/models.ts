@@ -82,7 +82,6 @@ export class BoardBar {
      */
     "index": number;
     "resource": string;
-    "description": string;
     "kind": string;
 
     /**
@@ -102,9 +101,6 @@ export class BoardBar {
         }
         if (!("resource" in $$source)) {
             this["resource"] = "";
-        }
-        if (!("description" in $$source)) {
-            this["description"] = "";
         }
         if (!("kind" in $$source)) {
             this["kind"] = "";

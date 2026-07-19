@@ -17,14 +17,13 @@ const EventKindMilestone = "milestone"
 // EventDoc is the stored value of an event field: a placement on the project
 // board's two axes. Start/End are the X (time) span (ISO dates; an empty End, or
 // End == Start, is a zero-span milestone). Resource is the Y axis: which of the
-// project's author-defined resources (rows) this event sits in. Description is a
-// free-text note.
+// project's author-defined resources (rows) this event sits in. A note about the
+// bar is not part of the event: add a sibling field to the events loop for that.
 type EventDoc struct {
-	Start       string `json:"start"`
-	End         string `json:"end,omitempty"`
-	Kind        string `json:"kind"`
-	Resource    string `json:"resource,omitempty"`
-	Description string `json:"description,omitempty"`
+	Start    string `json:"start"`
+	End      string `json:"end,omitempty"`
+	Kind     string `json:"kind"`
+	Resource string `json:"resource,omitempty"`
 }
 
 // ParseEventDoc decodes a stored event value (a decoded map[string]any) into an

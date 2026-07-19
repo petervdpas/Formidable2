@@ -141,6 +141,45 @@
   margin-top: 10px;
 }
 
+/* Inline event editor: a bordered card that opens under the chart when a bar
+   is clicked or "+ Event" is pressed. Replaces the old modal so edits happen
+   in place, next to the timeline they change. */
+.event-loop-editor {
+  margin-top: 10px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--color-border, #ccc);
+  border-radius: 8px;
+  background: var(--color-bg-subtle, rgba(127, 127, 127, 0.06));
+}
+.event-loop-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.event-loop-editor-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.event-loop-editor-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0 4px;
+  color: var(--color-fg-muted, #888);
+}
+.event-loop-editor-close:hover {
+  color: var(--color-fg, #222);
+}
+.event-loop-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .project-board-empty {
   padding: 16px;
   color: var(--color-fg-muted, #888);

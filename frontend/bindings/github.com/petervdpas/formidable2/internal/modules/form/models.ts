@@ -54,6 +54,13 @@ export class FormView {
     "datafile": string;
     "saved": boolean;
 
+    /**
+     * NeedsSave marks a loaded record whose on-disk data was not canonical and
+     * got healed in the view (empty loop iterations pruned). The frontend surfaces
+     * it as a dirty form so the user can persist the cleanup with one save.
+     */
+    "needs_save": boolean;
+
     /** Creates a new FormView instance. */
     constructor($$source: Partial<FormView> = {}) {
         if (!("template" in $$source)) {
@@ -73,6 +80,9 @@ export class FormView {
         }
         if (!("saved" in $$source)) {
             this["saved"] = false;
+        }
+        if (!("needs_save" in $$source)) {
+            this["needs_save"] = false;
         }
 
         Object.assign(this, $$source);

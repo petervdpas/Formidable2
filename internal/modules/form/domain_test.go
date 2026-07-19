@@ -79,6 +79,20 @@ func (s *fakeStorage) LoadForm(t, df string) *storage.Form {
 	return tf[df]
 }
 
+// LoadFormRaw mirrors production's separate unsanitized parse: return a deep copy
+// so callers that prune it in place don't disturb the LoadForm view.
+func (s *fakeStorage) LoadFormRaw(t, df string) *storage.Form {
+	tf := s.forms[t]
+	if tf == nil || tf[df] == nil {
+		return nil
+	}
+	src := tf[df]
+	b, _ := json.Marshal(src.Data)
+	var data map[string]any
+	_ = json.Unmarshal(b, &data)
+	return &storage.Form{Meta: src.Meta, Data: data}
+}
+
 func (s *fakeStorage) SaveForm(_ context.Context, t, df string, data map[string]any) storage.SaveResult {
 	s.saves = append(s.saves, saveCall{Template: t, Datafile: df, Data: data})
 	if s.forms[t] == nil {
@@ -313,6 +327,64 @@ func TestBuildView_LoadsExistingForm(t *testing.T) {
 	}
 	if view.Meta.ID != "abc-123" {
 		t.Errorf("meta lost: %+v", view.Meta)
+	}
+}
+
+func TestBuildView_HealsEmptyLoopIterationsAndFlagsNeedsSave(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Fields: []template.Field{
+			{Key: "events", Type: "loopstart"},
+			{Key: "event", Type: "event"},
+			{Key: "events", Type: "loopstop"},
+		},
+	}
+	store.forms["t.yaml"] = map[string]*storage.Form{
+		"f.meta.json": {
+			Meta: storage.FormMeta{ID: "abc-123"},
+			Data: map[string]any{"events": []any{
+				map[string]any{"event": map[string]any{"start": "2026-07-16"}},
+				map[string]any{},
+				map[string]any{"event": map[string]any{}},
+			}},
+		},
+	}
+	view, err := m.BuildView("t.yaml", "f.meta.json")
+	if err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	got := view.Values["events"].([]any)
+	if len(got) != 1 {
+		t.Fatalf("empty iterations not healed on load: %+v", got)
+	}
+	if !view.NeedsSave {
+		t.Error("healed view must flag NeedsSave so the frontend presents a save")
+	}
+}
+
+func TestBuildView_CanonicalRecordDoesNotFlagNeedsSave(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Fields: []template.Field{
+			{Key: "events", Type: "loopstart"},
+			{Key: "event", Type: "event"},
+			{Key: "events", Type: "loopstop"},
+		},
+	}
+	store.forms["t.yaml"] = map[string]*storage.Form{
+		"f.meta.json": {
+			Meta: storage.FormMeta{ID: "abc-123"},
+			Data: map[string]any{"events": []any{
+				map[string]any{"event": map[string]any{"start": "2026-07-16"}},
+			}},
+		},
+	}
+	view, err := m.BuildView("t.yaml", "f.meta.json")
+	if err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	if view.NeedsSave {
+		t.Error("a clean record must not flag NeedsSave (no spurious dirty-on-load)")
 	}
 }
 
