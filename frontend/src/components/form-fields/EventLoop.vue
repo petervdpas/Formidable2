@@ -33,11 +33,18 @@ const { t } = useI18n();
 const templateFilename = inject<Ref<string>>("templateFilename", ref(""));
 const liveBoard = ref<Board | null>(null);
 
-// This record's resource order lives on the project value ({name, resourceOrder}).
+// This record's resource order + time-block override live on the project value
+// ({name, resourceOrder, timeBlock}). An empty timeBlock lets the backend fall
+// back to the field's authored default.
 const resourceOrder = computed<string[]>(() => {
   const p = props.values["project"];
   const arr = p && typeof p === "object" ? (p as { resourceOrder?: unknown }).resourceOrder : null;
   return Array.isArray(arr) ? (arr.filter((x) => typeof x === "string") as string[]) : [];
+});
+const timeBlock = computed<string>(() => {
+  const p = props.values["project"];
+  const tb = p && typeof p === "object" ? (p as { timeBlock?: unknown }).timeBlock : null;
+  return typeof tb === "string" ? tb : "";
 });
 
 async function refresh() {
@@ -51,12 +58,13 @@ async function refresh() {
       "",
       props.modelValue,
       resourceOrder.value,
+      timeBlock.value,
     );
   } catch {
     liveBoard.value = null;
   }
 }
-watch([() => props.modelValue, () => templateFilename.value, resourceOrder], refresh, {
+watch([() => props.modelValue, () => templateFilename.value, resourceOrder, timeBlock], refresh, {
   immediate: true,
   deep: true,
 });

@@ -90,6 +90,8 @@
   "field.event.start": "Start",
   "field.event.end": "End",
   "field.project.name": "Name",
+  "field.project.timeblock": "Time block",
+  "field.project.timeblock_hint": "Axis granularity for this board. Defaults to the template's setting.",
   "field.readonly": "Read-only",
   "paste.cancel": "Cancel",
   "paste.list.title": "Paste list items",

@@ -13,13 +13,16 @@ import (
 // name. Events in the same template are laid on this axis and (a later step)
 // capped to the from/to window.
 
-// ProjectDoc is the stored per-record value of a project field: the board's name
-// plus this record's resource (Y-axis) order. The axis (dates + granularity) and
-// the resource definitions live in the field options; ResourceOrder is per-record
-// so dragging lanes on the board is a normal (saveable) record edit.
+// ProjectDoc is the stored per-record value of a project field: the board's name,
+// this record's resource (Y-axis) order, and an optional time-block override. The
+// axis window (from/to) and the resource definitions live in the field options;
+// ResourceOrder and TimeBlock are per-record so dragging lanes or re-ticking the
+// axis is a normal (saveable) record edit. An empty TimeBlock falls back to the
+// field's authored default (ProjectTimeBlock).
 type ProjectDoc struct {
 	Name          string   `json:"name"`
 	ResourceOrder []string `json:"resourceOrder,omitempty"`
+	TimeBlock     string   `json:"timeBlock,omitempty"`
 }
 
 // Time-block granularity for a project's axis: the width of one column on the

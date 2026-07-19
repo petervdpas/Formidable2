@@ -66,27 +66,30 @@ func (m *Manager) BuildBoard(templateName, datafile string) (Board, error) {
 	var name string
 	var events any
 	var order []string
+	var timeBlock string
 	if loaded := m.storage.LoadForm(templateName, datafile); loaded != nil {
 		if doc, derr := template.ParseProjectDoc(loaded.Data[project.Key]); derr == nil {
 			name = doc.Name
 			order = doc.ResourceOrder
+			timeBlock = doc.TimeBlock
 		}
 		events = loaded.Data["events"]
 	}
-	return buildBoard(project, event, name, events, order), nil
+	return buildBoard(project, event, name, events, order, timeBlock), nil
 }
 
 // BuildBoardLive lays the given in-progress events onto the template's project
 // axis, without reading the saved record. The form editor calls this so the
 // board updates as the user edits the events loop. name titles the board; events
 // is the loop value ([{event:{...}}, ...]); resourceOrder is this record's Y-axis
-// order (drag-to-sort persists it on the project value).
-func (m *Manager) BuildBoardLive(templateName, name string, events any, resourceOrder []string) (Board, error) {
+// order; timeBlock is this record's granularity override (empty = the field's
+// authored default). Both persist on the project value.
+func (m *Manager) BuildBoardLive(templateName, name string, events any, resourceOrder []string, timeBlock string) (Board, error) {
 	project, event, err := m.boardFields(templateName)
 	if err != nil {
 		return Board{}, err
 	}
-	return buildBoard(project, event, name, events, resourceOrder), nil
+	return buildBoard(project, event, name, events, resourceOrder, timeBlock), nil
 }
 
 // boardFields loads a template and returns its project field (required) and
@@ -133,6 +136,15 @@ func orderResources(rs []template.ResourceDescriptor, order []string) []template
 	return out
 }
 
+// resolveTimeBlock picks the record's granularity override when it names a known
+// time block, else the field's authored default.
+func resolveTimeBlock(override string, project *template.Field) string {
+	if template.IsTimeBlock(override) {
+		return override
+	}
+	return template.ProjectTimeBlock(*project)
+}
+
 // eventKindColors maps each author-defined kind value to its colour, read from
 // the event field options ({value, color} rows).
 func eventKindColors(event *template.Field) map[string]string {
@@ -156,14 +168,15 @@ func eventKindColors(event *template.Field) map[string]string {
 
 // buildBoard is the shared layout core: axis + resources from the project field
 // (resources ordered by the record's resourceOrder), bars from an events value,
-// each bar coloured by its kind.
-func buildBoard(project, event *template.Field, name string, events any, resourceOrder []string) Board {
+// each bar coloured by its kind. timeBlock is the record's granularity override;
+// an empty or unrecognised value falls back to the field's authored default.
+func buildBoard(project, event *template.Field, name string, events any, resourceOrder []string, timeBlock string) Board {
 	from, to := template.ProjectDateRange(*project)
 	board := Board{
 		Name:      name,
 		From:      from,
 		To:        to,
-		TimeBlock: template.ProjectTimeBlock(*project),
+		TimeBlock: resolveTimeBlock(timeBlock, project),
 		Resources: orderResources(template.ProjectResources(*project), resourceOrder),
 	}
 	board.Ticks = boardTicks(from, to, board.TimeBlock)

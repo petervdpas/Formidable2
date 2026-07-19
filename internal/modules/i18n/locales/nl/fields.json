@@ -90,6 +90,8 @@
   "field.event.start": "Start",
   "field.event.end": "Einde",
   "field.project.name": "Naam",
+  "field.project.timeblock": "Tijdblok",
+  "field.project.timeblock_hint": "Asindeling voor dit bord. Standaard de instelling van het sjabloon.",
   "field.readonly": "Alleen-lezen",
   "paste.cancel": "Annuleren",
   "paste.list.title": "Lijstitems plakken",

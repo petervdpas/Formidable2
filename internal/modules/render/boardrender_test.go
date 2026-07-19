@@ -117,6 +117,104 @@ func TestEventsTable_NoEvents(t *testing.T) {
 	}
 }
 
+func metaProjectField() *template.Field {
+	return &template.Field{Key: "project", Type: "project", Options: []any{
+		map[string]any{"value": "from", "label": "2026-07-15"},
+		map[string]any{"value": "to", "label": "2026-08-26"}, // 6 weeks / 42 days
+		map[string]any{"value": "timeblock", "label": "week"},
+		map[string]any{"value": "peter", "label": "Peter"},
+		map[string]any{"value": "jack", "label": "Jack"},
+	}}
+}
+
+func TestBoardMeta_Properties(t *testing.T) {
+	project := metaProjectField()
+	ctx := map[string]any{
+		"project": map[string]any{"name": "Projectos"},
+		"events": []any{
+			map[string]any{"event": map[string]any{"start": "2026-07-16", "end": "2026-07-28"}},
+			map[string]any{"event": map[string]any{"start": "2026-07-21", "end": "2026-07-25"}},
+		},
+	}
+	cases := []struct {
+		prop, unit string
+		want       any
+	}{
+		{"name", "", "Projectos"},
+		{"from", "", "2026-07-15"},
+		{"to", "", "2026-08-26"},
+		{"timeblock", "", "week"},
+		{"duration", "", 42},
+		{"duration", "days", 42},
+		{"duration", "weeks", 6},
+		{"ticks", "", 7}, // 42 days / 7 spans 6 full weeks + 1 boundary tick
+		{"events", "", 2},
+		{"resources", "", 2},
+		{"bogus", "", ""},
+	}
+	for _, c := range cases {
+		if got := boardMetaValue(c.prop, c.unit, project, ctx); got != c.want {
+			t.Errorf("boardMeta(%q,%q) = %v (%T), want %v", c.prop, c.unit, got, got, c.want)
+		}
+	}
+}
+
+func TestBoardMeta_TimeBlockHonorsRecordOverride(t *testing.T) {
+	project := metaProjectField() // template default = week
+	// No override → template default.
+	if got := boardMetaValue("timeblock", "", project, map[string]any{
+		"project": map[string]any{"name": "P"},
+	}); got != "week" {
+		t.Errorf("default timeblock = %v, want week", got)
+	}
+	// Record override wins.
+	if got := boardMetaValue("timeblock", "", project, map[string]any{
+		"project": map[string]any{"name": "P", "timeBlock": "month"},
+	}); got != "month" {
+		t.Errorf("override timeblock = %v, want month", got)
+	}
+}
+
+func TestBoardMeta_DurationMonths(t *testing.T) {
+	project := &template.Field{Key: "project", Type: "project", Options: []any{
+		map[string]any{"value": "from", "label": "2026-07-15"},
+		map[string]any{"value": "to", "label": "2027-01-29"},
+		map[string]any{"value": "timeblock", "label": "week"},
+	}}
+	if got := boardMetaValue("duration", "months", project, map[string]any{}); got != 6 {
+		t.Errorf("duration months = %v, want 6", got)
+	}
+}
+
+func TestBoardMeta_UnsetAxis(t *testing.T) {
+	project := &template.Field{Key: "project", Type: "project"} // no from/to options
+	if got := boardMetaValue("duration", "", project, map[string]any{}); got != "" {
+		t.Errorf("duration with no axis = %v, want empty", got)
+	}
+	if got := boardMetaValue("events", "", project, map[string]any{}); got != 0 {
+		t.Errorf("events with no data = %v, want 0", got)
+	}
+}
+
+func TestBoardMetaHelper_ThroughRender(t *testing.T) {
+	tpl := &template.Template{
+		ProjectMode:      true,
+		MarkdownTemplate: `{{boardMeta "name"}} runs {{boardMeta "duration" "weeks"}} weeks with {{boardMeta "events"}} events`,
+		Fields:           []template.Field{*metaProjectField()},
+	}
+	values := map[string]any{
+		"project": map[string]any{"name": "Projectos"},
+		"events":  []any{map[string]any{"event": map[string]any{"start": "2026-07-16", "end": "2026-07-28"}}},
+	}
+	out, err := RenderMarkdown(values, tpl, nil)
+	if err != nil {
+		t.Fatalf("RenderMarkdown: %v", err)
+	}
+	if out != "Projectos runs 6 weeks with 1 events" {
+		t.Errorf("render = %q", out)
+	}
+}
+
 func TestBoardHelper_RendersGanttAndTable(t *testing.T) {
 	tpl := &template.Template{
 		ProjectMode:      true,

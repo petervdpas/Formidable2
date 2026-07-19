@@ -60,8 +60,8 @@ func (s *Service) BuildBoard(templateName, datafile string) (Board, error) {
 
 // BuildBoardLive lays in-progress events onto the template's project axis so the
 // form editor can render a live board as the user edits, without saving first.
-func (s *Service) BuildBoardLive(templateName, name string, events any, resourceOrder []string) (Board, error) {
-	return s.m.BuildBoardLive(templateName, name, events, resourceOrder)
+func (s *Service) BuildBoardLive(templateName, name string, events any, resourceOrder []string, timeBlock string) (Board, error) {
+	return s.m.BuildBoardLive(templateName, name, events, resourceOrder, timeBlock)
 }
 
 // RenderFullHTML - self-contained HTML document (DOCTYPE + head + body)

@@ -2,6 +2,7 @@ package render
 
 import (
 	"strings"
+	"time"
 
 	"github.com/aymerick/raymond"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -204,6 +205,115 @@ func loopAuthorFields(inner []template.Field) []template.Field {
 	return out
 }
 
+// boardMetaValue resolves one {{boardMeta}} property off a plan-board record.
+// project is the template's project field (axis window + resources); ctx holds
+// the record values (project name, events loop). Counts return an int; strings
+// return "". An unknown prop returns "".
+func boardMetaValue(prop, unit string, project *template.Field, ctx map[string]any) any {
+	doc, _ := template.ParseProjectDoc(ctx["project"])
+	var from, to, tb string
+	if project != nil {
+		from, to = template.ProjectDateRange(*project)
+		tb = resolveTimeBlock(doc.TimeBlock, project)
+	}
+	switch prop {
+	case "name":
+		return doc.Name
+	case "from":
+		return from
+	case "to":
+		return to
+	case "timeblock":
+		return tb
+	case "duration":
+		return projectDuration(from, to, unit)
+	case "ticks":
+		return len(boardTicks(from, to, tb))
+	case "events":
+		return loopLen(ctx["events"])
+	case "resources":
+		if project == nil {
+			return 0
+		}
+		return len(template.ProjectResources(*project))
+	default:
+		return ""
+	}
+}
+
+// projectDuration returns the axis window length. Default unit is calendar days
+// between from and to; "weeks" floors days/7; "months" counts whole months.
+// A missing or inverted window returns "".
+func projectDuration(from, to, unit string) any {
+	start, err1 := time.Parse(boardDateLayout, from)
+	end, err2 := time.Parse(boardDateLayout, to)
+	if from == "" || to == "" || err1 != nil || err2 != nil || end.Before(start) {
+		return ""
+	}
+	days := int(end.Sub(start).Hours() / 24)
+	switch unit {
+	case "week", "weeks":
+		return days / 7
+	case "month", "months":
+		return monthsBetween(start, end)
+	default:
+		return days
+	}
+}
+
+// monthsBetween counts whole months from start to end (a partial trailing month
+// doesn't count). Never negative.
+func monthsBetween(start, end time.Time) int {
+	months := (end.Year()-start.Year())*12 + int(end.Month()) - int(start.Month())
+	if end.Day() < start.Day() {
+		months--
+	}
+	if months < 0 {
+		return 0
+	}
+	return months
+}
+
+// loopLen is the entry count of a loop value ([]any), 0 for anything else.
+func loopLen(v any) int {
+	if arr, ok := v.([]any); ok {
+		return len(arr)
+	}
+	return 0
+}
+
+// registerBoardMetaHelper binds {{boardMeta "prop" [unit]}}: read one scalar off
+// the plan-board record (name, from, to, timeblock, duration, ticks, events,
+// resources). The read-out companion to {{board}}'s full render.
+func registerBoardMetaHelper(tpl *raymond.Template) {
+	tpl.RegisterHelper("boardMeta", func(options *raymond.Options) any {
+		params := options.Params()
+		var prop, unit string
+		if len(params) > 0 {
+			prop, _ = params[0].(string)
+		}
+		if len(params) > 1 {
+			unit, _ = params[1].(string)
+		}
+		prop = strings.ToLower(strings.TrimSpace(prop))
+		unit = strings.ToLower(strings.TrimSpace(unit))
+
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		var project *template.Field
+		for _, f := range contextFields(options.Ctx()) {
+			if f.Type == "project" {
+				ff := f
+				project = &ff
+				break
+			}
+		}
+		return boardMetaValue(prop, unit, project, ctx)
+	})
+}
+
 // registerBoardHelper binds {{board}}: the plan-board render. It reads the
 // record's project axis + events loop from the context and emits the mermaid
 // Gantt followed by the events table. Options-only so a bare {{board}} works.
@@ -229,7 +339,7 @@ func registerBoardHelper(tpl *raymond.Template, opts *Options) {
 
 		events := ctx["events"]
 		doc, _ := template.ParseProjectDoc(ctx["project"])
-		board := buildBoard(project, event, doc.Name, events, doc.ResourceOrder)
+		board := buildBoard(project, event, doc.Name, events, doc.ResourceOrder, doc.TimeBlock)
 
 		kinds := kindLabelMap(event)
 		gantt := boardGantt(board, kinds)

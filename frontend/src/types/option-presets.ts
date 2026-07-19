@@ -181,6 +181,13 @@ const FILE_PATH_COLUMNS: ColumnDef[] = [
   { key: "pattern", type: "text", placeholder: "*.json" },
 ];
 
+// timeBlocks returns the project-axis granularity vocabulary (day/week/2-week/
+// 3-week/month), read from the backend at load with a bootstrap fallback. Used
+// by the per-record time-block override control on a plan board.
+export function timeBlocks(): string[] {
+  return [..._timeBlocks];
+}
+
 export function columnsFor(typeId: string): ColumnDef[] | null {
   if (!supportsOptions(typeId)) return null;
   switch (typeId) {

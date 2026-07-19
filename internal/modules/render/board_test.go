@@ -118,6 +118,77 @@ func TestBuildBoard_AxisAndBars(t *testing.T) {
 	}
 }
 
+func TestBuildBoard_TimeBlockOverride(t *testing.T) {
+	// Template default is weekly; the record's project value overrides to daily,
+	// so the axis re-ticks to one column per day.
+	tpl := &template.Template{ProjectMode: true, Fields: []template.Field{
+		{Key: "project", Type: "project", Options: []any{
+			map[string]any{"value": "from", "label": "2026-07-01"},
+			map[string]any{"value": "to", "label": "2026-07-05"},
+			map[string]any{"value": "timeblock", "label": "week"},
+		}},
+		{Key: "events", Type: "loopstart"},
+		{Key: "event", Type: "event"},
+		{Key: "events", Type: "loopstop"},
+	}}
+	store := &keyedFormStore{forms: map[string]*storage.Form{
+		"day.meta.json": {Data: map[string]any{
+			"project": map[string]any{"name": "Test", "timeBlock": "day"},
+		}},
+		"default.meta.json": {Data: map[string]any{
+			"project": map[string]any{"name": "Test"}, // no override
+		}},
+	}}
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, store, nil, nil, nil)
+
+	day, err := m.BuildBoard("tpl", "day.meta.json")
+	if err != nil {
+		t.Fatalf("BuildBoard(day): %v", err)
+	}
+	if day.TimeBlock != "day" || len(day.Ticks) != 5 {
+		t.Errorf("override not applied: block=%q ticks=%d (want day/5)", day.TimeBlock, len(day.Ticks))
+	}
+
+	def, err := m.BuildBoard("tpl", "default.meta.json")
+	if err != nil {
+		t.Fatalf("BuildBoard(default): %v", err)
+	}
+	if def.TimeBlock != "week" || len(def.Ticks) != 1 {
+		t.Errorf("default not honored: block=%q ticks=%d (want week/1)", def.TimeBlock, len(def.Ticks))
+	}
+}
+
+func TestBuildBoardLive_TimeBlockOverride(t *testing.T) {
+	tpl := &template.Template{ProjectMode: true, Fields: []template.Field{
+		{Key: "project", Type: "project", Options: []any{
+			map[string]any{"value": "from", "label": "2026-07-01"},
+			map[string]any{"value": "to", "label": "2026-07-05"},
+			map[string]any{"value": "timeblock", "label": "week"},
+		}},
+		{Key: "events", Type: "loopstart"},
+		{Key: "event", Type: "event"},
+		{Key: "events", Type: "loopstop"},
+	}}
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{}, nil, nil, nil)
+
+	board, err := m.BuildBoardLive("tpl", "Test", nil, nil, "day")
+	if err != nil {
+		t.Fatalf("BuildBoardLive: %v", err)
+	}
+	if board.TimeBlock != "day" || len(board.Ticks) != 5 {
+		t.Errorf("live override not applied: block=%q ticks=%d (want day/5)", board.TimeBlock, len(board.Ticks))
+	}
+
+	// An unrecognised override falls back to the field default (defensive).
+	fallback, err := m.BuildBoardLive("tpl", "Test", nil, nil, "fortnightly")
+	if err != nil {
+		t.Fatalf("BuildBoardLive(bad): %v", err)
+	}
+	if fallback.TimeBlock != "week" {
+		t.Errorf("bad override should fall back to week, got %q", fallback.TimeBlock)
+	}
+}
+
 func TestBuildBoard_NoProjectField(t *testing.T) {
 	tpl := &template.Template{Fields: []template.Field{{Key: "id", Type: "guid"}}}
 	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{}, nil, nil, nil)

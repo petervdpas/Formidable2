@@ -293,6 +293,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// {{board}}: plan-board render (mermaid Gantt + events table).
 	registerBoardHelper(tpl, opts)
 
+	// {{boardMeta "prop"}}: read one scalar off the plan-board record.
+	registerBoardMetaHelper(tpl)
+
 	// {{virtual-field "key"}}: implementation in helpers_virtual.go.
 	registerVirtualFieldHelper(tpl, opts, rootFields)
 
