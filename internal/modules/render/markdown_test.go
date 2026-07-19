@@ -906,3 +906,28 @@ func TestRenderMarkdown_NilTemplate(t *testing.T) {
 		t.Errorf("nil template: want sentinel, got %q", out)
 	}
 }
+
+// TestRenderMarkdown_SlideHelper: the {{slide}} helper renders the record's
+// slide field without the author naming its key, mirroring {{board}}.
+func TestRenderMarkdown_SlideHelper(t *testing.T) {
+	tpl := &template.Template{
+		Presentation:     true,
+		MarkdownTemplate: "{{slide}}",
+		Fields: []template.Field{
+			{Key: "slide", Type: "slide"},
+		},
+	}
+	values := map[string]any{"slide": map[string]any{"blocks": []any{
+		map[string]any{"id": "b1", "kind": "text", "content": "## Hello World",
+			"x": float64(40), "y": float64(60), "w": float64(600), "h": float64(200)},
+	}}}
+	out, err := RenderMarkdown(values, tpl, &Options{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, want := range []string{`class="slide-canvas"`, "Hello World"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("{{slide}} render missing %q\n---\n%s", want, out)
+		}
+	}
+}

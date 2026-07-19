@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aymerick/raymond"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
@@ -210,6 +211,26 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 	}
 	sb.WriteString("</div>")
 	return sb.String()
+}
+
+// registerSlideHelper binds {{slide}}: render this record's slide canvas. It
+// finds the template's slide field, reads the record's stored slide value, and
+// emits the positioned HTML, so the author writes {{slide}} without naming the
+// field key (the presentation-mode analog of {{board}}). Empty when the
+// template has no slide field or the record has no slide.
+func registerSlideHelper(tpl *raymond.Template, opts *Options) {
+	tpl.RegisterHelper("slide", func(options *raymond.Options) raymond.SafeString {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		for _, f := range contextFields(options.Ctx()) {
+			if f.Type == "slide" {
+				return raymond.SafeString(renderSlide(ctx[f.Key], &f, opts))
+			}
+		}
+		return ""
+	})
 }
 
 // RenderSlideBlockHTML renders one block's content to HTML using the same

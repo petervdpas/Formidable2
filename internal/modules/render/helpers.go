@@ -300,6 +300,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// per page). Implementation in boardrender.go.
 	registerBoardSlicesHelper(tpl, opts)
 
+	// {{slide}}: render this record's slide canvas (presentation mode).
+	registerSlideHelper(tpl, opts)
+
 	// {{virtual-field "key"}}: implementation in helpers_virtual.go.
 	registerVirtualFieldHelper(tpl, opts, rootFields)
 
