@@ -290,6 +290,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// {{field}}: implementation in helpers_field.go.
 	registerFieldHelper(tpl, opts)
 
+	// {{board}}: plan-board render (mermaid Gantt + events table).
+	registerBoardHelper(tpl, opts)
+
 	// {{virtual-field "key"}}: implementation in helpers_virtual.go.
 	registerVirtualFieldHelper(tpl, opts, rootFields)
 
