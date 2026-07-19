@@ -296,6 +296,10 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// {{boardMeta "prop"}}: read one scalar off the plan-board record.
 	registerBoardMetaHelper(tpl)
 
+	// {{#boardSlices}}: iterate calendar slices of the plan board (Gantt + table
+	// per page). Implementation in boardrender.go.
+	registerBoardSlicesHelper(tpl, opts)
+
 	// {{virtual-field "key"}}: implementation in helpers_virtual.go.
 	registerVirtualFieldHelper(tpl, opts, rootFields)
 

@@ -500,3 +500,13 @@
 .formidable-prose .slide-block { overflow: hidden; }
 .formidable-prose .slide-block > :first-child { margin-top: 0; }
 .formidable-prose .slide-block > :last-child { margin-bottom: 0; }
+
+/* Manual page break for print/PDF export. Authors drop
+   <div class="page-break"></div> into markdown (goldmark passes raw HTML
+   through); the Chrome-based PDF pipeline honours break-before. Harmless on
+   screen. Used between plan-board slices ({{#boardSlices}}). */
+.formidable-prose .page-break {
+    break-before: page;
+    page-break-before: always;
+    height: 0;
+}
