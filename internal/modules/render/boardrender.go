@@ -222,6 +222,40 @@ func loopAuthorFields(inner []template.Field) []template.Field {
 	return out
 }
 
+// selectColumns narrows the author fields shown as table columns per the
+// {{board columns=...}} hash. nil keeps every field (default). A bool false
+// drops them all (just the four event axes). A comma list of field keys (or
+// labels) keeps only those, in the order given; unknown tokens are skipped.
+func selectColumns(authorFields []template.Field, raw any) []template.Field {
+	if raw == nil {
+		return authorFields
+	}
+	if b, ok := raw.(bool); ok {
+		if b {
+			return authorFields
+		}
+		return nil
+	}
+	spec, ok := raw.(string)
+	if !ok || strings.TrimSpace(spec) == "" {
+		return authorFields
+	}
+	byName := map[string]template.Field{}
+	for _, f := range authorFields {
+		byName[strings.ToLower(f.Key)] = f
+		if f.Label != "" {
+			byName[strings.ToLower(f.Label)] = f
+		}
+	}
+	var out []template.Field
+	for tok := range strings.SplitSeq(spec, ",") {
+		if f, ok := byName[strings.ToLower(strings.TrimSpace(tok))]; ok {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // boardMetaValue resolves one {{boardMeta}} property off a plan-board record.
 // project is the template's project field (axis window + resources); ctx holds
 // the record values (project name, events loop). Counts return an int; strings
@@ -475,7 +509,7 @@ func registerBoardSlicesHelper(tpl *raymond.Template, opts *Options) {
 
 		kinds := kindLabelMap(event)
 		resources := resourceLabelMap(project)
-		authorFields := loopAuthorFields(loopGroupFields(ctx, "events"))
+		authorFields := selectColumns(loopAuthorFields(loopGroupFields(ctx, "events")), options.HashProp("columns"))
 		tplPtr, _ := ctx["_template"].(*template.Template)
 		groups, _ := ctx["_loopGroups"].(map[string][]template.Field)
 
@@ -575,7 +609,8 @@ func registerBoardHelper(tpl *raymond.Template, opts *Options) {
 
 		kinds := kindLabelMap(event)
 		gantt := boardGantt(board, kinds, showScope)
-		table := eventsTable(events, kinds, resourceLabelMap(project), loopAuthorFields(loopGroupFields(ctx, "events")), opts)
+		cols := selectColumns(loopAuthorFields(loopGroupFields(ctx, "events")), options.HashProp("columns"))
+		table := eventsTable(events, kinds, resourceLabelMap(project), cols, opts)
 
 		var parts []string
 		if gantt != "" {

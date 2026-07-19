@@ -1,6 +1,7 @@
 package render
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -131,6 +132,37 @@ func TestEventsTable_AxesPlusAuthorFields(t *testing.T) {
 	}, "\n")
 	if got != want {
 		t.Errorf("table mismatch:\n got:\n%s\n\nwant:\n%s", got, want)
+	}
+}
+
+func TestSelectColumns(t *testing.T) {
+	fields := []template.Field{
+		{Key: "omschrijving", Type: "text", Label: "Omschrijving"},
+		{Key: "status", Type: "text", Label: "Status"},
+		{Key: "prio", Type: "text", Label: "Prio"},
+	}
+	keys := func(fs []template.Field) []string {
+		out := make([]string, len(fs))
+		for i, f := range fs {
+			out[i] = f.Key
+		}
+		return out
+	}
+
+	if got := keys(selectColumns(fields, nil)); !reflect.DeepEqual(got, []string{"omschrijving", "status", "prio"}) {
+		t.Errorf("nil should keep all in order, got %v", got)
+	}
+	if got := selectColumns(fields, false); got != nil {
+		t.Errorf("false should drop all columns, got %v", got)
+	}
+	if got := keys(selectColumns(fields, "status, omschrijving")); !reflect.DeepEqual(got, []string{"status", "omschrijving"}) {
+		t.Errorf("comma list should filter and reorder, got %v", got)
+	}
+	if got := keys(selectColumns(fields, "Prio")); !reflect.DeepEqual(got, []string{"prio"}) {
+		t.Errorf("label match (case-insensitive) should resolve, got %v", got)
+	}
+	if got := selectColumns(fields, "nope"); got != nil {
+		t.Errorf("unknown token should yield no columns, got %v", got)
 	}
 }
 
