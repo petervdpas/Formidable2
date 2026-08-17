@@ -45,5 +45,7 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.Query),
 		application.NewService(a.Datacore),
 		application.NewService(a.Relation),
+		application.NewService(a.Vault),
+		application.NewService(a.APIClient),
 	}
 }

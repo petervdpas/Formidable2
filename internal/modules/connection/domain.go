@@ -348,3 +348,14 @@ func checkSpecFile(file string) error {
 	}
 	return nil
 }
+
+// CatalogForSpec parses a spec file directly, for validating a draft client
+// that has not been saved yet and so has no definition to read a spec through.
+func (m *Manager) CatalogForSpec(specFile string) (*Catalog, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.fs == nil {
+		return nil, errors.New("connection: no filesystem")
+	}
+	return m.catalog(specFile)
+}

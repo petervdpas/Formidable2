@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "vaultId": "e1efbd3a-ebd8-421e-a011-40111518dfd4",
+  "createdUtc": "2026-08-17T22:07:40.29407196Z",
+  "kdf": {
+    "algorithm": "argon2id",
+    "memoryKiB": 65536,
+    "iterations": 3,
+    "parallelism": 1,
+    "salt": "5Xs38HKe9AOwi+w6T006aw=="
+  },
+  "canary": {
+    "nonce": "AIpsuc2vnV3do7wk",
+    "ciphertext": "OGxRJmJLt3MM",
+    "tag": "tlxHB07GzAkMut37ueF1aA=="
+  }
+}

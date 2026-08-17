@@ -1,0 +1,208 @@
+/* Vault panel (Information -> Vault).
+   Status header, the create/unlock gate, and the stored-secret table. */
+
+.vault-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  margin: 1em 0 1.5em;
+}
+
+.vault-status-line {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+}
+
+.vault-status-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-muted-text, #495057);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 6em;
+}
+
+.vault-spacer {
+  flex: 1;
+}
+
+.vault-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.vault-pill.unlocked {
+  background: var(--color-ok-bg, #d4edda);
+  color: var(--color-ok-text, #155724);
+  border: 1px solid var(--color-ok-border, #c3e6cb);
+}
+
+.vault-pill.locked {
+  background: var(--color-warn-bg, #fff3cd);
+  color: var(--color-warn-text, #856404);
+  border: 1px solid var(--color-warn-border, #ffeeba);
+}
+
+.vault-pill.absent {
+  background: var(--color-muted-bg, #e9ecef);
+  color: var(--color-muted-text, #495057);
+  border: 1px solid var(--color-muted-border, #ced4da);
+}
+
+.vault-path {
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+/* Create / unlock gate ------------------------------------------------ */
+
+.vault-gate {
+  max-width: 34em;
+  padding: 1em 1.2em 1.2em;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 6px;
+  background: var(--color-panel-bg, transparent);
+}
+
+.vault-gate h4 {
+  margin: 0 0 0.4em;
+}
+
+.vault-actions {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 1em;
+}
+
+.vault-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin-top: 1em;
+  padding: 0.6em 0.8em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  background: var(--color-warn-bg, #fff3cd);
+  color: var(--color-warn-text, #856404);
+  border: 1px solid var(--color-warn-border, #ffeeba);
+}
+
+/* Stored secrets ------------------------------------------------------ */
+
+.vault-list-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.6em;
+}
+
+.vault-list-header h4 {
+  margin: 0;
+  flex: 1;
+}
+
+.vault-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.8em;
+}
+
+.vault-table th,
+.vault-table td {
+  text-align: left;
+  padding: 0.45em 0.6em;
+  border-bottom: 1px solid var(--color-border, #dee2e6);
+  vertical-align: middle;
+}
+
+.vault-table th {
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted-text, #495057);
+}
+
+.vault-entry-name {
+  font-size: 0.9em;
+  word-break: break-all;
+}
+
+.vault-col-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.vault-col-actions .tool-btn + .tool-btn {
+  margin-left: 0.3em;
+}
+
+.vault-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0.4em 0 0;
+  padding: 0.5em 0.7em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  background: var(--color-error-bg, #f8d7da);
+  color: var(--color-error-text, #721c24);
+  border: 1px solid var(--color-error-border, #f5c6cb);
+}
+
+/* Secret value input: multi-line, with a reveal toggle.
+   Masking uses -webkit-text-security because there is no type="password" for
+   a textarea. Both Wails webviews (WebKitGTK, WebView2) support it; the reveal
+   button is the escape hatch if a future runtime ever does not. */
+.vault-secret-input {
+  position: relative;
+  display: block;
+}
+
+.vault-secret-input .field-textarea {
+  width: 100%;
+  padding-right: 2.4em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9em;
+  resize: vertical;
+}
+
+.vault-value-masked {
+  -webkit-text-security: disc;
+}
+
+.vault-reveal {
+  position: absolute;
+  top: 0.35em;
+  right: 0.35em;
+  width: 1.9em;
+  height: 1.9em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted-text, #495057);
+  cursor: pointer;
+}
+
+.vault-reveal:hover {
+  border-color: var(--color-border, #dee2e6);
+  background: var(--color-muted-bg, #e9ecef);
+}
+
+.vault-reveal[aria-pressed="true"] {
+  color: var(--color-accent, #0d6efd);
+}
+
+.vault-value-count {
+  margin: 0.3em 0 0;
+}

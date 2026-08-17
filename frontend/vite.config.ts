@@ -59,6 +59,46 @@ function watchProseCSS(): Plugin {
 }
 
 // https://vitejs.dev/config/
+// Pre-split heavy vendors so each lib gets its own chunk. Dev rebuilds stay
+// fast (only the chunks whose source changed are re-emitted) and the WebView
+// can cache vendor chunks across releases.
+//
+// Written as a function rather than the object form: Rolldown, which backs
+// Vite 8, only accepts the callback signature, and the function form also
+// works on Rollup, so this config is portable across both.
+const VENDOR_CHUNKS: Record<string, readonly string[]> = {
+  vue: ["vue", "vue-i18n"],
+  codemirror: [
+    "vue-codemirror",
+    "@codemirror/view",
+    "@codemirror/state",
+    "@codemirror/lang-markdown",
+    "@codemirror/lang-yaml",
+    "@codemirror/theme-one-dark",
+  ],
+  mdEditor: ["md-editor-v3"],
+  reveal: ["reveal.js"],
+  fontawesome: ["@fortawesome/fontawesome-free"],
+  dnd: ["vuedraggable"],
+  datepicker: ["@vuepic/vue-datepicker", "date-fns"],
+};
+
+/** Map a module id to its vendor chunk, or undefined to let the bundler
+ *  decide. Matching is on whole path segments, so "vue" never swallows
+ *  "vue-i18n", and lastIndexOf handles nested node_modules. */
+function vendorChunk(id: string): string | undefined {
+  const marker = "node_modules/";
+  const at = id.replace(/\\/g, "/").lastIndexOf(marker);
+  if (at === -1) return undefined;
+  const rest = id.replace(/\\/g, "/").slice(at + marker.length);
+  for (const [chunk, packages] of Object.entries(VENDOR_CHUNKS)) {
+    for (const pkg of packages) {
+      if (rest === pkg || rest.startsWith(pkg + "/")) return chunk;
+    }
+  }
+  return undefined;
+}
+
 export default defineConfig({
   plugins: [vue(), wails("./bindings"), watchProseCSS(), ensureGitkeep()],
   server: {
@@ -91,27 +131,7 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Pre-split heavy vendors so each lib gets its own chunk.
-        // Dev rebuilds stay fast (only the chunks whose source changed
-        // are re-emitted) and the browser/WebView can cache vendor
-        // chunks across releases. Order doesn't matter; chunk names
-        // are matched by import path.
-        manualChunks: {
-          vue: ["vue", "vue-i18n"],
-          codemirror: [
-            "vue-codemirror",
-            "@codemirror/view",
-            "@codemirror/state",
-            "@codemirror/lang-markdown",
-            "@codemirror/lang-yaml",
-            "@codemirror/theme-one-dark",
-          ],
-          mdEditor: ["md-editor-v3"],
-          reveal: ["reveal.js"],
-          fontawesome: ["@fortawesome/fontawesome-free"],
-          dnd: ["vuedraggable"],
-          datepicker: ["@vuepic/vue-datepicker", "date-fns"],
-        },
+        manualChunks: vendorChunk,
       },
     },
   },

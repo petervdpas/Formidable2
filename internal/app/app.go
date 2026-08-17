@@ -25,6 +25,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
 	"github.com/petervdpas/formidable2/internal/modules/config"
+	"github.com/petervdpas/formidable2/internal/modules/connection"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
@@ -54,6 +55,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 	"github.com/petervdpas/formidable2/internal/modules/updatecheck"
+	"github.com/petervdpas/formidable2/internal/modules/vault"
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
 	"github.com/petervdpas/formidable2/internal/optrack"
 	"github.com/petervdpas/formidable2/internal/server/godoc"
@@ -151,6 +153,8 @@ type App struct {
 	CodeFormatter *codeformatter.Service
 	UpdateCheck   *updatecheck.Service
 	Index         *index.Service
+	Vault         *vault.Service
+	APIClient     *connection.Service
 
 	templateManager   *template.Manager
 	storageManager    *storage.Manager
@@ -763,6 +767,20 @@ func New(d Deps) (*App, error) {
 	// The standalone deck export inlines user fonts too (@font-face data URIs).
 	standaloneRender.SetFontFaceProvider(fontsM.FontFaceCSS)
 
+	// Encrypted secrets vault at <AppRoot>/vault. Machine scoped and outside
+	// the context folder, so it never rides along with a git or gigot sync.
+	// The on-disk format is SecretBlast's, so the same directory opens in the
+	// other tools that read it.
+	vaultSvc := vault.NewService(d.AppRoot, d.Logger, emitter)
+
+	// API Clients: uploaded Swagger/OpenAPI documents under
+	// <AppRoot>/api-clients/, interpreted at runtime rather than generated.
+	// Credentials resolve lazily from the vault, so a client configured before
+	// the vault exists starts working the moment it is created and unlocked.
+	clientM := connection.NewManager(sysM, d.Logger)
+	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretPrefix)
+	clientInv := connection.NewInvoker(clientM, clientKeys, connection.WithLogger(d.Logger))
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -805,6 +823,8 @@ func New(d Deps) (*App, error) {
 		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
 		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
 		Index:             newIndexService(ehM, opsRegistry),
+		Vault:             vaultSvc,
+		APIClient:         connection.NewService(clientM, clientInv, clientKeys),
 		templateManager:   tplM,
 		storageManager:    stoM,
 		formManager:       formM,
