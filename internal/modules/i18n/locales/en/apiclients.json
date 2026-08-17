@@ -101,5 +101,9 @@
   "apiclients.toast.test_failed": "The call failed: {0}",
   "apiclients.toast.specs_reloaded": "Documents re-read from disk.",
   "apiclients.confirm.delete_title": "Delete API client",
-  "apiclients.confirm.delete_message": "Delete \"{0}\"? Its document and stored credential go too, and any field using it stops resolving."
+  "apiclients.confirm.delete_message": "Delete \"{0}\"? Its document and stored credential go too, and any field using it stops resolving.",
+  "apiclients.field.dialect_default": "{0} (default)",
+  "apiclients.tab.service": "Service",
+  "apiclients.tab.resources": "Resources",
+  "apiclients.tab.test": "Try it"
 }

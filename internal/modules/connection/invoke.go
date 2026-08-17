@@ -397,8 +397,8 @@ func (iv *Invoker) buildURL(
 	query url.Values,
 ) (string, error) {
 	base := strings.TrimSuffix(b.conn.BaseURL, "/")
-	if base == "" && len(b.catalog.Servers) > 0 {
-		base = strings.TrimSuffix(b.catalog.Servers[0], "/")
+	if base == "" {
+		base = FirstAbsoluteServer(b.catalog)
 	}
 	if base == "" {
 		return "", invokeErr(CodeBindingInvalid, "connection has no base URL", nil)
@@ -583,8 +583,8 @@ func (b *binding) selectNames() ([]string, bool) {
 // could point the next page at anywhere and be handed the credentials.
 func (b *binding) followURL(link string) (string, error) {
 	base := strings.TrimSuffix(b.conn.BaseURL, "/")
-	if base == "" && len(b.catalog.Servers) > 0 {
-		base = strings.TrimSuffix(b.catalog.Servers[0], "/")
+	if base == "" {
+		base = FirstAbsoluteServer(b.catalog)
 	}
 	baseURL, err := url.Parse(base)
 	if err != nil {

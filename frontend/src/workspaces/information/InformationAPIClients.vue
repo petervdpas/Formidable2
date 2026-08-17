@@ -7,6 +7,7 @@ import { useToast } from "../../composables/useToast";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
 import Modal from "../../components/Modal.vue";
 import { FormRow, FormSection, SelectField, TextField } from "../../components/fields";
+import Tabs, { type TabItem } from "../../components/Tabs.vue";
 import APIClientResourceDialog from "./APIClientResourceDialog.vue";
 import type {
   Connection,
@@ -67,7 +68,51 @@ const testRunning = ref(false);
 const testRows = ref<{ id: string; label: string; fields: Record<string, string> }[] | null>(null);
 const testResource = ref("");
 
-const dialectOptions = computed(() => dialects.value.map((d) => ({ value: d, label: d })));
+// Which pane of the selected client is showing. Kept across a client switch so
+// comparing the same aspect of two clients does not mean re-picking the tab,
+// and corrected below when the target client cannot show it.
+const activeTab = ref("service");
+
+const hasResources = computed(() => (draft.value?.resources ?? []).length > 0);
+
+const tabs = computed<TabItem[]>(() => [
+  { id: "service", label: t("apiclients.tab.service") },
+  { id: "resources", label: t("apiclients.tab.resources") },
+  { id: "test", label: t("apiclients.tab.test"), disabled: !hasResources.value },
+]);
+
+// A client with no resources cannot be tried out, so sitting on that tab would
+// leave an empty pane with nothing explaining why.
+watch(hasResources, (has) => {
+  if (!has && activeTab.value === "test") activeTab.value = "resources";
+});
+
+const clientOptions = computed(() =>
+  summaries.value.map((c) => ({
+    value: c.id,
+    label: (c.name || c.id) + (c.ok ? "" : "  \u26a0"),
+  })),
+);
+
+// Two-way binding for the header picker, so choosing a client goes through the
+// same load path a click used to.
+const pickedClient = computed({
+  get: () => selectedId.value,
+  set: (id: string) => {
+    if (id && id !== selectedId.value) void onPick(id);
+  },
+});
+
+// An unset dialect means the first entry the backend lists, which is "rest".
+// Without an option standing for that, the picker renders blank and reads as
+// misconfigured. The stored value stays empty, so nothing on disk changes.
+const dialectOptions = computed(() => {
+  const fallback = dialects.value[0] ?? "rest";
+  return [
+    { value: "", label: t("apiclients.field.dialect_default", [fallback]) },
+    ...dialects.value.map((d) => ({ value: d, label: d })),
+  ];
+});
 const authKindOptions = computed(() =>
   ["none", "bearer", "apikey", "basic"].map((k) => ({ value: k, label: k })),
 );
@@ -297,79 +342,69 @@ function readAsBase64(file: File): Promise<string> {
     {{ t('apiclients.toast.load_failed', [lastError]) }}
   </p>
 
-  <div class="apiclients-layout">
-    <aside class="apiclients-list">
-      <div class="apiclients-list-header">
-        <h4>{{ t('apiclients.list.title') }}</h4>
-        <div class="apiclients-list-actions">
-          <button
-            class="tool-btn"
-            type="button"
-            :disabled="loading"
-            :title="t('apiclients.action.reload_specs')"
-            :aria-label="t('apiclients.action.reload_specs')"
-            @click="onReloadSpecs"
-          >
-            <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-          </button>
-          <button class="tool-btn primary" type="button" @click="openNew">
-            <i class="fa-solid fa-plus" aria-hidden="true"></i>
-            {{ t('apiclients.action.new') }}
-          </button>
-        </div>
-      </div>
+  <!-- One header row instead of a second sidebar: the Information tree is
+       already the navigation, so the client is picked here and the whole
+       width goes to the client's own form. -->
+  <div class="apiclients-toolbar">
+    <label class="apiclients-toolbar-label" for="apiclients-pick">
+      {{ t('apiclients.list.title') }}
+    </label>
+    <SelectField
+      id="apiclients-pick"
+      v-model="pickedClient"
+      :options="clientOptions"
+      :disabled="!hasClients"
+    />
+    <button
+      class="tool-btn"
+      type="button"
+      :disabled="loading"
+      :title="t('apiclients.action.reload_specs')"
+      :aria-label="t('apiclients.action.reload_specs')"
+      @click="onReloadSpecs"
+    >
+      <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+    </button>
+    <button class="tool-btn primary" type="button" @click="openNew">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      {{ t('apiclients.action.new') }}
+    </button>
 
-      <p v-if="loading" class="muted small">{{ t('apiclients.list.loading') }}</p>
-      <p v-else-if="!hasClients" class="muted small">{{ t('apiclients.list.empty') }}</p>
+    <span class="apiclients-spacer"></span>
 
-      <ul v-else class="apiclients-rows">
-        <li
-          v-for="s in summaries"
-          :key="s.id"
-          :class="['apiclients-row', { active: s.id === selectedId }]"
-          @click="onPick(s.id)"
-        >
-          <span class="apiclients-row-name">{{ s.name || s.id }}</span>
-          <code class="apiclients-row-id">{{ s.id }}</code>
-          <span v-if="!s.ok" class="apiclients-row-warn" :title="s.error">
-            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-            {{ t('apiclients.list.broken') }}
-          </span>
+    <template v-if="draft">
+      <button class="tool-btn" type="button" @click="deleteTarget = draft.id">
+        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+        {{ t('apiclients.action.delete') }}
+      </button>
+      <button class="tool-btn primary" type="button" :disabled="busy" @click="onSave">
+        <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+        {{ t('apiclients.action.save') }}
+      </button>
+    </template>
+  </div>
+
+  <p v-if="loading" class="muted small">{{ t('apiclients.list.loading') }}</p>
+  <p v-else-if="!hasClients" class="muted small">{{ t('apiclients.list.empty') }}</p>
+  <p v-else-if="!draft" class="muted small">{{ t('apiclients.editor.idle') }}</p>
+
+  <template v-else>
+    <p v-if="problems.length === 0" class="apiclients-clean">
+      <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+      {{ t('apiclients.validation.clean') }}
+    </p>
+    <div v-else class="apiclients-problems">
+      <strong>{{ t('apiclients.validation.title') }}</strong>
+      <ul>
+        <li v-for="(p, i) in problems" :key="i">
+          <code v-if="p.resource">{{ p.resource }}</code>
+          {{ p.message }}
         </li>
       </ul>
-    </aside>
+    </div>
 
-    <section class="apiclients-editor">
-      <p v-if="!draft" class="muted">{{ t('apiclients.editor.idle') }}</p>
-
-      <template v-else>
-        <div class="apiclients-editor-header">
-          <h4>{{ draft.name || draft.id }}</h4>
-          <span class="apiclients-spacer"></span>
-          <button class="tool-btn" type="button" @click="deleteTarget = draft.id">
-            <i class="fa-solid fa-trash" aria-hidden="true"></i>
-            {{ t('apiclients.action.delete') }}
-          </button>
-          <button class="tool-btn primary" type="button" :disabled="busy" @click="onSave">
-            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
-            {{ t('apiclients.action.save') }}
-          </button>
-        </div>
-
-        <p v-if="problems.length === 0" class="apiclients-clean">
-          <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-          {{ t('apiclients.validation.clean') }}
-        </p>
-        <div v-else class="apiclients-problems">
-          <strong>{{ t('apiclients.validation.title') }}</strong>
-          <ul>
-            <li v-for="(p, i) in problems" :key="i">
-              <code v-if="p.resource">{{ p.resource }}</code>
-              {{ p.message }}
-            </li>
-          </ul>
-        </div>
-
+    <Tabs v-model="activeTab" :items="tabs">
+      <template #service>
         <FormSection :title="t('apiclients.section.identity')" :subtitle="specSummary">
           <FormRow :label="t('apiclients.field.name')">
             <TextField v-model="draft.name" @update:model-value="revalidate" />
@@ -422,7 +457,6 @@ function readAsBase64(file: File): Promise<string> {
           <FormRow v-if="usesBasic" :label="t('apiclients.auth.user')">
             <TextField v-model="draft.auth.user" @update:model-value="revalidate" />
           </FormRow>
-
           <FormRow
             v-if="needsCredential"
             :label="t('apiclients.auth.credential')"
@@ -461,9 +495,14 @@ function readAsBase64(file: File): Promise<string> {
             </template>
           </FormRow>
         </FormSection>
+      </template>
 
-        <FormSection :title="t('apiclients.section.resources')">
-          <p v-if="(draft.resources ?? []).length === 0" class="muted small">
+      <!-- Plain blocks, not FormSection: that is a two-column label/control
+           grid, and a bare table or button dropped into it lands in a cell
+           and collides with its neighbour. -->
+      <template #resources>
+        <div class="apiclients-block">
+          <p v-if="!hasResources" class="muted small">
             {{ t('apiclients.resource.empty') }}
           </p>
           <table v-else class="apiclients-resources-table">
@@ -501,53 +540,57 @@ function readAsBase64(file: File): Promise<string> {
             </tbody>
           </table>
 
-          <button class="tool-btn" type="button" @click="addResource">
-            <i class="fa-solid fa-plus" aria-hidden="true"></i>
-            {{ t('apiclients.resource.add') }}
-          </button>
-        </FormSection>
+          <div class="apiclients-actions">
+            <button class="tool-btn primary" type="button" @click="addResource">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+              {{ t('apiclients.resource.add') }}
+            </button>
+          </div>
+        </div>
+      </template>
 
-        <FormSection
-          v-if="(draft.resources ?? []).length > 0"
-          :title="t('apiclients.test.title')"
-          :subtitle="t('apiclients.test.hint')"
-        >
-          <FormRow :label="t('apiclients.section.resources')">
+      <template #test>
+        <div class="apiclients-block">
+          <p class="muted small">{{ t('apiclients.test.hint') }}</p>
+
+          <div class="apiclients-test-controls">
             <SelectField v-model="testResource" :options="resourceOptions" />
-          </FormRow>
-          <FormRow :label="t('apiclients.test.search')">
-            <TextField v-model="testSearch" @keydown.enter="runTest" />
-          </FormRow>
-          <FormRow>
+            <TextField
+              v-model="testSearch"
+              :placeholder="t('apiclients.test.search')"
+              @keydown.enter="runTest"
+            />
             <button class="tool-btn primary" type="button" :disabled="testRunning" @click="runTest">
               <i class="fa-solid fa-play" aria-hidden="true"></i>
               {{ testRunning ? t('apiclients.test.running') : t('apiclients.test.run') }}
             </button>
-          </FormRow>
+          </div>
 
           <template v-if="testRows">
             <p v-if="testRows.length === 0" class="muted small">{{ t('apiclients.test.empty') }}</p>
             <template v-else>
               <p class="muted small">{{ t('apiclients.test.count', [String(testRows.length)]) }}</p>
-              <table class="apiclients-test-table">
-                <tbody>
-                  <tr v-for="(row, i) in testRows" :key="i">
-                    <td><code>{{ row.id }}</code></td>
-                    <td>{{ row.label }}</td>
-                    <td class="muted small">
-                      <span v-for="(v, k) in row.fields" :key="k" class="apiclients-chip">
-                        {{ k }}={{ v }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="apiclients-test-scroll">
+                <table class="apiclients-test-table">
+                  <tbody>
+                    <tr v-for="(row, i) in testRows" :key="i">
+                      <td><code>{{ row.id }}</code></td>
+                      <td>{{ row.label }}</td>
+                      <td class="muted small">
+                        <span v-for="(v, k) in row.fields" :key="k" class="apiclients-chip">
+                          {{ k }}={{ v }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </template>
           </template>
-        </FormSection>
+        </div>
       </template>
-    </section>
-  </div>
+    </Tabs>
+  </template>
 
   <Modal :open="newOpen" :title="t('apiclients.new.title')" width="560px" @close="newOpen = false">
     <FormRow :label="t('apiclients.new.id')" :description="t('apiclients.new.id_hint')">

@@ -236,3 +236,46 @@ func TestValidate_ReportsTheOffendingResource(t *testing.T) {
 		t.Fatalf("errors must name their resource, got %+v", errs)
 	}
 }
+
+// A spec may declare a relative server such as "/api/v3", which says where the
+// service sits but not on which host. Accepting that as a fallback would let a
+// connection validate clean and then fail every call.
+func TestValidate_RelativeServerIsNotAUsableFallback(t *testing.T) {
+	const relativeServer = `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Relative", "version": "1"},
+	  "servers": [{"url": "/api/v3"}],
+	  "paths": {"/things": {"get": {"operationId": "listThings"}}}
+	}`
+	cat, err := ParseSpec([]byte(relativeServer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := FirstAbsoluteServer(cat); got != "" {
+		t.Fatalf("FirstAbsoluteServer = %q, want none", got)
+	}
+
+	c := Connection{
+		ID: "rel", Name: "Relative", SpecFile: "rel.json",
+		Resources: []Resource{{Key: "things", List: OpRef{Operation: "listThings"}}},
+	}
+	if errs := Validate(&c, cat); !hasType(errs, "no-server") {
+		t.Fatalf("errors = %s; a relative server cannot be dialled", types(errs))
+	}
+
+	// With a base URL of its own it is fine.
+	c.BaseURL = "https://example.com/api/v3"
+	if errs := Validate(&c, cat); hasType(errs, "no-server") {
+		t.Fatalf("errors = %s; an explicit base URL resolves it", types(errs))
+	}
+}
+
+func TestFirstAbsoluteServer_SkipsRelativeAndNonHTTP(t *testing.T) {
+	cat := &Catalog{Servers: []string{"/api/v3", "ftp://files.example.com", "https://api.example.com/v2/"}}
+	if got := FirstAbsoluteServer(cat); got != "https://api.example.com/v2" {
+		t.Fatalf("got %q", got)
+	}
+	if got := FirstAbsoluteServer(nil); got != "" {
+		t.Fatalf("nil catalog = %q", got)
+	}
+}

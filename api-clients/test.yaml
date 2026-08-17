@@ -1,0 +1,14 @@
+id: test
+name: test
+spec_file: test.json
+auth:
+    kind: none
+resources:
+    - key: providers
+      list:
+        operation: getProviders
+      items_path: /data
+      id_path: ""
+      label_path: ""
+      pagination:
+        style: none

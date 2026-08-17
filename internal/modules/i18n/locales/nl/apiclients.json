@@ -101,5 +101,9 @@
   "apiclients.toast.test_failed": "De aanroep mislukte: {0}",
   "apiclients.toast.specs_reloaded": "Documenten opnieuw van schijf gelezen.",
   "apiclients.confirm.delete_title": "API-client verwijderen",
-  "apiclients.confirm.delete_message": "\"{0}\" verwijderen? Het document en het opgeslagen inloggegeven gaan mee, en velden die hem gebruiken lossen niet meer op."
+  "apiclients.confirm.delete_message": "\"{0}\" verwijderen? Het document en het opgeslagen inloggegeven gaan mee, en velden die hem gebruiken lossen niet meer op.",
+  "apiclients.field.dialect_default": "{0} (standaard)",
+  "apiclients.tab.service": "Service",
+  "apiclients.tab.resources": "Resources",
+  "apiclients.tab.test": "Uitproberen"
 }

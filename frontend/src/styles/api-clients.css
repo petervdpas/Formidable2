@@ -1,104 +1,50 @@
 /* API Clients panel (Information -> API Clients).
-   Client list beside a detail editor, mirroring the PDF covers layout. */
-
-.apiclients-layout {
-  display: grid;
-  grid-template-columns: minmax(200px, 280px) 1fr;
-  gap: 1.2em;
-  align-items: start;
-  margin-top: 1em;
-}
-
-@media (max-width: 900px) {
-  .apiclients-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* List ---------------------------------------------------------------- */
-
-.apiclients-list-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  margin-bottom: 0.6em;
-}
-
-.apiclients-list-header h4 {
-  margin: 0;
-  flex: 1;
-}
-
-.apiclients-list-actions {
-  display: flex;
-  gap: 0.3em;
-}
-
-.apiclients-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--color-border, #dee2e6);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.apiclients-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15em;
-  padding: 0.55em 0.7em;
-  cursor: pointer;
-  border-bottom: 1px solid var(--color-border, #dee2e6);
-}
-
-.apiclients-row:last-child {
-  border-bottom: none;
-}
-
-.apiclients-row:hover {
-  background: var(--color-muted-bg, #e9ecef);
-}
-
-.apiclients-row.active {
-  background: var(--color-accent, #0d6efd);
-  color: #fff;
-}
-
-.apiclients-row.active .apiclients-row-id {
-  color: inherit;
-  opacity: 0.85;
-}
-
-.apiclients-row-name {
-  font-weight: 600;
-}
-
-.apiclients-row-id {
-  font-size: 0.8em;
-  color: var(--color-muted-text, #495057);
-}
-
-.apiclients-row-warn {
-  font-size: 0.8em;
-  color: var(--color-warn-text, #856404);
-}
-
-.apiclients-row.active .apiclients-row-warn {
-  color: #fff;
-}
+   Client picker on a header row, then a tabbed editor for the chosen client. */
 
 /* Editor -------------------------------------------------------------- */
 
-.apiclients-editor-header {
+/* Header row: client picker plus the actions that apply to it. Replaces the
+   old in-panel sidebar, since the Information tree is already the navigation. */
+.apiclients-toolbar {
   display: flex;
   align-items: center;
   gap: 0.5em;
-  margin-bottom: 0.8em;
+  flex-wrap: wrap;
+  margin: 1em 0;
 }
 
-.apiclients-editor-header h4 {
-  margin: 0;
+.apiclients-toolbar-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-muted-text, #495057);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.apiclients-toolbar .field-select,
+.apiclients-toolbar select {
+  min-width: 14em;
+}
+
+/* Panes hold plain blocks rather than FormSection, which is a two-column
+   label/control grid a bare table would collide inside. */
+.apiclients-block {
+  padding: 0.2em 0;
+}
+
+.apiclients-test-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex-wrap: wrap;
+  margin: 0.6em 0 1em;
+}
+
+.apiclients-test-scroll {
+  max-height: 24em;
+  overflow: auto;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
 }
 
 .apiclients-spacer {

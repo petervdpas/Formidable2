@@ -83,10 +83,15 @@ func validateIdentity(c *Connection) []ValidationError {
 // to fall back to, so a connection can never end up with nowhere to call.
 func validateBaseURL(c *Connection, cat *Catalog) []ValidationError {
 	if strings.TrimSpace(c.BaseURL) == "" {
-		if len(cat.Servers) == 0 {
+		// A declared server is only a usable fallback when it is absolute.
+		// Plenty of published documents carry a relative server such as
+		// "/api/v3", which says where the service sits but not on which host,
+		// so the connection still needs a base URL of its own.
+		if FirstAbsoluteServer(cat) == "" {
 			return []ValidationError{{
 				Type:    "no-server",
-				Message: "No base URL set and the spec declares no server",
+				Message: "No base URL set, and the spec declares no absolute server to fall back on",
+				Detail:  map[string]any{"servers": cat.Servers},
 			}}
 		}
 		return nil
@@ -452,4 +457,23 @@ func queryParamOK(op Operation, d dialectSpec, name string) bool {
 		return p.In == InQuery
 	}
 	return d.impliesParam(name)
+}
+
+// FirstAbsoluteServer returns the first server URL that can actually be called,
+// or "" when the document only declares relative ones. Both validation and the
+// invoker go through this, so what validates is what gets dialled.
+func FirstAbsoluteServer(cat *Catalog) string {
+	if cat == nil {
+		return ""
+	}
+	for _, raw := range cat.Servers {
+		u, err := url.Parse(strings.TrimSpace(raw))
+		if err != nil || !u.IsAbs() || u.Host == "" {
+			continue
+		}
+		if u.Scheme == "http" || u.Scheme == "https" {
+			return strings.TrimSuffix(raw, "/")
+		}
+	}
+	return ""
 }
