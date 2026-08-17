@@ -36,21 +36,19 @@ type Policy struct {
 	AutoLockMinutes   int `json:"auto_lock_minutes"`
 }
 
-// Status is what the settings panel renders. It is deliberately safe to fetch
-// at any time: nothing here requires the vault to be unlocked.
+// Status is what the settings panel renders. Secrets and Foreign are only
+// meaningful when Unlocked: identity lives inside the ciphertext, so a locked
+// vault genuinely cannot say how much it holds.
 type Status struct {
 	Path     string `json:"path"`
 	Exists   bool   `json:"exists"`
 	Unlocked bool   `json:"unlocked"`
 	Secrets  int    `json:"secrets"`
+	Foreign  int    `json:"foreign"`
 }
 
-// Service is the Wails-bound facade for the vault.
-//
-// Secret values only ever travel inward. There is no GetSecret: the frontend
-// can store, replace, delete and count credentials, but never read one back.
-// Everything that needs a value (the api-client invoker) runs in Go and reads
-// the vault directly, so a plaintext credential never crosses into JavaScript.
+// Service is the Wails-bound facade for the vault. Secrets are addressed by
+// (category, key); the on-disk slot name is opaque and never surfaces here.
 type Service struct {
 	root string
 	log  *slog.Logger
@@ -69,8 +67,8 @@ func NewService(appRoot string, log *slog.Logger, emit event.Emitter) *Service {
 // root to build a Resolver against.
 func (s *Service) Dir() string { return s.root }
 
-// VaultStatus reports whether a vault exists, whether it is open, and how many
-// secrets it holds. Names are filenames, so the count needs no key.
+// VaultStatus reports whether a vault exists and whether it is open. The
+// counts are filled in only when unlocked, because counting means decrypting.
 func (s *Service) VaultStatus() Status {
 	st := Status{Path: s.root, Exists: Exists(s.root)}
 	if !st.Exists {
@@ -78,9 +76,9 @@ func (s *Service) VaultStatus() Status {
 	}
 	v := s.current()
 	st.Unlocked = v != nil && !v.IsLocked()
-	if v != nil {
-		if names, err := v.List(); err == nil {
-			st.Secrets = len(names)
+	if st.Unlocked {
+		if entries, foreign, err := NewCatalog(v).ListWithForeign(); err == nil {
+			st.Secrets, st.Foreign = len(entries), foreign
 		}
 	}
 	return st
@@ -131,38 +129,53 @@ func (s *Service) LockVault() {
 	}
 }
 
-// ListSecrets returns the stored entry names and their last-write times. No
-// values, and no unlock required.
-func (s *Service) ListSecrets() ([]Entry, error) {
+// ListSecrets returns every secret's identity and metadata, never its value.
+// Requires an unlocked vault.
+func (s *Service) ListSecrets() ([]CatalogEntry, error) {
+	c, err := s.catalog()
+	if err != nil {
+		return nil, err
+	}
+	return c.List()
+}
+
+// SetSecret stores or replaces the value under (category, key).
+func (s *Service) SetSecret(category, key, value, description string) error {
+	c, err := s.catalog()
+	if err != nil {
+		return err
+	}
+	_, err = c.Put(category, key, value, description)
+	return err
+}
+
+// DeleteSecret removes the secret under (category, key).
+func (s *Service) DeleteSecret(category, key string) error {
+	c, err := s.catalog()
+	if err != nil {
+		return err
+	}
+	return c.Delete(category, key)
+}
+
+// HasSecret reports whether a secret is stored under (category, key). Unlike
+// the old flat store this needs the vault unlocked, and answers false rather
+// than guessing when it is not.
+func (s *Service) HasSecret(category, key string) bool {
+	c, err := s.catalog()
+	if err != nil {
+		return false
+	}
+	return c.Has(category, key)
+}
+
+// catalog returns the envelope layer over the live vault.
+func (s *Service) catalog() (*Catalog, error) {
 	v := s.current()
 	if v == nil {
 		return nil, ErrVaultNotFound
 	}
-	return v.Entries()
-}
-
-// SetSecret stores or replaces a value under name.
-func (s *Service) SetSecret(name, value string) error {
-	v := s.current()
-	if v == nil {
-		return ErrVaultNotFound
-	}
-	return v.Set(name, value)
-}
-
-// DeleteSecret removes a stored value.
-func (s *Service) DeleteSecret(name string) error {
-	v := s.current()
-	if v == nil {
-		return ErrVaultNotFound
-	}
-	return v.Delete(name)
-}
-
-// HasSecret reports whether a value is stored under name, without unlocking.
-func (s *Service) HasSecret(name string) bool {
-	v := s.current()
-	return v != nil && v.Has(name)
+	return NewCatalog(v), nil
 }
 
 // ResolverFor hands out a prefixed view of a Service's vault, for the
@@ -171,11 +184,11 @@ func (s *Service) HasSecret(name string) bool {
 // It is a package function rather than a method on purpose: Wails binds every
 // exported method of a bound service, and this one is wiring, not UI. Keeping
 // it off the method set keeps it out of the generated frontend API.
-func ResolverFor(s *Service, prefix string) *Resolver {
+func ResolverFor(s *Service, category string) *Resolver {
 	if s == nil {
 		return nil
 	}
-	return NewLazyResolver(s.current, prefix)
+	return NewLazyResolver(s.current, category)
 }
 
 // current returns the live vault, opening the header lazily so a vault created
@@ -239,4 +252,19 @@ func checkPasswordPolicy(password string) error {
 		return fmt.Errorf("%w: use at least %d characters", ErrWeakPassword, MinPasswordLength)
 	}
 	return nil
+}
+
+// RevealSecret returns a stored value in plaintext.
+//
+// Named for what it does rather than as a bland Get, because it is the one
+// method that lets a secret cross into the frontend. Nothing automated calls
+// it: the api-client invoker reads the vault directly in Go. It exists so the
+// person who owns the vault can see what they put in it, which a store you
+// cannot read back cannot be told apart from a store that lost your data.
+func (s *Service) RevealSecret(category, key string) (string, error) {
+	c, err := s.catalog()
+	if err != nil {
+		return "", err
+	}
+	return c.Get(category, key)
 }

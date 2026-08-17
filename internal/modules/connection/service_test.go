@@ -32,8 +32,15 @@ func (k *memKeys) Forget(id string) error {
 	return nil
 }
 
-// Has answers while locked, mirroring the vault: entry names are filenames.
-func (k *memKeys) Has(id string) bool { _, ok := k.values[id]; return ok }
+// Has needs the store open, mirroring the vault: identity lives inside the
+// ciphertext, so a locked store cannot answer.
+func (k *memKeys) Has(id string) bool {
+	if k.locked {
+		return false
+	}
+	_, ok := k.values[id]
+	return ok
+}
 
 func (k *memKeys) Secret(id string) (string, error) {
 	if k.locked {
@@ -159,7 +166,7 @@ func TestService_ValidateReturnsAnEmptySliceNotNull(t *testing.T) {
 }
 
 func TestService_CredentialsAreWriteOnly(t *testing.T) {
-	s, keys := newService(t)
+	s, _ := newService(t)
 	if err := s.SaveClient(validConn()); err != nil {
 		t.Fatal(err)
 	}
@@ -170,10 +177,6 @@ func TestService_CredentialsAreWriteOnly(t *testing.T) {
 	if !s.HasCredential("crm-prod") {
 		t.Fatal("HasCredential is false after SetCredential")
 	}
-	if keys.values[SecretPrefix+"crm-prod"] != "" {
-		t.Log("note: the store namespaces ids itself; the facade passes them through")
-	}
-
 	detail, err := s.GetClient("crm-prod")
 	if err != nil {
 		t.Fatal(err)
@@ -190,15 +193,22 @@ func TestService_CredentialsAreWriteOnly(t *testing.T) {
 	}
 }
 
-func TestService_HasCredentialWorksWhileTheStoreIsLocked(t *testing.T) {
+// A locked store cannot say whether a credential exists, so the panel must
+// treat "locked" as unknown rather than as "not configured".
+func TestService_HasCredentialIsFalseWhileTheStoreIsLocked(t *testing.T) {
 	s, keys := newService(t)
 	if err := s.SetCredential("crm-prod", "s3cret"); err != nil {
 		t.Fatal(err)
 	}
 	keys.locked = true
 
+	if s.HasCredential("crm-prod") {
+		t.Fatal("a locked store must not claim to know what it holds")
+	}
+
+	keys.locked = false
 	if !s.HasCredential("crm-prod") {
-		t.Fatal("the panel must be able to show configured state before any unlock prompt")
+		t.Fatal("the credential should reappear once the store is open")
 	}
 }
 

@@ -19,6 +19,7 @@ const {
   path,
   secretCount,
   hasEntries,
+  foreignCount,
   minPasswordLength,
   autoLockMinutes,
   refresh,
@@ -28,6 +29,7 @@ const {
   setSecret,
   deleteSecret,
   changePassword,
+  revealSecret,
   isWrongPassword,
 } = useVault();
 
@@ -37,20 +39,26 @@ const unlockPassword = ref("");
 const busy = ref(false);
 
 const entryOpen = ref(false);
-const entryName = ref("");
+const entryCategory = ref("");
+const entryKey = ref("");
+const entryDescription = ref("");
 const entryValue = ref("");
 const entryIsNew = ref(true);
 // Reveal applies to what is being typed here, not to anything read back from
 // the vault. Stored values still never cross the boundary.
 const showValue = ref(false);
+const loadingValue = ref(false);
 
 const pwOpen = ref(false);
 const pwCurrent = ref("");
 const pwNew = ref("");
 const pwConfirm = ref("");
 
-const deleteTarget = ref("");
-const deleteOpen = computed(() => deleteTarget.value !== "");
+const deleteTarget = ref<{ category: string; key: string } | null>(null);
+const deleteOpen = computed(() => deleteTarget.value !== null);
+const deleteLabel = computed(() =>
+  deleteTarget.value ? `${deleteTarget.value.category} / ${deleteTarget.value.key}` : "",
+);
 
 const statusKey = computed(() => {
   if (!exists.value) return "vault.status.absent";
@@ -91,7 +99,9 @@ const canChangePassword = computed(
   () => !busy.value && !!pwCurrent.value && passwordOK(pwNew.value, pwConfirm.value),
 );
 
-const canSaveEntry = computed(() => !busy.value && entryName.value.trim().length > 0);
+const canSaveEntry = computed(
+  () => !busy.value && entryCategory.value.trim().length > 0 && entryKey.value.trim().length > 0,
+);
 
 onMounted(() => {
   void refresh();
@@ -131,7 +141,9 @@ async function onLock() {
 
 function openAdd() {
   entryIsNew.value = true;
-  entryName.value = "";
+  entryCategory.value = "";
+  entryKey.value = "";
+  entryDescription.value = "";
   entryValue.value = "";
   showValue.value = false;
   entryOpen.value = true;
@@ -166,12 +178,23 @@ async function submitChangePassword() {
   }
 }
 
-function openReplace(name: string) {
+// Load the stored value so the dialog shows what is actually in the vault.
+// An empty box on "replace" is indistinguishable from a vault that lost the
+// secret, which is exactly how this looked before.
+async function openReplace(e: { category: string; key: string; description?: string }) {
   entryIsNew.value = false;
-  entryName.value = name;
+  entryCategory.value = e.category;
+  entryKey.value = e.key;
+  entryDescription.value = e.description ?? "";
   entryValue.value = "";
   showValue.value = false;
   entryOpen.value = true;
+
+  loadingValue.value = true;
+  const r = await revealSecret(e.category, e.key);
+  loadingValue.value = false;
+  if (r.ok) entryValue.value = r.value;
+  else toast.error("vault.toast.load_failed", [r.message]);
 }
 
 function closeEntry() {
@@ -182,20 +205,22 @@ function closeEntry() {
 
 async function saveEntry() {
   if (!canSaveEntry.value) return;
-  const name = entryName.value.trim();
+  const category = entryCategory.value.trim();
+  const key = entryKey.value.trim();
   busy.value = true;
-  const r = await setSecret(name, entryValue.value);
+  const r = await setSecret(category, key, entryValue.value, entryDescription.value.trim());
   busy.value = false;
   closeEntry();
-  if (r.ok) toast.success("vault.toast.saved", [name]);
+  if (r.ok) toast.success("vault.toast.saved", [key]);
   else toast.error("vault.toast.save_failed", [r.message]);
 }
 
 async function confirmDelete() {
-  const name = deleteTarget.value;
-  deleteTarget.value = "";
-  const r = await deleteSecret(name);
-  if (r.ok) toast.success("vault.toast.deleted", [name]);
+  const target = deleteTarget.value;
+  deleteTarget.value = null;
+  if (!target) return;
+  const r = await deleteSecret(target.category, target.key);
+  if (r.ok) toast.success("vault.toast.deleted", [target.key]);
   else toast.error("vault.toast.delete_failed", [r.message]);
 }
 
@@ -313,6 +338,7 @@ function formatUpdated(value: unknown): string {
         {{ t('vault.unlock.submit') }}
       </button>
     </div>
+    <p class="muted small">{{ t('vault.locked_notice') }}</p>
     <p class="muted small">{{ t('vault.auto_lock_hint', [String(autoLockMinutes)]) }}</p>
   </section>
 
@@ -332,21 +358,26 @@ function formatUpdated(value: unknown): string {
     <table v-else class="vault-table">
       <thead>
         <tr>
-          <th>{{ t('vault.list.name') }}</th>
+          <th>{{ t('vault.list.category') }}</th>
+          <th>{{ t('vault.list.key') }}</th>
           <th>{{ t('vault.list.updated') }}</th>
           <th class="vault-col-actions"></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="e in entries" :key="e.name">
-          <td><code class="vault-entry-name">{{ e.name }}</code></td>
+        <tr v-for="e in entries" :key="e.slot">
+          <td><code class="vault-entry-name">{{ e.category }}</code></td>
+          <td>
+            <code class="vault-entry-name">{{ e.key }}</code>
+            <span v-if="e.description" class="muted small vault-entry-note">{{ e.description }}</span>
+          </td>
           <td class="muted small">{{ formatUpdated(e.updated_utc) }}</td>
           <td class="vault-col-actions">
             <button
               class="tool-btn"
               type="button"
               :title="t('vault.action.replace')"
-              @click="openReplace(e.name)"
+              @click="openReplace(e)"
             >
               <i class="fa-solid fa-pen" aria-hidden="true"></i>
             </button>
@@ -354,7 +385,7 @@ function formatUpdated(value: unknown): string {
               class="tool-btn"
               type="button"
               :title="t('vault.action.delete')"
-              @click="deleteTarget = e.name"
+              @click="deleteTarget = { category: e.category, key: e.key }"
             >
               <i class="fa-solid fa-trash" aria-hidden="true"></i>
             </button>
@@ -363,6 +394,9 @@ function formatUpdated(value: unknown): string {
       </tbody>
     </table>
 
+    <p v-if="foreignCount > 0" class="muted small">
+      {{ t('vault.list.foreign', [String(foreignCount)]) }}
+    </p>
     <p class="muted small">{{ t('vault.list.hint') }}</p>
   </section>
 
@@ -373,16 +407,35 @@ function formatUpdated(value: unknown): string {
     @close="closeEntry"
   >
     <FormRow
-      :label="t('vault.entry.name')"
-      label-for="vault-entry-name"
-      :description="entryIsNew ? t('vault.entry.name_hint') : ''"
+      :label="t('vault.entry.category')"
+      label-for="vault-entry-category"
+      :description="entryIsNew ? t('vault.entry.category_hint') : ''"
     >
       <TextField
-        id="vault-entry-name"
-        v-model="entryName"
+        id="vault-entry-category"
+        v-model="entryCategory"
         :readonly="!entryIsNew"
         :disabled="busy"
       />
+    </FormRow>
+    <FormRow
+      :label="t('vault.entry.key')"
+      label-for="vault-entry-key"
+      :description="entryIsNew ? t('vault.entry.key_hint') : ''"
+    >
+      <TextField
+        id="vault-entry-key"
+        v-model="entryKey"
+        :readonly="!entryIsNew"
+        :disabled="busy"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('vault.entry.description')"
+      label-for="vault-entry-description"
+      :description="t('vault.entry.description_hint')"
+    >
+      <TextField id="vault-entry-description" v-model="entryDescription" :disabled="busy" />
     </FormRow>
     <FormRow
       :label="t('vault.entry.value')"
@@ -394,7 +447,7 @@ function formatUpdated(value: unknown): string {
           id="vault-entry-value"
           v-model="entryValue"
           :rows="7"
-          :disabled="busy"
+          :disabled="busy || loadingValue"
           :class="{ 'vault-value-masked': !showValue }"
         />
         <button
@@ -486,11 +539,11 @@ function formatUpdated(value: unknown): string {
   <ConfirmDialog
     :open="deleteOpen"
     :title="t('vault.confirm.delete_title')"
-    :message="t('vault.confirm.delete_message', [deleteTarget])"
+    :message="t('vault.confirm.delete_message', [deleteLabel])"
     :confirm-label="t('vault.action.delete')"
     :cancel-label="t('common.cancel')"
     variant="danger"
-    @cancel="deleteTarget = ''"
+    @cancel="deleteTarget = null"
     @confirm="confirmDelete"
   />
 </template>

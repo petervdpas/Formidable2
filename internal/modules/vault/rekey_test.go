@@ -246,14 +246,14 @@ func TestService_ChangeMasterPassword(t *testing.T) {
 	if err := s.InitializeVault("master pw"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetSecret("api-client-northwind", "bearer"); err != nil {
+	if err := s.SetSecret("api-client", "northwind", "bearer", ""); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := s.ChangeMasterPassword("master pw", "a longer new one"); err != nil {
 		t.Fatal(err)
 	}
-	if !s.HasSecret("api-client-northwind") {
+	if !s.HasSecret("api-client", "northwind") {
 		t.Fatal("secret lost in the re-key")
 	}
 

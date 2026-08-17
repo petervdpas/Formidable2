@@ -7,7 +7,7 @@ export {
 };
 
 export {
-    Entry,
+    CatalogEntry,
     Policy,
     Status
 } from "./models.js";

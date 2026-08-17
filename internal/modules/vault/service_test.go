@@ -56,10 +56,10 @@ func TestService_SecretsRoundTripAndCount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.SetSecret("api-client-northwind", "bearer"); err != nil {
+	if err := s.SetSecret("api-client", "northwind", "bearer", ""); err != nil {
 		t.Fatal(err)
 	}
-	if !s.HasSecret("api-client-northwind") {
+	if !s.HasSecret("api-client", "northwind") {
 		t.Fatal("HasSecret is false after SetSecret")
 	}
 	if got := s.VaultStatus().Secrets; got != 1 {
@@ -70,18 +70,54 @@ func TestService_SecretsRoundTripAndCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || entries[0].Name != "api-client-northwind" {
+	if len(entries) != 1 || entries[0].Category != "api-client" || entries[0].Key != "northwind" {
 		t.Fatalf("entries = %+v", entries)
 	}
 	if entries[0].UpdatedUTC.IsZero() {
 		t.Error("entries should carry a write time")
 	}
 
-	if err := s.DeleteSecret("api-client-northwind"); err != nil {
+	if err := s.DeleteSecret("api-client", "northwind"); err != nil {
 		t.Fatal(err)
 	}
-	if s.HasSecret("api-client-northwind") {
+	if s.HasSecret("api-client", "northwind") {
 		t.Fatal("still present after DeleteSecret")
+	}
+}
+
+func TestService_RevealSecret(t *testing.T) {
+	s, _ := newTestService(t)
+	if err := s.InitializeVault("master pw"); err != nil {
+		t.Fatal(err)
+	}
+	const big = "-----BEGIN KEY-----\nline two\n-----END KEY-----"
+	if err := s.SetSecret("c", "test", big, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.RevealSecret("c", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != big {
+		t.Fatalf("revealed %q, want the stored value whole including newlines", got)
+	}
+
+	// A locked vault must refuse rather than return an empty string, which the
+	// panel could not tell apart from a secret that really is empty.
+	s.LockVault()
+	if _, err := s.RevealSecret("c", "test"); !errors.Is(err, ErrLocked) {
+		t.Fatalf("err = %v, want ErrLocked", err)
+	}
+}
+
+func TestService_RevealMissingSecret(t *testing.T) {
+	s, _ := newTestService(t)
+	if err := s.InitializeVault("master pw"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RevealSecret("c", "never-stored"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
 }
 
@@ -90,7 +126,7 @@ func TestService_LockThenUnlock(t *testing.T) {
 	if err := s.InitializeVault("master pw"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetSecret("k", "v"); err != nil {
+	if err := s.SetSecret("c", "k", "v", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,7 +134,7 @@ func TestService_LockThenUnlock(t *testing.T) {
 	if s.VaultStatus().Unlocked {
 		t.Fatal("still unlocked")
 	}
-	if err := s.SetSecret("k", "v2"); !errors.Is(err, ErrLocked) {
+	if err := s.SetSecret("c", "k", "v2", ""); !errors.Is(err, ErrLocked) {
 		t.Fatalf("err = %v, want ErrLocked", err)
 	}
 
@@ -122,13 +158,13 @@ func TestService_UnlockWithNoVault(t *testing.T) {
 
 func TestService_OperationsBeforeAVaultExists(t *testing.T) {
 	s, _ := newTestService(t)
-	if err := s.SetSecret("k", "v"); !errors.Is(err, ErrVaultNotFound) {
+	if err := s.SetSecret("c", "k", "v", ""); !errors.Is(err, ErrVaultNotFound) {
 		t.Errorf("SetSecret = %v, want ErrVaultNotFound", err)
 	}
 	if _, err := s.ListSecrets(); !errors.Is(err, ErrVaultNotFound) {
 		t.Errorf("ListSecrets = %v, want ErrVaultNotFound", err)
 	}
-	if s.HasSecret("k") {
+	if s.HasSecret("c", "k") {
 		t.Error("HasSecret is true with no vault")
 	}
 	s.LockVault() // must not panic
@@ -139,7 +175,7 @@ func TestService_OperationsBeforeAVaultExists(t *testing.T) {
 // user has created a vault; binding the vault eagerly would pin nil forever.
 func TestService_ResolverSurvivesALaterInitialize(t *testing.T) {
 	s, _ := newTestService(t)
-	r := ResolverFor(s, "api-client-")
+	r := ResolverFor(s, "api-client")
 
 	if r.Has("northwind") {
 		t.Fatal("nothing is stored yet")
@@ -162,7 +198,7 @@ func TestService_ResolverSurvivesALaterInitialize(t *testing.T) {
 
 func TestService_ResolverTracksLockState(t *testing.T) {
 	s, _ := newTestService(t)
-	r := ResolverFor(s, "api-client-")
+	r := ResolverFor(s, "api-client")
 	if err := s.InitializeVault("master pw"); err != nil {
 		t.Fatal(err)
 	}
@@ -174,8 +210,10 @@ func TestService_ResolverTracksLockState(t *testing.T) {
 	if _, err := r.Secret("northwind"); !errors.Is(err, ErrLocked) {
 		t.Fatalf("err = %v, want ErrLocked", err)
 	}
-	if !r.Has("northwind") {
-		t.Error("Has must keep working while locked")
+	// Opaque slots keep identity inside the ciphertext, so a locked vault
+	// cannot answer this and must not pretend otherwise.
+	if r.Has("northwind") {
+		t.Error("Has must not claim knowledge while locked")
 	}
 
 	if err := s.UnlockVault("master pw"); err != nil {
@@ -198,16 +236,25 @@ func TestService_PicksUpAVaultCreatedOutsideThisProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := external.Set("planted", "value"); err != nil {
+	if _, err := NewCatalog(external).Put("c", "planted", "value", ""); err != nil {
 		t.Fatal(err)
 	}
 	external.Lock()
 
+	// The vault is found, but its contents cannot be counted until it is
+	// open: identity lives inside the ciphertext.
 	st := s.VaultStatus()
-	if !st.Exists || st.Secrets != 1 {
-		t.Fatalf("status = %+v, want the externally created vault", st)
+	if !st.Exists {
+		t.Fatalf("status = %+v, want the externally created vault to be found", st)
 	}
+	if st.Secrets != 0 {
+		t.Errorf("a locked vault must not report a count, got %d", st.Secrets)
+	}
+
 	if err := s.UnlockVault("external pw"); err != nil {
 		t.Fatalf("could not open a vault created elsewhere: %v", err)
+	}
+	if got := s.VaultStatus().Secrets; got != 1 {
+		t.Fatalf("count after unlock = %d, want 1", got)
 	}
 }

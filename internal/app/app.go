@@ -778,7 +778,7 @@ func New(d Deps) (*App, error) {
 	// Credentials resolve lazily from the vault, so a client configured before
 	// the vault exists starts working the moment it is created and unlocked.
 	clientM := connection.NewManager(sysM, d.Logger)
-	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretPrefix)
+	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretCategory)
 	clientInv := connection.NewInvoker(clientM, clientKeys, connection.WithLogger(d.Logger))
 
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)

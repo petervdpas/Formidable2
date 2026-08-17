@@ -25,7 +25,6 @@
   "vault.list.title": "Opgeslagen geheimen",
   "vault.list.empty": "De kluis is leeg. Inloggegevens verschijnen hier zodra een API-client er een heeft opgeslagen.",
   "vault.list.loading": "Kluis lezen…",
-  "vault.list.name": "Naam",
   "vault.list.updated": "Laatst gewijzigd",
   "vault.list.never": "Onbekend",
   "vault.list.hint": "Waarden worden nooit getoond. Formidable leest ze alleen als een client een aanroep doet.",
@@ -34,8 +33,6 @@
   "vault.action.delete": "Verwijderen",
   "vault.entry.title_add": "Geheim toevoegen",
   "vault.entry.title_edit": "Waarde vervangen",
-  "vault.entry.name": "Naam",
-  "vault.entry.name_hint": "Letters, cijfers, koppelteken, liggend streepje en punt.",
   "vault.entry.value": "Waarde",
   "vault.entry.save": "Opslaan",
   "vault.confirm.delete_title": "Geheim verwijderen",
@@ -65,5 +62,15 @@
   "vault.password.submit": "Wijzigen",
   "vault.toast.password_changed": "Hoofdwachtwoord gewijzigd.",
   "vault.toast.password_failed": "Kon het wachtwoord niet wijzigen: {0}",
-  "vault.auto_lock_hint": "De kluis gaat na {0} minuten zonder gebruik vanzelf weer op slot."
+  "vault.auto_lock_hint": "De kluis gaat na {0} minuten zonder gebruik vanzelf weer op slot.",
+  "vault.list.category": "Categorie",
+  "vault.list.key": "Naam",
+  "vault.entry.category": "Categorie",
+  "vault.entry.category_hint": "Groepeert bij elkaar horende geheimen. Inloggegevens van API-clients gebruiken \"api-client\".",
+  "vault.entry.key": "Naam",
+  "vault.entry.key_hint": "Uniek binnen de categorie.",
+  "vault.entry.description": "Notitie",
+  "vault.entry.description_hint": "Optionele herinnering waar dit voor is.",
+  "vault.list.foreign": "Plus {0} record(s) geschreven door een ander programma, ongemoeid gelaten.",
+  "vault.locked_notice": "Open de kluis om te zien wat erin zit. Namen staan in de versleutelde records, dus een kluis op slot kan ze niet tonen."
 }

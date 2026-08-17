@@ -10,16 +10,29 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as time$0 from "../../../../../../time/models.js";
 
 /**
- * Entry is one secret as the caller sees it, without its value.
+ * CatalogEntry is one secret's identity and metadata, without its value.
  */
-export class Entry {
-    "name": string;
+export class CatalogEntry {
+    "slot": string;
+    "category": string;
+    "key": string;
+    "description"?: string;
+    "created_utc": time$0.Time;
     "updated_utc": time$0.Time;
 
-    /** Creates a new Entry instance. */
-    constructor($$source: Partial<Entry> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
+    /** Creates a new CatalogEntry instance. */
+    constructor($$source: Partial<CatalogEntry> = {}) {
+        if (!("slot" in $$source)) {
+            this["slot"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = "";
+        }
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("created_utc" in $$source)) {
+            this["created_utc"] = null;
         }
         if (!("updated_utc" in $$source)) {
             this["updated_utc"] = null;
@@ -29,11 +42,11 @@ export class Entry {
     }
 
     /**
-     * Creates a new Entry instance from a string or object.
+     * Creates a new CatalogEntry instance from a string or object.
      */
-    static createFrom($$source: any = {}): Entry {
+    static createFrom($$source: any = {}): CatalogEntry {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Entry($$parsedSource as Partial<Entry>);
+        return new CatalogEntry($$parsedSource as Partial<CatalogEntry>);
     }
 }
 
@@ -67,14 +80,16 @@ export class Policy {
 }
 
 /**
- * Status is what the settings panel renders. It is deliberately safe to fetch
- * at any time: nothing here requires the vault to be unlocked.
+ * Status is what the settings panel renders. Secrets and Foreign are only
+ * meaningful when Unlocked: identity lives inside the ciphertext, so a locked
+ * vault genuinely cannot say how much it holds.
  */
 export class Status {
     "path": string;
     "exists": boolean;
     "unlocked": boolean;
     "secrets": number;
+    "foreign": number;
 
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
@@ -89,6 +104,9 @@ export class Status {
         }
         if (!("secrets" in $$source)) {
             this["secrets"] = 0;
+        }
+        if (!("foreign" in $$source)) {
+            this["foreign"] = 0;
         }
 
         Object.assign(this, $$source);

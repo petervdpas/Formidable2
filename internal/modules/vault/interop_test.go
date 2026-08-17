@@ -21,12 +21,18 @@ import (
 
 const secretBlastProject = "/home/peter/Projects/SecretBlast/SecretBlast/SecretBlast.csproj"
 
+// taskBlasterEnvelope is TaskBlaster's own envelope source, compiled straight
+// into the harness. Parsing with the real class is the only way to know the
+// wire format matches; a hand-written stub would only prove Go agrees with Go.
+const taskBlasterEnvelope = "/home/peter/Projects/TaskBlaster/TaskBlaster/Secrets/SecretEnvelope.cs"
+
 // interopProgram is a minimal host over ISecretVault. Work factors are passed
 // in so the harness matches the Go side's fast test parameters.
 const interopProgram = `
 using System;
 using System.Threading.Tasks;
 using SecretBlast;
+using TaskBlaster.Secrets;
 
 internal static class Program
 {
@@ -63,6 +69,25 @@ internal static class Program
                 using var v = SecretVault.Open(dir, Opts());
                 await v.UnlockAsync(pw);
                 await v.SetAsync(args[3], args[4]);
+                return 0;
+            }
+            // Read a slot and parse it with TaskBlaster's SecretEnvelope.
+            case "envelope":
+            {
+                using var v = SecretVault.Open(dir, Opts());
+                await v.UnlockAsync(pw);
+                var json = await v.GetAsync(args[3]);
+                var env = SecretEnvelope.FromJson(json);
+                Console.Out.Write($"{env.Category}|{env.Key}|{env.Value}|{env.Description}");
+                return 0;
+            }
+            // Write a slot as TaskBlaster would, for Go to read back.
+            case "putenvelope":
+            {
+                using var v = SecretVault.Open(dir, Opts());
+                await v.UnlockAsync(pw);
+                var env = SecretEnvelope.Create(args[4], args[5], args[6], args.Length > 7 ? args[7] : null);
+                await v.SetAsync(args[3], env.ToJson());
                 return 0;
             }
             case "list":
@@ -107,6 +132,7 @@ const interopProject = `<Project Sdk="Microsoft.NET.Sdk">
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="SECRETBLAST_CSPROJ" />
+    <Compile Include="TASKBLASTER_ENVELOPE" />
   </ItemGroup>
 </Project>
 `
@@ -131,7 +157,12 @@ func dotnetHarness(t *testing.T) func(t *testing.T, args ...string) string {
 		}
 	}
 	write("Program.cs", interopProgram)
-	write("vaultinterop.csproj", strings.Replace(interopProject, "SECRETBLAST_CSPROJ", secretBlastProject, 1))
+	if _, err := os.Stat(taskBlasterEnvelope); err != nil {
+		t.Skipf("interop: TaskBlaster envelope source not found at %s", taskBlasterEnvelope)
+	}
+	csproj := strings.Replace(interopProject, "SECRETBLAST_CSPROJ", secretBlastProject, 1)
+	csproj = strings.Replace(csproj, "TASKBLASTER_ENVELOPE", taskBlasterEnvelope, 1)
+	write("vaultinterop.csproj", csproj)
 
 	build := exec.Command("dotnet", "build", "-c", "Release", "--nologo", "-v", "quiet")
 	build.Dir = proj
@@ -324,5 +355,66 @@ func TestInterop_DefaultParamsAreCompatible(t *testing.T) {
 	}
 	if got, _ := reopened.Get("k"); got != "v" {
 		t.Fatalf("value = %q", got)
+	}
+}
+
+// TestInterop_DotNetParsesAGoWrittenEnvelope is the whole point of matching the
+// schema: a secret Formidable stores must be a valid secret to TaskBlaster.
+func TestInterop_DotNetParsesAGoWrittenEnvelope(t *testing.T) {
+	run := dotnetHarness(t)
+	dir := filepath.Join(t.TempDir(), "vault")
+	const pw = "shared vault password"
+
+	v, err := Create(dir, pw, WithParams(fastParams), WithAutoLock(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(v.Lock)
+
+	c := NewCatalog(v)
+	entry, err := c.Put("api-client", "northwind", "odata-bearer-token", "production")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := run(t, "envelope", dir, pw, entry.Slot)
+	if got != "api-client|northwind|odata-bearer-token|production" {
+		t.Fatalf("dotnet parsed %q", got)
+	}
+}
+
+// TestInterop_GoReadsADotNetWrittenEnvelope is the same claim in reverse.
+func TestInterop_GoReadsADotNetWrittenEnvelope(t *testing.T) {
+	run := dotnetHarness(t)
+	dir := filepath.Join(t.TempDir(), "vault")
+	const pw = "shared vault password"
+
+	v, err := Create(dir, pw, WithParams(fastParams), WithAutoLock(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(v.Lock)
+
+	slot := NewSlot()
+	run(t, "putenvelope", dir, pw, slot, "Azure", "prod-sql", "Server=tcp:example;", "production")
+
+	c := NewCatalog(v)
+	value, err := c.Get("Azure", "prod-sql")
+	if err != nil {
+		t.Fatalf("Go could not read a record TaskBlaster wrote: %v", err)
+	}
+	if value != "Server=tcp:example;" {
+		t.Fatalf("value = %q", value)
+	}
+
+	list, foreign, err := c.ListWithForeign()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if foreign != 0 {
+		t.Errorf("a TaskBlaster record was counted as foreign (%d)", foreign)
+	}
+	if len(list) != 1 || list[0].Description != "production" {
+		t.Fatalf("list = %+v", list)
 	}
 }

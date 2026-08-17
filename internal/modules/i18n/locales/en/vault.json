@@ -25,7 +25,6 @@
   "vault.list.title": "Stored secrets",
   "vault.list.empty": "The vault is empty. Credentials appear here once an API client has one saved.",
   "vault.list.loading": "Reading the vault…",
-  "vault.list.name": "Name",
   "vault.list.updated": "Last changed",
   "vault.list.never": "Unknown",
   "vault.list.hint": "Values are never shown. Formidable reads them only when a client makes a call.",
@@ -34,8 +33,6 @@
   "vault.action.delete": "Delete",
   "vault.entry.title_add": "Add secret",
   "vault.entry.title_edit": "Replace value",
-  "vault.entry.name": "Name",
-  "vault.entry.name_hint": "Letters, digits, dash, underscore and dot.",
   "vault.entry.value": "Value",
   "vault.entry.save": "Save",
   "vault.confirm.delete_title": "Delete secret",
@@ -65,5 +62,15 @@
   "vault.password.submit": "Change it",
   "vault.toast.password_changed": "Master password changed.",
   "vault.toast.password_failed": "Could not change the password: {0}",
-  "vault.auto_lock_hint": "The vault locks itself again after {0} minutes without use."
+  "vault.auto_lock_hint": "The vault locks itself again after {0} minutes without use.",
+  "vault.list.category": "Category",
+  "vault.list.key": "Name",
+  "vault.entry.category": "Category",
+  "vault.entry.category_hint": "Groups related secrets. API client credentials use \"api-client\".",
+  "vault.entry.key": "Name",
+  "vault.entry.key_hint": "Unique within its category.",
+  "vault.entry.description": "Note",
+  "vault.entry.description_hint": "Optional reminder of what this is for.",
+  "vault.list.foreign": "Plus {0} record(s) written by another tool, left untouched.",
+  "vault.locked_notice": "Unlock the vault to see what it holds. Names are stored inside the encrypted records, so a locked vault cannot list them."
 }

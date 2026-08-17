@@ -206,3 +206,8 @@
 .vault-value-count {
   margin: 0.3em 0 0;
 }
+
+.vault-entry-note {
+  display: block;
+  margin-top: 0.15em;
+}

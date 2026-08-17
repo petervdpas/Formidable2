@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-// SecretPrefix namespaces api-client credentials inside a shared secret store,
-// so a client named "northwind" cannot collide with a git remote of the same
-// name sitting in the same vault.
-const SecretPrefix = "api-client-"
+// SecretCategory namespaces api-client credentials inside a shared secret
+// store, so a client named "northwind" cannot collide with a git remote of the
+// same name in the same vault.
+const SecretCategory = "api-client"
 
 // SecretWriter is the credential side of a secret store. The invoker only
 // reads; the API Clients panel needs to write and forget too, without either
