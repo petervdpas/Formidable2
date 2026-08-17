@@ -4,6 +4,12 @@ import wails from "@wailsio/runtime/plugins/vite";
 import { resolve } from "node:path";
 import { writeFileSync } from "node:fs";
 
+// Vite is moving from bundling this config (which shims the CommonJS globals)
+// to loading it natively as ESM, where __dirname does not exist. Using the ESM
+// equivalent now keeps the config working under both loaders, rather than
+// silencing the warning and inheriting a break at the next major.
+const configDir = import.meta.dirname;
+
 // Vite's watcher only watches files inside the project root by default.
 // Our `frontend/src/styles/index.css` `@import`s an upstream CSS file
 // from outside (`internal/modules/render/assets/formidable-prose.css`,
@@ -20,7 +26,7 @@ import { writeFileSync } from "node:fs";
 // `closeBundle` ensures every build leaves dist/ in a committable
 // state.
 function ensureGitkeep(): Plugin {
-  const marker = resolve(__dirname, "dist/.gitkeep");
+  const marker = resolve(configDir, "dist/.gitkeep");
   const body =
     "# Do not delete.\n" +
     "#\n" +
@@ -42,7 +48,7 @@ function ensureGitkeep(): Plugin {
 
 function watchProseCSS(): Plugin {
   const externalCss = resolve(
-    __dirname,
+    configDir,
     "../internal/modules/render/assets/formidable-prose.css",
   );
   return {
