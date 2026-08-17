@@ -16,6 +16,16 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * AddCategory records a new category so the picker offers it before any secret
+ * uses it. Returns the updated list, so the caller need not re-fetch.
+ */
+export function AddCategory(name: string): $CancellablePromise<string[]> {
+    return $Call.ByID(1766054779, name).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * ChangeMasterPassword re-encrypts the vault under a new password. The old one
  * is required even on an unlocked vault, so an unattended app cannot be used
  * to lock its owner out.
@@ -58,12 +68,22 @@ export function InitializeVault(masterPassword: string): $CancellablePromise<voi
 }
 
 /**
+ * ListCategories returns the names the category picker should offer: the
+ * curated list merged with every category actually in use.
+ */
+export function ListCategories(): $CancellablePromise<string[]> {
+    return $Call.ByID(684610312).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * ListSecrets returns every secret's identity and metadata, never its value.
  * Requires an unlocked vault.
  */
 export function ListSecrets(): $CancellablePromise<$models.CatalogEntry[]> {
     return $Call.ByID(1189962913).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -109,7 +129,7 @@ export function UnlockVault(masterPassword: string): $CancellablePromise<void> {
  */
 export function VaultPolicy(): $CancellablePromise<$models.Policy> {
     return $Call.ByID(291413010).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -119,12 +139,13 @@ export function VaultPolicy(): $CancellablePromise<$models.Policy> {
  */
 export function VaultStatus(): $CancellablePromise<$models.Status> {
     return $Call.ByID(1911097482).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.CatalogEntry.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.Policy.createFrom;
-const $$createType3 = $models.Status.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.CatalogEntry.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.Policy.createFrom;
+const $$createType4 = $models.Status.createFrom;

@@ -20,6 +20,7 @@ const {
   secretCount,
   hasEntries,
   foreignCount,
+  categories,
   minPasswordLength,
   autoLockMinutes,
   refresh,
@@ -411,12 +412,21 @@ function formatUpdated(value: unknown): string {
       label-for="vault-entry-category"
       :description="entryIsNew ? t('vault.entry.category_hint') : ''"
     >
-      <TextField
+      <!-- One control for both jobs: the datalist offers what already exists,
+           and anything else typed in is simply a new category. -->
+      <input
         id="vault-entry-category"
         v-model="entryCategory"
+        class="field-input"
+        list="vault-category-options"
+        autocomplete="off"
+        :placeholder="entryIsNew ? t('vault.entry.category_pick') : ''"
         :readonly="!entryIsNew"
         :disabled="busy"
       />
+      <datalist id="vault-category-options">
+        <option v-for="c in categories" :key="c" :value="c" />
+      </datalist>
     </FormRow>
     <FormRow
       :label="t('vault.entry.key')"

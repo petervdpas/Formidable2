@@ -72,5 +72,6 @@
   "vault.entry.description": "Notitie",
   "vault.entry.description_hint": "Optionele herinnering waar dit voor is.",
   "vault.list.foreign": "Plus {0} record(s) geschreven door een ander programma, ongemoeid gelaten.",
-  "vault.locked_notice": "Open de kluis om te zien wat erin zit. Namen staan in de versleutelde records, dus een kluis op slot kan ze niet tonen."
+  "vault.locked_notice": "Open de kluis om te zien wat erin zit. Namen staan in de versleutelde records, dus een kluis op slot kan ze niet tonen.",
+  "vault.entry.category_pick": "Kies er een of typ een nieuwe naam"
 }

@@ -72,5 +72,6 @@
   "vault.entry.description": "Note",
   "vault.entry.description_hint": "Optional reminder of what this is for.",
   "vault.list.foreign": "Plus {0} record(s) written by another tool, left untouched.",
-  "vault.locked_notice": "Unlock the vault to see what it holds. Names are stored inside the encrypted records, so a locked vault cannot list them."
+  "vault.locked_notice": "Unlock the vault to see what it holds. Names are stored inside the encrypted records, so a locked vault cannot list them.",
+  "vault.entry.category_pick": "Pick one or type a new name"
 }

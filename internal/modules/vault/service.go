@@ -169,6 +169,33 @@ func (s *Service) HasSecret(category, key string) bool {
 	return c.Has(category, key)
 }
 
+// ListCategories returns the names the category picker should offer: the
+// curated list merged with every category actually in use.
+func (s *Service) ListCategories() ([]string, error) {
+	c, err := s.catalog()
+	if err != nil {
+		return nil, err
+	}
+	names, err := c.Categories()
+	if err != nil {
+		return nil, err
+	}
+	if names == nil {
+		names = []string{}
+	}
+	return names, nil
+}
+
+// AddCategory records a new category so the picker offers it before any secret
+// uses it. Returns the updated list, so the caller need not re-fetch.
+func (s *Service) AddCategory(name string) ([]string, error) {
+	c, err := s.catalog()
+	if err != nil {
+		return nil, err
+	}
+	return c.AddCategory(name)
+}
+
 // catalog returns the envelope layer over the live vault.
 func (s *Service) catalog() (*Catalog, error) {
 	v := s.current()

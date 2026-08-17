@@ -19,6 +19,10 @@ const lastError = ref<string>("");
 // A minimum restated in Vue drifts the first time Go changes it.
 const policy = ref<Policy | null>(null);
 
+// Category names the picker offers. Kept beside the other state so the dialog
+// can open with the list already populated.
+const categories = ref<string[]>([]);
+
 // The vault locks itself after an idle timeout, and the backend is the only
 // thing that knows when. Without this subscription the panel keeps showing
 // "Unlocked" until the user's next action fails, which is the worst moment to
@@ -62,6 +66,7 @@ async function refresh(): Promise<void> {
     // Listing needs the vault open: identity lives inside the ciphertext, so a
     // locked vault genuinely cannot enumerate what it holds.
     entries.value = status.value?.unlocked ? ((await VaultSvc.ListSecrets()) ?? []) : [];
+    categories.value = status.value?.unlocked ? ((await VaultSvc.ListCategories()) ?? []) : [];
   } catch (err) {
     lastError.value = backendErrMessage(err);
     entries.value = [];
@@ -156,6 +161,7 @@ export function useVault() {
     lastError,
 
     policy,
+    categories,
     minPasswordLength: computed<number>(() => policy.value?.min_password_length ?? 0),
     autoLockMinutes: computed<number>(() => policy.value?.auto_lock_minutes ?? 0),
 
