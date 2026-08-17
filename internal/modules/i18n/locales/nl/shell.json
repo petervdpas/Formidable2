@@ -208,5 +208,6 @@
   "workspace.information.render_helpers.category.scratch": "Tijdelijke variabelen",
   "workspace.information.render_helpers.category.stats": "Statistieken",
   "workspace.information.render_helpers.category.string": "Strings",
-  "workspace.information.render_helpers.category.tags": "Tags & lijsten"
+  "workspace.information.render_helpers.category.tags": "Tags & lijsten",
+  "workspace.information.section.apiclients": "API-clients"
 }

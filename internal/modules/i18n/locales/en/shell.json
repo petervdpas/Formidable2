@@ -210,5 +210,6 @@
   "workspace.information.render_helpers.category.scratch": "Scratch variables",
   "workspace.information.render_helpers.category.stats": "Statistics",
   "workspace.information.render_helpers.category.string": "Strings",
-  "workspace.information.render_helpers.category.tags": "Tags & lists"
+  "workspace.information.render_helpers.category.tags": "Tags & lists",
+  "workspace.information.section.apiclients": "API Clients"
 }
