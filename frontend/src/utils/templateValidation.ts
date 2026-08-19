@@ -122,6 +122,45 @@ export function formatError(error: ValidationError): FormattedError {
         args: [(error.detail?.dup as string) || ""],
       };
 
+    case "api-client-required":
+      return { key: "error.api_client.client_required", args: [] };
+
+    case "api-client-resource-required":
+      return { key: "error.api_client.resource_required", args: [] };
+
+    case "api-client-map-key-required":
+      return { key: "error.api_client.map_key_required", args: [] };
+
+    case "api-client-map-duplicate-keys":
+      return {
+        key: "error.api_client.map_duplicate_keys",
+        args: [(error.detail?.dup as string) || ""],
+      };
+
+    case "api-client-param-name-required":
+      return { key: "error.api_client.param_name_required", args: [] };
+
+    case "api-client-param-duplicate":
+      return {
+        key: "error.api_client.param_duplicate",
+        args: [(error.detail?.dup as string) || ""],
+      };
+
+    case "api-client-param-ambiguous":
+      return {
+        key: "error.api_client.param_ambiguous",
+        args: [(error.detail?.param as string) || ""],
+      };
+
+    case "api-client-param-unknown-field":
+      return {
+        key: "error.api_client.param_unknown_field",
+        args: [
+          (error.detail?.param as string) || "",
+          (error.detail?.field_key as string) || "",
+        ],
+      };
+
     case "expression-item-non-root":
       return {
         key: "error.template.expression_item_non_root",
@@ -320,6 +359,49 @@ export function validateField(
     }
   }
 
+  if (currentType === "api-client") {
+    const clientID = String((field as { client_id?: string }).client_id || "").trim();
+    if (!clientID) {
+      return { valid: false, reason: "api-client-required" };
+    }
+    const resource = String((field as { resource?: string }).resource || "").trim();
+    if (!resource) {
+      return { valid: false, reason: "api-client-resource-required" };
+    }
+
+    const map = (field as { map?: unknown }).map;
+    if (Array.isArray(map)) {
+      const seen = new Set<string>();
+      for (const m of map) {
+        const k = String((m as { key?: string })?.key || "").trim();
+        if (!k) return { valid: false, reason: "api-client-map-key-required" };
+        const kl = k.toLowerCase();
+        if (seen.has(kl)) {
+          return { valid: false, reason: "api-client-map-duplicate-keys", key: k };
+        }
+        seen.add(kl);
+      }
+    }
+
+    const params = (field as { params?: unknown }).params;
+    if (Array.isArray(params)) {
+      const seen = new Set<string>();
+      for (const p of params) {
+        const row = p as { name?: string; value?: string; field_key?: string };
+        const name = String(row?.name || "").trim();
+        if (!name) return { valid: false, reason: "api-client-param-name-required" };
+        const nl = name.toLowerCase();
+        if (seen.has(nl)) {
+          return { valid: false, reason: "api-client-param-duplicate", key: name };
+        }
+        seen.add(nl);
+        if (row.value && row.field_key) {
+          return { valid: false, reason: "api-client-param-ambiguous", key: name };
+        }
+      }
+    }
+  }
+
   return { valid: true };
 }
 
@@ -358,6 +440,30 @@ export function fieldErrorToI18n(
     case "api-map-duplicate-keys":
       return {
         key: "error.api.map_duplicate_keys",
+        args: [result.key || ""],
+      };
+
+    case "api-client-required":
+      return { key: "error.api_client.client_required", args: [] };
+    case "api-client-resource-required":
+      return { key: "error.api_client.resource_required", args: [] };
+    case "api-client-map-key-required":
+      return { key: "error.api_client.map_key_required", args: [] };
+    case "api-client-map-duplicate-keys":
+      return {
+        key: "error.api_client.map_duplicate_keys",
+        args: [result.key || ""],
+      };
+    case "api-client-param-name-required":
+      return { key: "error.api_client.param_name_required", args: [] };
+    case "api-client-param-duplicate":
+      return {
+        key: "error.api_client.param_duplicate",
+        args: [result.key || ""],
+      };
+    case "api-client-param-ambiguous":
+      return {
+        key: "error.api_client.param_ambiguous",
         args: [result.key || ""],
       };
     default:

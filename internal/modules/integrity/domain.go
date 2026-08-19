@@ -749,6 +749,19 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 			Detail: fmt.Sprintf("expected reference id or list, got %T", v),
 		}}
 
+	case "api-client":
+		// A stored snapshot (single) or a list of them (to-many). A bare id string
+		// is tolerated: Sanitize lifts it into the snapshot shape on the next save.
+		switch v.(type) {
+		case string, []any, map[string]any:
+			return nil
+		}
+		return []Issue{{
+			Kind:   IssueTypeMismatch,
+			Path:   path,
+			Detail: fmt.Sprintf("expected api-client snapshot or list, got %T", v),
+		}}
+
 	case "slide":
 		m, ok := v.(map[string]any)
 		if !ok {

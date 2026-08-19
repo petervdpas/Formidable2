@@ -9,6 +9,7 @@ export {
 export {
     APIFilter,
     APIMap,
+    APIParam,
     Abilities,
     Descriptor,
     Facet,

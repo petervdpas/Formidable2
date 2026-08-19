@@ -60,6 +60,11 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		if f.Type == "api" {
 			data[f.Key] = coerceAPIRef(data[f.Key])
 		}
+		// api-client keeps the fetched snapshot: the client that produced it is
+		// app-level, so a peer has no way to re-resolve a bare id.
+		if f.Type == "api-client" {
+			data[f.Key] = coerceAPIClientRef(data[f.Key])
+		}
 	}
 
 	// The data-block guid field is the identity source; meta.id mirrors it. Resolve field, then preserved
@@ -551,6 +556,9 @@ func defaultForType(t string) any {
 	case "api":
 		// nil = unpicked. A picked value is a reference id (single) or a list of ids (to-many).
 		return nil
+	case "api-client":
+		// nil = unpicked. A picked value is a snapshot map (single) or a list of them.
+		return nil
 	default:
 		return ""
 	}
@@ -597,6 +605,64 @@ func apiRefID(m map[string]any) string {
 		return s
 	}
 	return ""
+}
+
+// coerceAPIClientRef normalises an api-client value to its stored snapshot: a
+// map of {id, label, fields, fetched} (single) or a []any of them (to-many).
+// A bare id string is lifted into the shape so a hand-authored value still
+// reads; an entry with no id is unpicked, not a half-written record.
+func coerceAPIClientRef(v any) any {
+	switch t := v.(type) {
+	case nil:
+		return nil
+	case string:
+		return apiClientSnapshot(t)
+	case map[string]any:
+		return apiClientSnapshotFrom(t)
+	case []any:
+		out := make([]any, 0, len(t))
+		for _, e := range t {
+			if one := coerceAPIClientRef(e); one != nil {
+				out = append(out, one)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func apiClientSnapshot(id string) any {
+	if id == "" {
+		return nil
+	}
+	return map[string]any{
+		"id":      id,
+		"label":   "",
+		"fields":  map[string]any{},
+		"fetched": "",
+	}
+}
+
+// apiClientSnapshotFrom keeps every projected field verbatim and fills in the
+// envelope keys a consumer may read unguarded.
+func apiClientSnapshotFrom(m map[string]any) any {
+	id, _ := m["id"].(string)
+	if id == "" {
+		return nil
+	}
+	fields, ok := m["fields"].(map[string]any)
+	if !ok {
+		fields = map[string]any{}
+	}
+	label, _ := m["label"].(string)
+	fetched, _ := m["fetched"].(string)
+	return map[string]any{
+		"id":      id,
+		"label":   label,
+		"fields":  fields,
+		"fetched": fetched,
+	}
 }
 
 func firstNonEmpty(strs ...string) string {

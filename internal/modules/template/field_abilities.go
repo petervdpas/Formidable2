@@ -306,6 +306,16 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			FacetKey: false,
 		},
 	},
+	"api-client": {
+		ID: "api-client",
+		Abilities: Abilities{
+			Key: true, Type: true, Label: true, Description: true,
+			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
 	"guid": {
 		ID:          "guid",
 		KeyReadonly: true,
@@ -375,7 +385,7 @@ var orderedTypes = []string{
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
-	"api", "guid", "facet", "formula",
+	"api", "api-client", "guid", "facet", "formula",
 	"looper", "loopstart", "loopstop",
 }
 
@@ -407,6 +417,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"link":        "workspace.templates.field_type.link",
 	"tags":        "workspace.templates.field_type.tags",
 	"api":         "workspace.templates.field_type.api",
+	"api-client":  "workspace.templates.field_type.api_client",
 	"guid":        "workspace.templates.field_type.guid",
 	"facet":       "workspace.templates.field_type.facet",
 	"formula":     "workspace.templates.field_type.formula",

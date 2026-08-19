@@ -202,10 +202,20 @@ type Field struct {
 	// textarea-specific
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
-	// api-specific. Map's column types are resolved live from the source template, never stored, to avoid stale-cache drift.
+	// api-specific. Map is shared with api-client; on api its column types are
+	// resolved live from the source template, never stored, to avoid stale-cache drift.
 	Collection string     `yaml:"collection,omitempty" json:"collection,omitempty"`
 	Map        []APIMap   `yaml:"map,omitempty" json:"map,omitempty"`
 	Filter     *APIFilter `yaml:"filter,omitempty" json:"filter,omitempty"`
+
+	// api-client-specific. ClientID names an app-level API client and Resource one
+	// of its resources; Map picks which of the resource's projected fields to keep.
+	// The value is a stored snapshot, not a bare id: the client, its spec file and
+	// its vault secret live outside the synced tree, so a peer would see nothing.
+	ClientID string     `yaml:"client_id,omitempty" json:"client_id,omitempty"`
+	Resource string     `yaml:"resource,omitempty" json:"resource,omitempty"`
+	Multiple bool       `yaml:"multiple,omitempty" json:"multiple,omitempty"`
+	Params   []APIParam `yaml:"params,omitempty" json:"params,omitempty"`
 
 	// facet-specific. FacetKey binds a virtual field to a declared facet; value lives in meta.facets[FacetKey], not data.
 	FacetKey string `yaml:"facet_key,omitempty" json:"facet_key,omitempty"`
@@ -227,6 +237,17 @@ type Field struct {
 type APIMap struct {
 	Key   string `yaml:"key" json:"key"`
 	Label string `yaml:"label,omitempty" json:"label,omitempty"`
+}
+
+// APIParam fills one parameter of an api-client resource's operation at fetch
+// time. The client's binding carries what is always true of the service; this
+// carries what the field is asking for. Value is a literal; FieldKey instead
+// reads the host record's own field, so the remote call can narrow to the
+// record being edited. Exactly one of the two.
+type APIParam struct {
+	Name     string `yaml:"name" json:"name"`
+	Value    string `yaml:"value,omitempty" json:"value,omitempty"`
+	FieldKey string `yaml:"field_key,omitempty" json:"field_key,omitempty"`
 }
 
 // APIFilter is one optional predicate that narrows the api field's target list to

@@ -567,7 +567,7 @@ func defaultForFieldType(t string) any {
 		return float64(50)
 	case "multioption", "list", "table", "tags":
 		return []any{}
-	case "api":
+	case "api", "api-client":
 		return nil
 	default:
 		return ""

@@ -168,7 +168,7 @@ func shapeOfFieldType(t string) string {
 		return "boolean"
 	case "list", "tags", "multioption", "table":
 		return "array"
-	case "link", "api":
+	case "link", "api", "api-client":
 		return "object"
 	default: // text, textarea, date, dropdown, radio, guid, image, *-path, mermaid
 		return "string"

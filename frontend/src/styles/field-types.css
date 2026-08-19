@@ -168,6 +168,15 @@
     --field-type-api-badge:  #4dd0e1;
     --field-type-api-text:   #f7fbfc;
 
+    /* API Client (remote) - api's sibling, so it keeps the cyan family, but on a
+       deeper petrol floor with a stronger accent. The pair reads as related at a
+       glance while staying clear of the other teals (date = bright green-teal,
+       slideset = mid sea-green). */
+    --field-type-api-client-bg:     #103642;
+    --field-type-api-client-border: #22b8cf;
+    --field-type-api-client-badge:  #0f7d8c;
+    --field-type-api-client-text:   #eaf7fa;
+
     /* Facet (virtual) - warm muted yellow. Owns the yellow slot no
        other type uses (nearest neighbours: file-path = orange-amber,
        table = peach, list/tags = greens). The marker-pen association
@@ -483,6 +492,12 @@
     border-left-color: var(--field-type-api-border);
     color: var(--field-type-api-text);
     --field-row-badge-bg: var(--field-type-api-badge);
+}
+.field-row[data-type="api-client"] {
+    background: var(--field-type-api-client-bg);
+    border-left-color: var(--field-type-api-client-border);
+    color: var(--field-type-api-client-text);
+    --field-row-badge-bg: var(--field-type-api-client-badge);
 }
 .field-row[data-type="facet"] {
     background: var(--field-type-facet-bg);

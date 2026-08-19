@@ -58,17 +58,18 @@ func TestAbilities_Description_DisabledOnGuidAndLoopstop(t *testing.T) {
 }
 
 func TestAbilities_Default_DisabledOnGuidApiAndLoopMeta(t *testing.T) {
-	disallowed := stringSet("guid", "api", "looper", "loopstart", "loopstop")
+	disallowed := stringSet("guid", "api", "api-client", "looper", "loopstart", "loopstop")
 	assertAbilityDisabledOn(t, "Default", disallowed, func(a Abilities) bool { return a.Default })
 }
 
+// api-client is here too: its value is a snapshot object, not a scalar id.
 func TestAbilities_PrimaryKey_DisabledOnGuidAndLoopMeta(t *testing.T) {
-	disallowed := stringSet("guid", "looper", "loopstart", "loopstop")
+	disallowed := stringSet("guid", "api-client", "looper", "loopstart", "loopstop")
 	assertAbilityDisabledOn(t, "PrimaryKey", disallowed, func(a Abilities) bool { return a.PrimaryKey })
 }
 
 func TestAbilities_TwoColumn_DisabledOnGuidApiAndLoopMeta(t *testing.T) {
-	disallowed := stringSet("guid", "api", "looper", "loopstart", "loopstop")
+	disallowed := stringSet("guid", "api", "api-client", "looper", "loopstart", "loopstop")
 	assertAbilityDisabledOn(t, "TwoColumn", disallowed, func(a Abilities) bool { return a.TwoColumn })
 }
 

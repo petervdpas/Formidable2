@@ -25,7 +25,7 @@ var rules = []string{
 
 // excludedTypes mirrors utils/csvTransforms.js excludedTypes - field
 // types that can never participate in a CSV mapping.
-var excludedTypes = []string{"loopstart", "loopstop", "image", "code", "api"}
+var excludedTypes = []string{"loopstart", "loopstop", "image", "code", "api", "api-client"}
 
 // Rules returns the canonical ordered rule keys for the UI dropdown.
 func Rules() []string {

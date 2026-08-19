@@ -218,7 +218,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 			// api fields carry columns in Map, not Options; expose them in the
 			// same {value,label} shape so the table header idiom works verbatim:
 			// {{#each (fieldMeta "apiKey" "options")}}{{label}}{{/each}}.
-			if f.Type == "api" {
+			if f.Type == "api" || f.Type == "api-client" {
 				return apiColumnOptions(f)
 			}
 			return f.Options

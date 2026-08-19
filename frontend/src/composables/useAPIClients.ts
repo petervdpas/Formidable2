@@ -138,6 +138,18 @@ async function fetchItem(req: FetchRequest): Promise<Result & { item: Item | nul
   }
 }
 
+// FetchSnapshot returns the value the api-client field stores. An error yields
+// no snapshot on purpose, so the caller keeps whatever is already on disk.
+async function fetchSnapshot(
+  req: FetchRequest,
+): Promise<Result & { snapshot: Record<string, any> | null }> {
+  try {
+    return { ...ok(), snapshot: await ClientSvc.FetchSnapshot(req) };
+  } catch (err) {
+    return { ...failed(err), snapshot: null };
+  }
+}
+
 async function setCredential(id: string, secret: string): Promise<Result> {
   try {
     await ClientSvc.SetCredential(id, secret);
@@ -181,6 +193,7 @@ export function useAPIClients() {
     reloadSpecs,
     listItems,
     fetchItem,
+    fetchSnapshot,
     setCredential,
     forgetCredential,
   };

@@ -189,6 +189,8 @@ func TestExcludedFieldTypes(t *testing.T) {
 	want := map[string]bool{
 		"loopstart": true, "loopstop": true,
 		"image": true, "code": true, "api": true,
+		// api-client holds a fetched snapshot object, not a flat cell.
+		"api-client": true,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("ExcludedFieldTypes len = %d, want %d (%v)", len(got), len(want), got)

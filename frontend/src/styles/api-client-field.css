@@ -1,0 +1,158 @@
+/* api-client (remote reference) field: form-side renderer, picker, and the
+   template-editor binding section. External per the house rule, imported via
+   index.css. Colours come from the --field-type-api-client-* tokens in
+   field-types.css, so the card reads as api's sibling. */
+
+/* ── Form-side renderer ──────────────────────────────────────────────── */
+.api-client-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.api-client-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.api-client-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+.api-client-card {
+  border: 1px solid color-mix(in oklab, currentColor 25%, transparent);
+  border-left: 4px solid var(--field-type-api-client-border, currentColor);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: color-mix(in oklab, currentColor 4%, transparent);
+}
+.api-client-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.api-client-card-title {
+  flex: 1 1 auto;
+  font-weight: 600;
+  word-break: break-word;
+}
+.api-client-rows {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.api-client-rows dt {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.api-client-rows dd {
+  margin: 0;
+  word-break: break-word;
+}
+/* The stamp says how old the stored copy is, so a stale snapshot is visible
+   rather than passing for a live read. */
+.api-client-stamp {
+  margin: 6px 0 0;
+}
+
+/* ── Record picker ───────────────────────────────────────────────────── */
+.api-client-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow: hidden;
+}
+.api-client-picker-search-row {
+  display: flex;
+  gap: 6px;
+}
+.api-client-picker-search {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  background: var(--input-bg, transparent);
+  color: var(--input-fg, currentColor);
+  border: 1px solid color-mix(in oklab, currentColor 25%, transparent);
+  border-radius: 6px;
+}
+.api-client-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+.api-client-picker-row {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 12%, transparent);
+  text-align: left;
+  cursor: pointer;
+}
+.api-client-picker-row:hover {
+  background: color-mix(in oklab, currentColor 8%, transparent);
+}
+.api-client-picker-title {
+  font-weight: 500;
+}
+.api-client-picker-preview {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+.api-client-picker-id {
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  opacity: 0.7;
+}
+
+/* ── Template editor ─────────────────────────────────────────────────── */
+.api-client-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.api-client-editor-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: start;
+  gap: 12px;
+}
+.api-client-editor-label {
+  padding-top: 6px;
+  font-size: 0.9rem;
+  color: var(--form-label, currentColor);
+  opacity: 0.85;
+}
+.api-client-editor-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.api-client-map-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+.api-client-map-table th,
+.api-client-map-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 15%, transparent);
+  vertical-align: top;
+  text-align: left;
+}
+.api-client-map-table th {
+  font-weight: 600;
+  opacity: 0.85;
+}
+.api-client-col-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}

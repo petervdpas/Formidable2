@@ -36,6 +36,17 @@ export function FetchItem(req: $models.FetchRequest): $CancellablePromise<$model
 }
 
 /**
+ * FetchSnapshot fetches one remote record and returns it in the shape the
+ * api-client field stores: Select names the fields to keep. An error yields no
+ * snapshot, so a caller keeps the copy already on disk instead of blanking it.
+ */
+export function FetchSnapshot(req: $models.FetchRequest): $CancellablePromise<{ [_ in string]?: any }> {
+    return $Call.ByID(4176554170, req).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * ForgetCredential removes a client's stored secret.
  */
 export function ForgetCredential(id: string): $CancellablePromise<void> {
@@ -48,7 +59,7 @@ export function ForgetCredential(id: string): $CancellablePromise<void> {
  */
 export function GetCatalog(id: string): $CancellablePromise<$models.Catalog | null> {
     return $Call.ByID(318381573, id).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -57,7 +68,7 @@ export function GetCatalog(id: string): $CancellablePromise<$models.Catalog | nu
  */
 export function GetClient(id: string): $CancellablePromise<$models.ClientDetail | null> {
     return $Call.ByID(1347498253, id).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -77,7 +88,7 @@ export function HasCredential(id: string): $CancellablePromise<boolean> {
  */
 export function ImportSpec(name: string, base64Data: string): $CancellablePromise<$models.SpecInfo> {
     return $Call.ByID(2441444904, name, base64Data).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -86,7 +97,7 @@ export function ImportSpec(name: string, base64Data: string): $CancellablePromis
  */
 export function ListClients(): $CancellablePromise<$models.Summary[]> {
     return $Call.ByID(1491783306).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -95,7 +106,7 @@ export function ListClients(): $CancellablePromise<$models.Summary[]> {
  */
 export function ListDialects(): $CancellablePromise<string[]> {
     return $Call.ByID(4065150377).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -105,7 +116,7 @@ export function ListDialects(): $CancellablePromise<string[]> {
  */
 export function ListItems(req: $models.ListRequest): $CancellablePromise<$models.Page | null> {
     return $Call.ByID(4255165002, req).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType12($result);
     });
 }
 
@@ -114,7 +125,7 @@ export function ListItems(req: $models.ListRequest): $CancellablePromise<$models
  */
 export function ListKeyStyles(): $CancellablePromise<string[]> {
     return $Call.ByID(2374331071).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -123,7 +134,7 @@ export function ListKeyStyles(): $CancellablePromise<string[]> {
  */
 export function ListPaginationStyles(): $CancellablePromise<string[]> {
     return $Call.ByID(2413398840).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -156,22 +167,23 @@ export function SetCredential(id: string, secret: string): $CancellablePromise<v
  */
 export function ValidateClient(c: $models.Connection): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(503905979, c).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType14($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Item.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.Catalog.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.ClientDetail.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.SpecInfo.createFrom;
-const $$createType7 = $models.Summary.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $Create.Array($Create.Any);
-const $$createType10 = $models.Page.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.ValidationError.createFrom;
-const $$createType13 = $Create.Array($$createType12);
+const $$createType2 = $Create.Map($Create.Any, $Create.Any);
+const $$createType3 = $models.Catalog.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $models.ClientDetail.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = $models.SpecInfo.createFrom;
+const $$createType8 = $models.Summary.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = $models.Page.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = $models.ValidationError.createFrom;
+const $$createType14 = $Create.Array($$createType13);

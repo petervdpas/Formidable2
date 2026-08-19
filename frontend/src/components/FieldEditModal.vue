@@ -13,6 +13,7 @@ import {
   FieldSelector,
 } from "./fields";
 import APIFieldEditor from "./APIFieldEditor.vue";
+import APIClientFieldEditor from "./APIClientFieldEditor.vue";
 import type { OptionRow } from "./fields/OptionsEditor.vue";
 import {
   columnsFor,
@@ -714,6 +715,16 @@ const typePillStyle = computed(() => {
   };
 });
 
+// Sibling data-field keys, for an api-client parameter that reads another field
+// of the record. Reuses availableFields (the formula target roster) rather than
+// asking the parent for the same list twice; the field being edited is dropped
+// because a parameter reading its own value is circular.
+const siblingFieldKeys = computed<string[]>(() =>
+  (props.availableFields ?? [])
+    .filter((f) => f.key && f.key !== draft.value?.key && isDataField(f.type || ""))
+    .map((f) => f.key),
+);
+
 // Per-type dialog tint - the modal's full background takes the field
 // type color, matching the original Formidable UX. Form labels +
 // borders pick the right contrast via .modal-dialog.tinted overrides
@@ -1017,6 +1028,13 @@ const dialogStyle = computed<Record<string, string>>(() => {
         :title="t('workspace.templates.api_editor.section')"
       >
         <APIFieldEditor :field="draft" :host-template="hostTemplate ?? ''" />
+      </FormSection>
+
+      <FormSection
+        v-if="draft.type === 'api-client'"
+        :title="t('workspace.templates.api_client_editor.section')"
+      >
+        <APIClientFieldEditor :field="draft" :sibling-keys="siblingFieldKeys" />
       </FormSection>
 
       <details v-if="showErrors" class="field-edit-errors">

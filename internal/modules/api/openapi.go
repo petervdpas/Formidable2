@@ -1048,6 +1048,20 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 			},
 		}
 		schema["description"] = "Relation reference: the selected target id, or a list of ids for a to-many relation."
+	case "api-client":
+		// Remote reference, published as the snapshot the field stores. The client
+		// that fetched it is app-level and does not travel with the data, so the
+		// values are inlined rather than left behind an id only this app can resolve.
+		snapshot := apiClientSnapshotSchema(f)
+		schema["oneOf"] = []any{
+			snapshot,
+			map[string]any{
+				"type":        "array",
+				"items":       snapshot,
+				"description": "Selected remote records (to-many)",
+			},
+		}
+		schema["description"] = "Remote reference fetched through API client " + f.ClientID + ", resource " + f.Resource + "."
 	default:
 		schema["type"] = "string"
 	}
@@ -1058,6 +1072,31 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		}
 	}
 	return f.Key, schema
+}
+
+// apiClientSnapshotSchema describes one stored api-client pick. The projected
+// keys come from the field's Map, so a consumer sees exactly what is on disk.
+func apiClientSnapshotSchema(f template.Field) map[string]any {
+	projected := map[string]any{}
+	for _, m := range f.Map {
+		if m.Key == "" {
+			continue
+		}
+		prop := map[string]any{"description": "Projected remote field"}
+		if m.Label != "" {
+			prop["title"] = m.Label
+		}
+		projected[m.Key] = prop
+	}
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"id":      map[string]any{"type": "string", "description": "Remote record id"},
+			"label":   map[string]any{"type": "string", "description": "Display label at fetch time"},
+			"fields":  map[string]any{"type": "object", "properties": projected},
+			"fetched": map[string]any{"type": "string", "description": "When the snapshot was fetched (RFC 3339)"},
+		},
+	}
 }
 
 // optionPairs splits Options into parallel (values, labels); bare scalars become value=label.

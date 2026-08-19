@@ -86,6 +86,8 @@ func Validate(t *Template) []ValidationError {
 	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, apiGroupOnNonApiErrors(t.Fields)...)
+	errs = append(errs, apiClientFieldErrors(t.Fields)...)
+	errs = append(errs, apiClientGroupOnOtherTypesErrors(t.Fields)...)
 	errs = append(errs, missingKeyErrors(t.Fields)...)
 	errs = append(errs, reservedKeyErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
@@ -522,7 +524,9 @@ func facetHasOptionLabel(facets []Facet, key, def string) bool {
 	return false
 }
 
-// apiGroupOnNonApiErrors flags collection/map populated on a non-api field (dead data that confuses consumers).
+// apiGroupOnNonApiErrors flags collection/map populated on a field that owns
+// neither (dead data that confuses consumers). Map is shared with api-client;
+// Collection and Filter address a template in this repo, so they stay api-only.
 func apiGroupOnNonApiErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {
@@ -530,7 +534,11 @@ func apiGroupOnNonApiErrors(fields []Field) []ValidationError {
 		if f.Type == "api" {
 			continue
 		}
-		if f.Collection == "" && len(f.Map) == 0 && f.Filter == nil {
+		if f.Type == "api-client" {
+			if f.Collection == "" && f.Filter == nil {
+				continue
+			}
+		} else if f.Collection == "" && len(f.Map) == 0 && f.Filter == nil {
 			continue
 		}
 		ff := f
@@ -1069,6 +1077,156 @@ func singleSequenceError(fields []Field) *ValidationError {
 		}
 	}
 	return nil
+}
+
+// apiClientGroupOnOtherTypesErrors flags client_id/resource/multiple on a field
+// that is not an api-client.
+func apiClientGroupOnOtherTypesErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for i := range fields {
+		f := fields[i]
+		if f.Type == "api-client" {
+			continue
+		}
+		if f.ClientID == "" && f.Resource == "" && !f.Multiple && len(f.Params) == 0 {
+			continue
+		}
+		ff := f
+		errs = append(errs, ValidationError{
+			Type:    "forbidden-attribute",
+			Field:   &ff,
+			Index:   i,
+			Key:     f.Key,
+			Detail:  map[string]any{"attr": "api_client", "type": f.Type},
+			Message: "Attribute api_client is not allowed on field type " + f.Type,
+		})
+	}
+	return errs
+}
+
+// apiClientFieldErrors checks an api-client field's binding. The client id and
+// resource are only checked for presence here: whether they resolve depends on
+// app-level state the template cannot see, so the connection module validates
+// that at invoke time.
+func apiClientFieldErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for _, f := range fields {
+		if f.Type != "api-client" {
+			continue
+		}
+		ff := f
+		key := f.Key
+		if key == "" {
+			key = "(no key)"
+		}
+		if strings.TrimSpace(f.ClientID) == "" {
+			errs = append(errs, ValidationError{
+				Type:    "api-client-required",
+				Field:   &ff,
+				Key:     key,
+				Message: "API client field requires an API client.",
+			})
+			continue
+		}
+		if strings.TrimSpace(f.Resource) == "" {
+			errs = append(errs, ValidationError{
+				Type:    "api-client-resource-required",
+				Field:   &ff,
+				Key:     key,
+				Message: "API client field requires a resource.",
+			})
+			continue
+		}
+		seen := map[string]bool{}
+		for _, m := range f.Map {
+			k := strings.TrimSpace(m.Key)
+			if k == "" {
+				errs = append(errs, ValidationError{
+					Type:    "api-client-map-key-required",
+					Field:   &ff,
+					Key:     key,
+					Message: "Each API client map entry must have a non-empty 'key'.",
+				})
+				break
+			}
+			kl := strings.ToLower(k)
+			if seen[kl] {
+				errs = append(errs, ValidationError{
+					Type:    "api-client-map-duplicate-keys",
+					Field:   &ff,
+					Key:     key,
+					Detail:  map[string]any{"dup": k},
+					Message: fmt.Sprintf("Duplicate API client map key: %s", k),
+				})
+				break
+			}
+			seen[kl] = true
+		}
+		errs = append(errs, apiClientParamErrors(ff, key, fields)...)
+	}
+	return errs
+}
+
+// apiClientParamErrors checks the field's runtime parameters. Whether the remote
+// operation declares a parameter is not knowable here (the spec is app-level
+// state), so the invoker rejects an undeclared name at call time.
+func apiClientParamErrors(f Field, key string, all []Field) []ValidationError {
+	var errs []ValidationError
+	seen := map[string]bool{}
+	for _, p := range f.Params {
+		name := strings.TrimSpace(p.Name)
+		if name == "" {
+			errs = append(errs, ValidationError{
+				Type:    "api-client-param-name-required",
+				Field:   &f,
+				Key:     key,
+				Message: "Each API client parameter must have a name.",
+			})
+			continue
+		}
+		nl := strings.ToLower(name)
+		if seen[nl] {
+			errs = append(errs, ValidationError{
+				Type:    "api-client-param-duplicate",
+				Field:   &f,
+				Key:     key,
+				Detail:  map[string]any{"dup": name},
+				Message: fmt.Sprintf("Duplicate API client parameter: %s", name),
+			})
+			continue
+		}
+		seen[nl] = true
+
+		if p.Value != "" && p.FieldKey != "" {
+			errs = append(errs, ValidationError{
+				Type:    "api-client-param-ambiguous",
+				Field:   &f,
+				Key:     key,
+				Detail:  map[string]any{"param": name},
+				Message: fmt.Sprintf("Parameter %s has both a value and a field reference; pick one.", name),
+			})
+			continue
+		}
+		if p.FieldKey != "" && !hasFieldKey(all, p.FieldKey) {
+			errs = append(errs, ValidationError{
+				Type:    "api-client-param-unknown-field",
+				Field:   &f,
+				Key:     key,
+				Detail:  map[string]any{"param": name, "field_key": p.FieldKey},
+				Message: fmt.Sprintf("Parameter %s reads field %q, which this template does not have.", name, p.FieldKey),
+			})
+		}
+	}
+	return errs
+}
+
+func hasFieldKey(fields []Field, key string) bool {
+	for _, f := range fields {
+		if f.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 func apiFieldErrors(fields []Field) []ValidationError {

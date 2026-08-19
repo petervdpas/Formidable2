@@ -61,14 +61,19 @@ type ListRequest struct {
 	Offset     int      `json:"offset,omitempty"`
 	Cursor     string   `json:"cursor,omitempty"`
 	Select     []string `json:"select,omitempty"`
+	// Params are the caller's own operation parameters, laid over the resource
+	// binding's. The binding carries what is always true of the client (a tenant
+	// header, an api version); Params carry what this call is asking for.
+	Params map[string]string `json:"params,omitempty"`
 }
 
 // FetchRequest resolves one stored id back to a record.
 type FetchRequest struct {
-	Connection string   `json:"connection"`
-	Resource   string   `json:"resource"`
-	ID         string   `json:"id"`
-	Select     []string `json:"select,omitempty"`
+	Connection string            `json:"connection"`
+	Resource   string            `json:"resource"`
+	ID         string            `json:"id"`
+	Select     []string          `json:"select,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
 }
 
 // Invoker executes bindings against a remote service. It never generates code:
@@ -165,7 +170,12 @@ func (iv *Invoker) List(ctx context.Context, req ListRequest) (*Page, error) {
 		query = nil
 	}
 
-	doc, err := iv.call(ctx, b, op, b.resource.List.Params, "", query, target)
+	params, err := overlayParams(op, b.resource.List.Params, req.Params, "")
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := iv.call(ctx, b, op, params, "", query, target)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +234,21 @@ func (iv *Invoker) Fetch(ctx context.Context, req FetchRequest) (*Item, error) {
 		}
 	}
 
-	doc, err := iv.call(ctx, b, op, b.resource.Get.Params, req.ID, query, "")
+	// The id owns the one path placeholder the binding leaves open, so a runtime
+	// param must not be able to redirect a fetch at a different record.
+	idParam := ""
+	for _, p := range op.PathParams() {
+		if _, bound := b.resource.Get.Params[p.Name]; !bound {
+			idParam = p.Name
+			break
+		}
+	}
+	params, err := overlayParams(op, b.resource.Get.Params, req.Params, idParam)
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := iv.call(ctx, b, op, params, req.ID, query, "")
 	if err != nil {
 		return nil, err
 	}
@@ -389,6 +413,31 @@ func (iv *Invoker) call(
 
 // buildURL substitutes path params and appends the query. Values are escaped
 // per component, so an id containing a slash cannot invent a path segment.
+// overlayParams lays the caller's params over the binding's. A name the operation
+// does not declare is an error rather than a silent drop: a field configured
+// against a stale spec would otherwise quietly return unfiltered data. reserved
+// names a param the caller may not set (the fetch id's path placeholder).
+func overlayParams(op Operation, fixed, runtime map[string]string, reserved string) (map[string]string, error) {
+	if len(runtime) == 0 {
+		return fixed, nil
+	}
+	out := make(map[string]string, len(fixed)+len(runtime))
+	for k, v := range fixed {
+		out[k] = v
+	}
+	for k, v := range runtime {
+		if k == reserved {
+			continue
+		}
+		if _, ok := op.Param(k); !ok {
+			return nil, invokeErr(CodeUnknownField,
+				fmt.Sprintf("operation %q declares no parameter %q", op.ID, k), nil)
+		}
+		out[k] = v
+	}
+	return out, nil
+}
+
 func (iv *Invoker) buildURL(
 	b *binding,
 	op Operation,

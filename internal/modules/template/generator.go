@@ -472,7 +472,7 @@ func tableRowForField(f Field, key string, imgMode ImgMode) string {
 		return fmt.Sprintf(`| %s | {{tags (fieldRaw "%s")}} |`, label, key)
 	case "image":
 		return fmt.Sprintf(`| %s | ![%s](%s) |`, label, label, imageHelperCall(key, imgMode))
-	case "list", "multioption", "table", "api":
+	case "list", "multioption", "table", "api", "api-client":
 		return fmt.Sprintf(`| %s | {{json (fieldRaw "%s")}} |`, label, key)
 	default:
 		return fmt.Sprintf(`| %s | {{field "%s"}} |`, label, key)
@@ -507,7 +507,7 @@ func generateFrontmatter(fields []Field) string {
 			continue
 		}
 		// Image and api fields don't fit a YAML metadata block, so frontmatter skips them.
-		if t == "image" || t == "api" {
+		if t == "image" || t == "api" || t == "api-client" {
 			continue
 		}
 		seen[key] = true

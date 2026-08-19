@@ -189,6 +189,7 @@ export class FetchRequest {
     "resource": string;
     "id": string;
     "select"?: string[];
+    "params"?: { [_ in string]?: string };
 
     /** Creates a new FetchRequest instance. */
     constructor($$source: Partial<FetchRequest> = {}) {
@@ -210,9 +211,13 @@ export class FetchRequest {
      */
     static createFrom($$source: any = {}): FetchRequest {
         const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("select" in $$parsedSource) {
             $$parsedSource["select"] = $$createField3_0($$parsedSource["select"]);
+        }
+        if ("params" in $$parsedSource) {
+            $$parsedSource["params"] = $$createField4_0($$parsedSource["params"]);
         }
         return new FetchRequest($$parsedSource as Partial<FetchRequest>);
     }
@@ -305,6 +310,13 @@ export class ListRequest {
     "cursor"?: string;
     "select"?: string[];
 
+    /**
+     * Params are the caller's own operation parameters, laid over the resource
+     * binding's. The binding carries what is always true of the client (a tenant
+     * header, an api version); Params carry what this call is asking for.
+     */
+    "params"?: { [_ in string]?: string };
+
     /** Creates a new ListRequest instance. */
     constructor($$source: Partial<ListRequest> = {}) {
         if (!("connection" in $$source)) {
@@ -322,9 +334,13 @@ export class ListRequest {
      */
     static createFrom($$source: any = {}): ListRequest {
         const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("select" in $$parsedSource) {
             $$parsedSource["select"] = $$createField6_0($$parsedSource["select"]);
+        }
+        if ("params" in $$parsedSource) {
+            $$parsedSource["params"] = $$createField7_0($$parsedSource["params"]);
         }
         return new ListRequest($$parsedSource as Partial<ListRequest>);
     }

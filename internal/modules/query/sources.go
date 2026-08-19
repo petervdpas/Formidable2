@@ -28,11 +28,12 @@ func (m *Manager) Sources(templateName string) ([]SourceInfo, error) {
 // skipFieldType lists field types that hold no queryable data (binary,
 // structural, or cross-template) so they don't clutter the picker.
 var skipFieldType = map[string]bool{
-	"image":   true,
-	"api":     true,
-	"button":  true,
-	"facet":   true, // facets are emitted from tpl.Facets, not the bound field
-	"heading": true,
+	"image":      true,
+	"api":        true,
+	"api-client": true,
+	"button":     true,
+	"facet":      true, // facets are emitted from tpl.Facets, not the bound field
+	"heading":    true,
 }
 
 func deriveSources(tpl *template.Template) []SourceInfo {

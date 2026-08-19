@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"strings"
+	"time"
 )
 
 // SecretCategory namespaces api-client credentials inside a shared secret
@@ -142,6 +143,20 @@ func (s *Service) FetchItem(req FetchRequest) (*Item, error) {
 		return nil, invokeErr(CodeConnectionNotFound, "no invoker configured", nil)
 	}
 	return s.inv.Fetch(context.Background(), req)
+}
+
+// FetchSnapshot fetches one remote record and returns it in the shape the
+// api-client field stores: Select names the fields to keep. An error yields no
+// snapshot, so a caller keeps the copy already on disk instead of blanking it.
+func (s *Service) FetchSnapshot(req FetchRequest) (map[string]any, error) {
+	item, err := s.FetchItem(req)
+	if err != nil {
+		return nil, err
+	}
+	if item == nil {
+		return nil, invokeErr(CodeRemoteNotFound, "no record for id "+req.ID, nil)
+	}
+	return Snapshot(*item, req.Select, time.Now()), nil
 }
 
 // SetCredential stores the secret a client authenticates with.
