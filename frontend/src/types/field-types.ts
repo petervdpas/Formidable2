@@ -1,5 +1,8 @@
 // Field-type registry - single source of truth lives in Go
-// (internal/modules/template/field_abilities.go). This module loads
+// (internal/modules/template/field_abilities.go), palette included
+// (field_colors.go). Plugin widget kinds ride along: they are a separate
+// vocabulary (formwidget) but share the same CSS variable namespace, so their
+// palette is applied here too. This module loads
 // the backend matrix on first call and merges it with the few
 // frontend-only display concerns: i18n labelKey + per-type "default
 // value when creating a new field".
@@ -15,9 +18,11 @@
 // gracefully - the dropdown is empty and isRowHidden returns false.
 
 import { ref, type Ref } from "vue";
+import { Service as PluginSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import {
   Service as TemplateSvc,
   Abilities,
+  type FieldDescriptor,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 /** Stable IDs for every row the Edit Field modal can render: exactly
@@ -29,6 +34,8 @@ export type FieldEditRowId = keyof Abilities;
 export interface FieldTypeDef {
   id: string;
   labelKey: string;
+  /** Palette slot this type renders in; loop markers share one. Backend-owned. */
+  color: string;
   defaultValue?: () => unknown;
   abilities: Abilities;
   metaOnly?: boolean;
@@ -56,6 +63,7 @@ async function load(): Promise<void> {
   registry.value = defs.map((d) => ({
     id: d.id,
     labelKey: d.label_key || d.id,
+    color: d.color || d.id,
     defaultValue:
       d.default_value == null
         ? undefined
@@ -72,6 +80,40 @@ async function load(): Promise<void> {
       (d as { requires_slide?: boolean }).requires_slide === true,
     abilities: d.abilities,
   }));
+  applyPalette(defs);
+  await applyWidgetPalette();
+}
+
+// Plugin widget kinds (formwidget.Descriptors), fetched through the plugin
+// service. A failure here must not block the field-type registry: widget rows
+// then fall back to the default row tint.
+async function applyWidgetPalette(): Promise<void> {
+  try {
+    const kinds = (await PluginSvc.WidgetKinds()) ?? [];
+    applyPalette(
+      kinds.map((k) => ({ color: k.color, palette: k.palette })) as FieldDescriptor[],
+    );
+  } catch {
+    /* leave widget rows on the default tint */
+  }
+}
+
+// The palette is backend-owned (template.fieldTypePalette), so this writes the
+// values it sends onto :root and styles/field-types.css consumes them by token.
+// A type's colours therefore arrive with the type, and a UI that never loads
+// that stylesheet can still render a row from descriptor.palette directly.
+function applyPalette(defs: FieldDescriptor[]) {
+  const root = document.documentElement;
+  const seen = new Set<string>();
+  for (const d of defs) {
+    const token = d.color;
+    const p = d.palette;
+    if (!token || !p || seen.has(token)) continue;
+    seen.add(token);
+    for (const part of ["bg", "border", "badge", "text"] as const) {
+      if (p[part]) root.style.setProperty(`--field-type-${token}-${part}`, p[part]);
+    }
+  }
 }
 
 // isDataField reports whether a type carries its own Form.Data slot, i.e. it can

@@ -31,6 +31,7 @@ import {
   isRowHidden,
   isKeyReadonly,
   isDataField,
+  getFieldTypeDef,
   formulaTargetFieldTypes,
   selectableTypes,
   type FieldEditRowId,
@@ -700,9 +701,10 @@ function submit() {
 // set, matching the field-row list. The raw type still labels the pill;
 // only the color-var lookup is canonicalised so the dialog isn't left on
 // the default dark floor.
+// The palette slot a type renders in is backend-owned (FieldDescriptor.Color),
+// so the loop markers sharing the looper slot is data, not a rule restated here.
 function colorTypeFor(type: string): string {
-  if (type === "loopstart" || type === "loopstop") return "looper";
-  return type;
+  return getFieldTypeDef(type)?.color || type;
 }
 
 // Badge in the modal header - uses the per-type badge color so it

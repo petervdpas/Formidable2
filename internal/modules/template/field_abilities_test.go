@@ -189,3 +189,76 @@ func assertAbilityDisabledOn(t *testing.T, name string, disallowed map[string]bo
 		}
 	}
 }
+
+// Every type the dropdown can show must carry a colour token. The palette
+// itself lives in CSS (light/dark is a rendering concern), but WHICH slot a
+// type uses is backend-owned, exactly like FacetColorList. Without this, a new
+// type renders untinted and nothing fails.
+func TestAllFieldTypes_EveryTypeHasColor(t *testing.T) {
+	for _, d := range AllFieldTypes() {
+		if d.Color == "" {
+			t.Errorf("type %q has no Color", d.ID)
+		}
+	}
+}
+
+// The loop markers share the looper slot: one colour for the whole pair.
+func TestFieldTypeColors_LoopMarkersShareTheLooperSlot(t *testing.T) {
+	for _, id := range []string{"looper", "loopstart", "loopstop"} {
+		if got := fieldTypeColors[id]; got != "looper" {
+			t.Errorf("type %q colour = %q, want looper", id, got)
+		}
+	}
+}
+
+// A colour token is either a type's own name or a slot it deliberately shares.
+// Anything else is a typo that would silently fall back to the default tint.
+func TestFieldTypeColors_TokensAreDeclaredSlots(t *testing.T) {
+	shared := stringSet("looper")
+	for id, color := range fieldTypeColors {
+		if color == id || shared[color] {
+			continue
+		}
+		t.Errorf("type %q uses colour %q, which is neither its own slot nor a shared one", id, color)
+	}
+}
+
+// A second UI renders a field row from the registry alone, so every type must
+// arrive with real colour values, not just a token only this app's stylesheet
+// could resolve.
+func TestAllFieldTypes_EveryTypeShipsItsPalette(t *testing.T) {
+	for _, d := range AllFieldTypes() {
+		p := d.Palette
+		if p.Bg == "" || p.Border == "" || p.Badge == "" || p.Text == "" {
+			t.Errorf("type %q ships an incomplete palette: %+v", d.ID, p)
+		}
+	}
+}
+
+func TestFieldTypePalette_ValuesAreHex(t *testing.T) {
+	for token, c := range fieldTypePalette {
+		for name, v := range map[string]string{
+			"bg": c.Bg, "border": c.Border, "badge": c.Badge, "text": c.Text,
+		} {
+			if len(v) != 7 || v[0] != '#' {
+				t.Errorf("slot %q %s = %q, want a #rrggbb value", token, name, v)
+			}
+		}
+	}
+}
+
+// Every declared slot is used by at least one type, and every type's slot exists.
+func TestFieldTypePalette_MatchesTheColorTokens(t *testing.T) {
+	used := map[string]bool{}
+	for id, token := range fieldTypeColors {
+		if _, ok := fieldTypePalette[token]; !ok {
+			t.Errorf("type %q uses colour slot %q, which has no palette", id, token)
+		}
+		used[token] = true
+	}
+	for token := range fieldTypePalette {
+		if !used[token] {
+			t.Errorf("palette declares slot %q, which no field type uses", token)
+		}
+	}
+}

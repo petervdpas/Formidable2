@@ -98,6 +98,12 @@ func (s *Service) ValidateWidget(w formwidget.Widget) error {
 	return w.Validate()
 }
 
+// WidgetKinds returns every widget kind with its palette, so the editor renders
+// widget rows from backend data rather than a hardcoded list of its own.
+func (s *Service) WidgetKinds() []formwidget.Descriptor {
+	return formwidget.Descriptors()
+}
+
 // Delete removes the plugin folder and KV file, returning the updated list.
 func (s *Service) Delete(id string) ([]ListResult, error) {
 	if err := s.m.Delete(id); err != nil {

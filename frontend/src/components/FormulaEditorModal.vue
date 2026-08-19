@@ -41,7 +41,7 @@ const typeOptions = computed(() => [
 
 // Field/facet references, deduped, skipping presentation/structural types.
 const skipTypes = new Set([
-  "image", "api", "button", "facet", "heading", "loopstart", "loopstop",
+  "image", "api", "api-client", "button", "facet", "heading", "loopstart", "loopstop",
 ]);
 const refTokens = computed(() => {
   const out: { token: string; label: string }[] = [];

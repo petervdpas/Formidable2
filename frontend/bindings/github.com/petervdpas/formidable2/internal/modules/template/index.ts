@@ -17,6 +17,7 @@ export {
     FacetMeta,
     FacetOption,
     Field,
+    FieldColor,
     FieldDescriptor,
     FieldUnit,
     FixedOptionRow,

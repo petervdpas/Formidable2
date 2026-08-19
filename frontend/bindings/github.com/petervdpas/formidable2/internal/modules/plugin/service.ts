@@ -203,6 +203,16 @@ export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void
     return $Call.ByID(517167145, w);
 }
 
+/**
+ * WidgetKinds returns every widget kind with its palette, so the editor renders
+ * widget rows from backend data rather than a hardcoded list of its own.
+ */
+export function WidgetKinds(): $CancellablePromise<formwidget$0.Descriptor[]> {
+    return $Call.ByID(743175530).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.ListResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
@@ -212,3 +222,5 @@ const $$createType4 = $models.ImportArchiveResult.createFrom;
 const $$createType5 = $Create.Array($Create.Any);
 const $$createType6 = $Create.Map($Create.Any, $Create.Any);
 const $$createType7 = $models.RunResultDTO.createFrom;
+const $$createType8 = formwidget$0.Descriptor.createFrom;
+const $$createType9 = $Create.Array($$createType8);

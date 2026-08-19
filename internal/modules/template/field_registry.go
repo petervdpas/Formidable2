@@ -57,6 +57,10 @@ type FieldDescriptor struct {
 	Abilities          Abilities          `json:"abilities"`
 	OptionsShape       *FixedOptionsShape `json:"options_shape,omitempty"`
 	DefaultValue       any                `json:"default_value"`
+	// Color is the palette slot the type renders in, and Palette its values. Any
+	// UI can render a field row from this alone, with no stylesheet of its own.
+	Color   string     `json:"color"`
+	Palette FieldColor `json:"palette"`
 }
 
 // IsKnownFieldType reports whether the given type id is in the matrix.
@@ -81,6 +85,8 @@ func AllFieldTypes() []FieldDescriptor {
 		}
 		def.LabelKey = fieldTypeLabelKeys[id]
 		def.DefaultValue = fieldTypeDefaults[id]
+		def.Color = fieldTypeColors[id]
+		def.Palette = fieldTypePalette[def.Color]
 		out = append(out, def)
 	}
 	return out

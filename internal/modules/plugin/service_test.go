@@ -279,3 +279,16 @@ func TestService_Refresh_PicksUpNewPlugin(t *testing.T) {
 		t.Fatalf("after refresh: %d", len(got))
 	}
 }
+
+func TestService_WidgetKindsShipTheirPalette(t *testing.T) {
+	s := &Service{}
+	got := s.WidgetKinds()
+	if len(got) == 0 {
+		t.Fatal("no widget kinds")
+	}
+	for _, d := range got {
+		if d.Palette.Bg == "" || d.Color == "" {
+			t.Errorf("kind %q reached the frontend without its palette: %+v", d.Kind, d)
+		}
+	}
+}

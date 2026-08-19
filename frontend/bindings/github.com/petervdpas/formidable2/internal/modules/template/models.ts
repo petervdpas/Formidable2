@@ -505,6 +505,53 @@ export class Field {
 }
 
 /**
+ * FieldColor is the palette one field-type slot renders in: the row background,
+ * its left rail, the (TYPE) badge, and the text that sits on them.
+ * 
+ * The values live here rather than in a stylesheet because the frontend does not
+ * own this data: a second UI (a different framework, a web client, an export)
+ * asks the backend for the field-type registry and gets everything it needs to
+ * render a field, colour included. A CSS token alone would only be meaningful to
+ * a UI that already shipped a matching stylesheet, which is the frontend owning
+ * data again. Facets can hand out bare tokens ("red", "teal") because those mean
+ * something anywhere; "api-client" does not.
+ * 
+ * One palette, no light/dark variants: these read on either theme.
+ */
+export class FieldColor {
+    "bg": string;
+    "border": string;
+    "badge": string;
+    "text": string;
+
+    /** Creates a new FieldColor instance. */
+    constructor($$source: Partial<FieldColor> = {}) {
+        if (!("bg" in $$source)) {
+            this["bg"] = "";
+        }
+        if (!("border" in $$source)) {
+            this["border"] = "";
+        }
+        if (!("badge" in $$source)) {
+            this["badge"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldColor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldColor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FieldColor($$parsedSource as Partial<FieldColor>);
+    }
+}
+
+/**
  * FieldDescriptor is the per-type record. MetaOnly marks value-less marker types (loopstart/loopstop).
  * Virtual marks types that don't seed a storage.Form.Data slot (their value lives elsewhere, e.g. meta.facets).
  * OptionsShape is non-nil when the options array has fixed arity (e.g. boolean = two rows).
@@ -522,6 +569,13 @@ export class FieldDescriptor {
     "abilities": Abilities;
     "options_shape"?: FixedOptionsShape | null;
     "default_value": any;
+
+    /**
+     * Color is the palette slot the type renders in, and Palette its values. Any
+     * UI can render a field row from this alone, with no stylesheet of its own.
+     */
+    "color": string;
+    "palette": FieldColor;
 
     /** Creates a new FieldDescriptor instance. */
     constructor($$source: Partial<FieldDescriptor> = {}) {
@@ -552,6 +606,12 @@ export class FieldDescriptor {
         if (!("default_value" in $$source)) {
             this["default_value"] = null;
         }
+        if (!("color" in $$source)) {
+            this["color"] = "";
+        }
+        if (!("palette" in $$source)) {
+            this["palette"] = (new FieldColor());
+        }
 
         Object.assign(this, $$source);
     }
@@ -562,12 +622,16 @@ export class FieldDescriptor {
     static createFrom($$source: any = {}): FieldDescriptor {
         const $$createField7_0 = $$createType14;
         const $$createField8_0 = $$createType16;
+        const $$createField11_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
             $$parsedSource["abilities"] = $$createField7_0($$parsedSource["abilities"]);
         }
         if ("options_shape" in $$parsedSource) {
             $$parsedSource["options_shape"] = $$createField8_0($$parsedSource["options_shape"]);
+        }
+        if ("palette" in $$parsedSource) {
+            $$parsedSource["palette"] = $$createField11_0($$parsedSource["palette"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }
@@ -605,10 +669,10 @@ export class FieldUnit {
      * Creates a new FieldUnit instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldUnit {
-        const $$createField1_0 = $$createType18;
-        const $$createField2_0 = $$createType18;
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType20;
+        const $$createField1_0 = $$createType19;
+        const $$createField2_0 = $$createType19;
+        const $$createField3_0 = $$createType19;
+        const $$createField4_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("field" in $$parsedSource) {
             $$parsedSource["field"] = $$createField1_0($$parsedSource["field"]);
@@ -652,7 +716,7 @@ export class FixedOptionRow {
      * Creates a new FixedOptionRow instance from a string or object.
      */
     static createFrom($$source: any = {}): FixedOptionRow {
-        const $$createField1_0 = $$createType21;
+        const $$createField1_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("defaults" in $$parsedSource) {
             $$parsedSource["defaults"] = $$createField1_0($$parsedSource["defaults"]);
@@ -691,7 +755,7 @@ export class FixedOptionsShape {
      * Creates a new FixedOptionsShape instance from a string or object.
      */
     static createFrom($$source: any = {}): FixedOptionsShape {
-        const $$createField0_0 = $$createType23;
+        const $$createField0_0 = $$createType24;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
@@ -837,7 +901,7 @@ export class ListItemTypeDescriptor {
      * Creates a new ListItemTypeDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): ListItemTypeDescriptor {
-        const $$createField1_0 = $$createType25;
+        const $$createField1_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sub_row" in $$parsedSource) {
             $$parsedSource["sub_row"] = $$createField1_0($$parsedSource["sub_row"]);
@@ -895,7 +959,7 @@ export class PDFConfig {
      * Creates a new PDFConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): PDFConfig {
-        const $$createField1_0 = $$createType27;
+        const $$createField1_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cover" in $$parsedSource) {
             $$parsedSource["cover"] = $$createField1_0($$parsedSource["cover"]);
@@ -1006,8 +1070,8 @@ export class Scaling {
      * Creates a new Scaling instance from a string or object.
      */
     static createFrom($$source: any = {}): Scaling {
-        const $$createField2_0 = $$createType28;
-        const $$createField3_0 = $$createType30;
+        const $$createField2_0 = $$createType29;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField2_0($$parsedSource["source"]);
@@ -1212,7 +1276,7 @@ export class StatComposite {
      * Creates a new StatComposite instance from a string or object.
      */
     static createFrom($$source: any = {}): StatComposite {
-        const $$createField1_0 = $$createType32;
+        const $$createField1_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("edges" in $$parsedSource) {
             $$parsedSource["edges"] = $$createField1_0($$parsedSource["edges"]);
@@ -1277,8 +1341,8 @@ export class StatScaling {
      * Creates a new StatScaling instance from a string or object.
      */
     static createFrom($$source: any = {}): StatScaling {
-        const $$createField0_0 = $$createType28;
-        const $$createField1_0 = $$createType30;
+        const $$createField0_0 = $$createType29;
+        const $$createField1_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField0_0($$parsedSource["source"]);
@@ -1377,8 +1441,8 @@ export class Statistic {
      * Creates a new Statistic instance from a string or object.
      */
     static createFrom($$source: any = {}): Statistic {
-        const $$createField3_0 = $$createType34;
-        const $$createField4_0 = $$createType36;
+        const $$createField3_0 = $$createType35;
+        const $$createField4_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("composite" in $$parsedSource) {
             $$parsedSource["composite"] = $$createField3_0($$parsedSource["composite"]);
@@ -1418,7 +1482,7 @@ export class SubRow {
      * Creates a new SubRow instance from a string or object.
      */
     static createFrom($$source: any = {}): SubRow {
-        const $$createField4_0 = $$createType38;
+        const $$createField4_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField4_0($$parsedSource["entries"]);
@@ -1505,7 +1569,7 @@ export class TableColumnTypeDescriptor {
      * Creates a new TableColumnTypeDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): TableColumnTypeDescriptor {
-        const $$createField1_0 = $$createType25;
+        const $$createField1_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sub_row" in $$parsedSource) {
             $$parsedSource["sub_row"] = $$createField1_0($$parsedSource["sub_row"]);
@@ -1625,12 +1689,12 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField13_0 = $$createType40;
-        const $$createField14_0 = $$createType42;
-        const $$createField15_0 = $$createType44;
-        const $$createField16_0 = $$createType46;
-        const $$createField17_0 = $$createType48;
-        const $$createField18_0 = $$createType49;
+        const $$createField13_0 = $$createType41;
+        const $$createField14_0 = $$createType43;
+        const $$createField15_0 = $$createType45;
+        const $$createField16_0 = $$createType47;
+        const $$createField17_0 = $$createType49;
+        const $$createField18_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField13_0($$parsedSource["pdf"]);
@@ -1680,8 +1744,8 @@ export class ValidationError {
      */
     static createFrom($$source: any = {}): ValidationError {
         const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType18;
-        const $$createField6_0 = $$createType21;
+        const $$createField4_0 = $$createType19;
+        const $$createField6_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -1714,36 +1778,37 @@ const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = Abilities.createFrom;
 const $$createType15 = FixedOptionsShape.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = Field.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = FieldUnit.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $Create.Map($Create.Any, $Create.Any);
-const $$createType22 = FixedOptionRow.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = SubRow.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = PDFCoverConfig.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = StatSource.createFrom;
-const $$createType29 = StatWeightEntry.createFrom;
-const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = StatCompositeEdge.createFrom;
-const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = StatComposite.createFrom;
-const $$createType34 = $Create.Nullable($$createType33);
-const $$createType35 = StatScaling.createFrom;
-const $$createType36 = $Create.Nullable($$createType35);
-const $$createType37 = SubRowEntry.createFrom;
-const $$createType38 = $Create.Array($$createType37);
-const $$createType39 = PDFConfig.createFrom;
-const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = Facet.createFrom;
-const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = Statistic.createFrom;
-const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = Scaling.createFrom;
-const $$createType46 = $Create.Array($$createType45);
-const $$createType47 = Formula.createFrom;
-const $$createType48 = $Create.Array($$createType47);
-const $$createType49 = $Create.Array($$createType17);
+const $$createType17 = FieldColor.createFrom;
+const $$createType18 = Field.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = FieldUnit.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = $Create.Map($Create.Any, $Create.Any);
+const $$createType23 = FixedOptionRow.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = SubRow.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = PDFCoverConfig.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = StatSource.createFrom;
+const $$createType30 = StatWeightEntry.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = StatCompositeEdge.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = StatComposite.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = StatScaling.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = SubRowEntry.createFrom;
+const $$createType39 = $Create.Array($$createType38);
+const $$createType40 = PDFConfig.createFrom;
+const $$createType41 = $Create.Nullable($$createType40);
+const $$createType42 = Facet.createFrom;
+const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = Statistic.createFrom;
+const $$createType45 = $Create.Array($$createType44);
+const $$createType46 = Scaling.createFrom;
+const $$createType47 = $Create.Array($$createType46);
+const $$createType48 = Formula.createFrom;
+const $$createType49 = $Create.Array($$createType48);
+const $$createType50 = $Create.Array($$createType18);

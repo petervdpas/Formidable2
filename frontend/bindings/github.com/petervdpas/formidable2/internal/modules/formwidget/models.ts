@@ -6,6 +6,91 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Color is the palette one widget kind renders in: the row background in the
+ * plugin form editor, its left rail, the (KIND) badge, and the text on them.
+ * 
+ * The values live here rather than in a stylesheet for the same reason the
+ * field-type palette does: a UI asks the backend what a widget is and gets
+ * everything needed to draw it, colour included. A bare token would only mean
+ * something to a UI that already shipped a matching stylesheet.
+ * 
+ * Widgets are display chrome, not data fields, so they share the brand accent
+ * (#2563eb) in three shades kept clear of the field blues (text #1565c0,
+ * number #3a94e4).
+ */
+export class Color {
+    "bg": string;
+    "border": string;
+    "badge": string;
+    "text": string;
+
+    /** Creates a new Color instance. */
+    constructor($$source: Partial<Color> = {}) {
+        if (!("bg" in $$source)) {
+            this["bg"] = "";
+        }
+        if (!("border" in $$source)) {
+            this["border"] = "";
+        }
+        if (!("badge" in $$source)) {
+            this["badge"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Color instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Color {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Color($$parsedSource as Partial<Color>);
+    }
+}
+
+/**
+ * Descriptor is the per-kind record a UI renders from. Color is the palette slot
+ * (named after the kind, since widget slots are never shared) and Palette its
+ * values; both live in one CSS variable namespace with the field-type slots, so
+ * a kind must not take a field type's name.
+ */
+export class Descriptor {
+    "kind": Kind;
+    "color": string;
+    "palette": Color;
+
+    /** Creates a new Descriptor instance. */
+    constructor($$source: Partial<Descriptor> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = Kind.$zero;
+        }
+        if (!("color" in $$source)) {
+            this["color"] = "";
+        }
+        if (!("palette" in $$source)) {
+            this["palette"] = (new Color());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Descriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Descriptor {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("palette" in $$parsedSource) {
+            $$parsedSource["palette"] = $$createField2_0($$parsedSource["palette"]);
+        }
+        return new Descriptor($$parsedSource as Partial<Descriptor>);
+    }
+}
+
+/**
  * Kind identifies a widget's display role. Closed enum: adding one is a
  * deliberate package change with a matching frontend component.
  */
@@ -64,3 +149,6 @@ export class Widget {
         return new Widget($$parsedSource as Partial<Widget>);
     }
 }
+
+// Private type creation functions
+const $$createType0 = Color.createFrom;

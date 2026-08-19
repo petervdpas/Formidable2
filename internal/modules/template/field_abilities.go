@@ -426,6 +426,45 @@ var fieldTypeLabelKeys = map[string]string{
 	"loopstop":    "workspace.templates.field_type.loopstop",
 }
 
+// fieldTypeColors is the palette slot each type renders in: the field row's
+// rail, its badge, and the field-edit dialog tint. Backend-owned so a new type
+// cannot ship untinted (audited by test); the colours themselves live in
+// styles/field-types.css, keyed by token, since light/dark is a rendering
+// concern. Every entry is the type's own name except the loop markers, which
+// share one slot because they are one construct.
+var fieldTypeColors = map[string]string{
+	"text":        "text",
+	"textarea":    "textarea",
+	"mermaid":     "mermaid",
+	"number":      "number",
+	"range":       "range",
+	"sequence":    "sequence",
+	"slide":       "slide",
+	"slideset":    "slideset",
+	"event":       "event",
+	"project":     "project",
+	"date":        "date",
+	"boolean":     "boolean",
+	"dropdown":    "dropdown",
+	"multioption": "multioption",
+	"radio":       "radio",
+	"file-path":   "file-path",
+	"folder-path": "folder-path",
+	"list":        "list",
+	"table":       "table",
+	"image":       "image",
+	"link":        "link",
+	"tags":        "tags",
+	"api":         "api",
+	"api-client":  "api-client",
+	"guid":        "guid",
+	"facet":       "facet",
+	"formula":     "formula",
+	"looper":      "looper",
+	"loopstart":   "looper",
+	"loopstop":    "looper",
+}
+
 // fieldTypeDefaults is the value used to seed a freshly-created field's Default
 // in the editor. Backend-owned (the frontend wraps each in a clone-factory).
 // Meta/virtual types are intentionally absent (nil default -> no seed).
