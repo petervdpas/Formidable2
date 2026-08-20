@@ -644,3 +644,94 @@ func shopConn(t *testing.T, iv *Invoker) *Connection {
 	}
 	return c
 }
+
+// Keyed collections -----------------------------------------------------
+
+const keyedBody = `{
+  "googleapis.com:drive": {"added": "2015-02-22", "preferred": "v3"},
+  "adobe.com:aem": {"added": "2019-01-05", "preferred": "v1"},
+  "": {"added": "never", "preferred": "x"}
+}`
+
+// asKeyed turns the fixture's customers into a map-shaped collection, which is
+// the shape APIs.guru and most registries publish.
+func asKeyed(c *Connection) {
+	r := &c.Resources[0]
+	r.ItemsMode = ItemsMap
+	r.ItemsPath = ""
+	r.IDPath = ""
+	r.LabelPath = "/preferred"
+	r.Fields = []FieldMap{{Key: "added", Pointer: "/added"}}
+}
+
+func TestList_KeyedMapYieldsOneItemPerKey(t *testing.T) {
+	iv, _, reconfigure := shopFixture(t, jsonHandler(200, keyedBody))
+	c := shopConn(t, iv)
+	asKeyed(c)
+	reconfigure(c)
+
+	page := mustList(t, iv, listReq())
+	if len(page.Items) != 2 {
+		t.Fatalf("items = %+v, want two records and the blank key dropped", page.Items)
+	}
+	// Sorted, because a JSON object carries no order of its own and a picker
+	// that reshuffles on every call is unusable.
+	if page.Items[0].ID != "adobe.com:aem" || page.Items[1].ID != "googleapis.com:drive" {
+		t.Fatalf("ids = %q/%q, want them sorted", page.Items[0].ID, page.Items[1].ID)
+	}
+	if page.Items[0].Label != "v1" {
+		t.Errorf("label = %q, want the label pointer read inside the value", page.Items[0].Label)
+	}
+	if page.Items[0].Fields["added"] != "2019-01-05" {
+		t.Errorf("fields = %+v, want the value's own fields projected", page.Items[0].Fields)
+	}
+}
+
+func TestList_KeyedModeRefusesAnArray(t *testing.T) {
+	iv, _, reconfigure := shopFixture(t, jsonHandler(200, `{"data": [{"id": 1}]}`))
+	c := shopConn(t, iv)
+	asKeyed(c)
+	c.Resources[0].ItemsPath = "/data"
+	reconfigure(c)
+
+	_, err := iv.List(context.Background(), listReq())
+	if got := codeOf(t, err); got != CodeShapeMismatch {
+		t.Fatalf("code = %v, want a shape mismatch", got)
+	}
+}
+
+func TestList_KeyedScalarValuesStandInAsTheirOwnLabel(t *testing.T) {
+	iv, _, reconfigure := shopFixture(t, jsonHandler(200, `{"beta": true, "alpha": false}`))
+	c := shopConn(t, iv)
+	asKeyed(c)
+	c.Resources[0].LabelPath = ""
+	c.Resources[0].Fields = nil
+	reconfigure(c)
+
+	page := mustList(t, iv, listReq())
+	if len(page.Items) != 2 || page.Items[0].ID != "alpha" || page.Items[0].Label != "alpha" {
+		t.Fatalf("items = %+v, want the key standing in as the label", page.Items)
+	}
+}
+
+func TestFetch_KeyedRecordKeepsTheRequestedID(t *testing.T) {
+	// A fetched value carries no id of its own: the key the caller asked for
+	// is the identity.
+	iv, _, reconfigure := shopFixture(t, jsonHandler(200, `{"added": "2015-02-22", "preferred": "v3"}`))
+	c := shopConn(t, iv)
+	asKeyed(c)
+	reconfigure(c)
+
+	item, err := iv.Fetch(context.Background(), FetchRequest{
+		Connection: "shop", Resource: "customers", ID: "googleapis.com:drive",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.ID != "googleapis.com:drive" || item.Label != "v3" {
+		t.Fatalf("item = %+v, want the requested key as the id", item)
+	}
+	if item.Fields["added"] != "2015-02-22" {
+		t.Errorf("fields = %+v, want the value projected", item.Fields)
+	}
+}

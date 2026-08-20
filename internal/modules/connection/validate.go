@@ -140,6 +140,8 @@ func validateResource(r Resource, cat *Catalog, d dialectSpec) []ValidationError
 
 	errs = append(errs, validateStrategy(r, s)...)
 
+	errs = append(errs, validateItemsMode(r)...)
+
 	pointers := []struct{ label, ptr string }{
 		{"items_path", r.ItemsPath},
 		{"id_path", r.IDPath},
@@ -412,6 +414,33 @@ func unknownParams(resourceKey string, op Operation, fixed map[string]string, ro
 		}
 	}
 	return errs
+}
+
+// validateItemsMode checks how the item container is read. Under a keyed map
+// the key is the record's identity, so an id pointer has nothing to address:
+// leaving it set would silently do nothing, which is worse than refusing it.
+func validateItemsMode(r Resource) []ValidationError {
+	switch r.ItemsMode {
+	case "", ItemsArray:
+		return nil
+	case ItemsMap:
+		if r.IDPath == "" {
+			return nil
+		}
+		return []ValidationError{{
+			Type:     "id-path-on-keyed-items",
+			Resource: r.Key,
+			Message:  fmt.Sprintf("Keyed items carry their id in the key, so id_path %q must be empty", r.IDPath),
+			Detail:   map[string]any{"id_path": r.IDPath, "items_mode": r.ItemsMode},
+		}}
+	default:
+		return []ValidationError{{
+			Type:     "invalid-items-mode",
+			Resource: r.Key,
+			Message:  fmt.Sprintf("Unknown items mode %q; known: %s, %s", r.ItemsMode, ItemsArray, ItemsMap),
+			Detail:   map[string]any{"items_mode": r.ItemsMode},
+		}}
+	}
 }
 
 // validateStrategy checks the per-resource execution strategies that no

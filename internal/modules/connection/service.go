@@ -94,17 +94,9 @@ func (s *Service) GetCatalog(id string) (*Catalog, error) { return s.m.Catalog(i
 // ValidateClient reports what is wrong with a client without saving it, so the
 // editor can show problems while the user is still typing.
 func (s *Service) ValidateClient(c Connection) ([]ValidationError, error) {
-	cat, err := s.m.Catalog(c.ID)
+	cat, err := s.catalogFor(c)
 	if err != nil {
-		if !errors.Is(err, ErrNotFound) {
-			return nil, err
-		}
-		// An unsaved client has no stored definition to read a spec through;
-		// fall back to the spec file the draft names.
-		cat, err = s.m.CatalogForSpec(c.SpecFile)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	errs := Validate(&c, cat)
 	if errs == nil {
@@ -112,6 +104,70 @@ func (s *Service) ValidateClient(c Connection) ([]ValidationError, error) {
 	}
 	return errs, nil
 }
+
+// ListOperations returns every operation the client's document declares, with
+// what its response reads as and which resources already bind it. The draft
+// goes over rather than an id so the bound-by column tracks unsaved edits.
+func (s *Service) ListOperations(c Connection) ([]OperationInfo, error) {
+	cat, err := s.catalogFor(c)
+	if err != nil {
+		return nil, err
+	}
+	return Operations(cat, &c), nil
+}
+
+// ListMethods returns the HTTP methods a catalog can contain with the colours
+// their badges render in, so the operation list needs no palette of its own.
+func (s *Service) ListMethods() []MethodDescriptor { return Methods() }
+
+// ListShapes returns the response shapes an operation row can carry, for the
+// editor's filter.
+func (s *Service) ListShapes() []string {
+	return []string{ShapeRecords, ShapeKeyed, ShapeValues, ShapeKeyedValues, ShapeRecord, ShapeUnknown}
+}
+
+// DetectResources proposes resources by reading the client's spec, for the
+// detect button in the resource editor. It takes the draft rather than an id so
+// an unsaved edit counts: whatever the draft already binds is left out of the
+// proposal, and its keys are not reused.
+func (s *Service) DetectResources(c Connection) (Detection, error) {
+	cat, err := s.catalogFor(c)
+	if err != nil {
+		return Detection{}, err
+	}
+	return Detect(cat, &c), nil
+}
+
+// catalogFor resolves the spec behind a draft client. An unsaved client has no
+// stored definition to read a spec through, so the spec file it names is the
+// fallback.
+func (s *Service) catalogFor(c Connection) (*Catalog, error) {
+	cat, err := s.m.Catalog(c.ID)
+	if err == nil {
+		return cat, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	return s.m.CatalogForSpec(c.SpecFile)
+}
+
+// SpecSource returns the uploaded document behind a client, for the Document
+// tab. The draft goes over rather than an id so a client whose upload is not
+// saved yet still shows what was just imported.
+func (s *Service) SpecSource(c Connection) (SpecSource, error) {
+	return s.m.SpecSource(c.SpecFile)
+}
+
+// SpecDocument returns the uploaded document as JSON, for rendering it with
+// Swagger UI.
+func (s *Service) SpecDocument(c Connection) (SpecDocument, error) {
+	return s.m.SpecDocument(c.SpecFile)
+}
+
+// SwaggerAssets returns the vendored swagger-ui files. They never change
+// between calls, so the frontend fetches them once per session.
+func (s *Service) SwaggerAssets() (SwaggerAssetBundle, error) { return SwaggerAssets() }
 
 // ReloadSpecs drops the parsed-spec cache, for after a spec file is edited by
 // hand outside the app.
@@ -122,6 +178,10 @@ func (s *Service) ListDialects() []string { return KnownDialects() }
 
 // ListKeyStyles returns the known entity-addressing strategies.
 func (s *Service) ListKeyStyles() []string { return []string{KeyRaw, KeyQuoted, KeyTyped} }
+
+// ListItemsModes returns the known item-container shapes, for the picker in the
+// resource editor.
+func (s *Service) ListItemsModes() []string { return []string{ItemsArray, ItemsMap} }
 
 // ListPaginationStyles returns the known paging strategies.
 func (s *Service) ListPaginationStyles() []string {
@@ -157,6 +217,27 @@ func (s *Service) FetchSnapshot(req FetchRequest) (map[string]any, error) {
 		return nil, invokeErr(CodeRemoteNotFound, "no record for id "+req.ID, nil)
 	}
 	return Snapshot(*item, req.Select, time.Now()), nil
+}
+
+// TryOperationForm describes what running an operation would need: its
+// parameters, whatever a resource already fixes for them, and whether the
+// console will run it at all.
+func (s *Service) TryOperationForm(c Connection, operation string) (TryForm, error) {
+	cat, err := s.catalogFor(c)
+	if err != nil {
+		return TryForm{}, err
+	}
+	return BuildTryForm(cat, &c, operation)
+}
+
+// TryOperation runs one operation straight from the document and returns what
+// came back, including a failing status: seeing the remote's own error is the
+// point of a console.
+func (s *Service) TryOperation(req TryRequest) (*TryResult, error) {
+	if s.inv == nil {
+		return nil, invokeErr(CodeConnectionNotFound, "no invoker configured", nil)
+	}
+	return s.inv.Try(context.Background(), req)
 }
 
 // SetCredential stores the secret a client authenticates with.

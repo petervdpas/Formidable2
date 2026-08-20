@@ -182,6 +182,55 @@ export class Connection {
 }
 
 /**
+ * Detection is what a detection run found: the proposals, plus why the rest of
+ * the document yielded nothing. Without the counts an empty result cannot be
+ * told apart from "everything here is already bound", which are opposite
+ * answers to the same screen.
+ */
+export class Detection {
+    "drafts": ResourceDraft[];
+
+    /**
+     * Bound counts collection operations an existing resource already lists.
+     */
+    "bound": number;
+
+    /**
+     * NoCollection counts operations that read as a single record rather than
+     * a list: no array of objects in the response, and no entity operation
+     * pairing with them.
+     */
+    "no_collection": number;
+
+    /** Creates a new Detection instance. */
+    constructor($$source: Partial<Detection> = {}) {
+        if (!("drafts" in $$source)) {
+            this["drafts"] = [];
+        }
+        if (!("bound" in $$source)) {
+            this["bound"] = 0;
+        }
+        if (!("no_collection" in $$source)) {
+            this["no_collection"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Detection instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Detection {
+        const $$createField0_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("drafts" in $$parsedSource) {
+            $$parsedSource["drafts"] = $$createField0_0($$parsedSource["drafts"]);
+        }
+        return new Detection($$parsedSource as Partial<Detection>);
+    }
+}
+
+/**
  * FetchRequest resolves one stored id back to a record.
  */
 export class FetchRequest {
@@ -347,6 +396,70 @@ export class ListRequest {
 }
 
 /**
+ * MethodColor is one badge's values, ready to paint with.
+ */
+export class MethodColor {
+    "bg": string;
+    "border": string;
+    "text": string;
+
+    /** Creates a new MethodColor instance. */
+    constructor($$source: Partial<MethodColor> = {}) {
+        if (!("bg" in $$source)) {
+            this["bg"] = "";
+        }
+        if (!("border" in $$source)) {
+            this["border"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MethodColor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MethodColor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MethodColor($$parsedSource as Partial<MethodColor>);
+    }
+}
+
+/**
+ * MethodDescriptor is one method with the colours it renders in.
+ */
+export class MethodDescriptor {
+    "method": string;
+    "palette": MethodColor;
+
+    /** Creates a new MethodDescriptor instance. */
+    constructor($$source: Partial<MethodDescriptor> = {}) {
+        if (!("method" in $$source)) {
+            this["method"] = "";
+        }
+        if (!("palette" in $$source)) {
+            this["palette"] = (new MethodColor());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MethodDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MethodDescriptor {
+        const $$createField1_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("palette" in $$parsedSource) {
+            $$parsedSource["palette"] = $$createField1_0($$parsedSource["palette"]);
+        }
+        return new MethodDescriptor($$parsedSource as Partial<MethodDescriptor>);
+    }
+}
+
+/**
  * OpRef binds one spec operation plus the params the author fixes at design
  * time. Params keys are param names as they appear in the spec.
  */
@@ -389,6 +502,12 @@ export class Operation {
     "params"?: Param[];
     "synthetic"?: boolean;
 
+    /**
+     * Result is the shape of the success response, when the document describes
+     * one. Resource detection reads it; execution never does.
+     */
+    "result"?: Result | null;
+
     /** Creates a new Operation instance. */
     constructor($$source: Partial<Operation> = {}) {
         if (!("id" in $$source)) {
@@ -408,12 +527,92 @@ export class Operation {
      * Creates a new Operation instance from a string or object.
      */
     static createFrom($$source: any = {}): Operation {
-        const $$createField4_0 = $$createType11;
+        const $$createField4_0 = $$createType14;
+        const $$createField6_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("params" in $$parsedSource) {
             $$parsedSource["params"] = $$createField4_0($$parsedSource["params"]);
         }
+        if ("result" in $$parsedSource) {
+            $$parsedSource["result"] = $$createField6_0($$parsedSource["result"]);
+        }
         return new Operation($$parsedSource as Partial<Operation>);
+    }
+}
+
+/**
+ * OperationBinding names a resource that already uses an operation.
+ */
+export class OperationBinding {
+    "resource": string;
+    "role": string;
+
+    /** Creates a new OperationBinding instance. */
+    constructor($$source: Partial<OperationBinding> = {}) {
+        if (!("resource" in $$source)) {
+            this["resource"] = "";
+        }
+        if (!("role" in $$source)) {
+            this["role"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OperationBinding instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OperationBinding {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OperationBinding($$parsedSource as Partial<OperationBinding>);
+    }
+}
+
+/**
+ * OperationInfo is one catalog operation with what the editor needs to make
+ * sense of it: what its response reads as, and who already binds it.
+ */
+export class OperationInfo {
+    "operation": Operation;
+    "shape": string;
+    "bound_by"?: OperationBinding[];
+
+    /**
+     * Collection says the response yields items, so the operation could back a
+     * resource's list binding. It is the single fact that decides whether
+     * detection would ever propose it.
+     */
+    "collection": boolean;
+
+    /** Creates a new OperationInfo instance. */
+    constructor($$source: Partial<OperationInfo> = {}) {
+        if (!("operation" in $$source)) {
+            this["operation"] = (new Operation());
+        }
+        if (!("shape" in $$source)) {
+            this["shape"] = "";
+        }
+        if (!("collection" in $$source)) {
+            this["collection"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OperationInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OperationInfo {
+        const $$createField0_0 = $$createType1;
+        const $$createField2_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("operation" in $$parsedSource) {
+            $$parsedSource["operation"] = $$createField0_0($$parsedSource["operation"]);
+        }
+        if ("bound_by" in $$parsedSource) {
+            $$parsedSource["bound_by"] = $$createField2_0($$parsedSource["bound_by"]);
+        }
+        return new OperationInfo($$parsedSource as Partial<OperationInfo>);
     }
 }
 
@@ -438,7 +637,7 @@ export class Page {
      * Creates a new Page instance from a string or object.
      */
     static createFrom($$source: any = {}): Page {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField0_0($$parsedSource["items"]);
@@ -508,10 +707,40 @@ export class Param {
 }
 
 /**
+ * Property is one scalar leaf of an item schema. Pointer is RFC 6901, relative
+ * to a single item, so it can be used as a FieldMap pointer unchanged.
+ */
+export class Property {
+    "name": string;
+    "pointer": string;
+    "type"?: string;
+
+    /** Creates a new Property instance. */
+    constructor($$source: Partial<Property> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("pointer" in $$source)) {
+            this["pointer"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Property instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Property {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Property($$parsedSource as Partial<Property>);
+    }
+}
+
+/**
  * Resource is one referenceable collection inside a connection. List feeds the
  * picker; Get resolves a stored id back to a record. ItemsPath, IDPath and
  * LabelPath are JSON pointers (RFC 6901); an empty ItemsPath means the list
- * response is itself the array.
+ * response is itself the item container.
  */
 export class Resource {
     "key": string;
@@ -524,6 +753,13 @@ export class Resource {
     "search_param"?: string;
     "pagination"?: Pagination;
     "fields"?: FieldMap[];
+
+    /**
+     * ItemsMode says how the item container yields records. Empty means
+     * ItemsArray. Under ItemsMap the key is the id, so IDPath has nothing to
+     * address and must stay empty.
+     */
+    "items_mode"?: string;
 
     /**
      * KeyStyle is how a stored id is written into the get operation's path.
@@ -569,10 +805,10 @@ export class Resource {
      * Creates a new Resource instance from a string or object.
      */
     static createFrom($$source: any = {}): Resource {
-        const $$createField2_0 = $$createType14;
-        const $$createField3_0 = $$createType14;
-        const $$createField8_0 = $$createType15;
-        const $$createField9_0 = $$createType17;
+        const $$createField2_0 = $$createType21;
+        const $$createField3_0 = $$createType21;
+        const $$createField8_0 = $$createType22;
+        const $$createField9_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("list" in $$parsedSource) {
             $$parsedSource["list"] = $$createField2_0($$parsedSource["list"]);
@@ -587,6 +823,124 @@ export class Resource {
             $$parsedSource["fields"] = $$createField9_0($$parsedSource["fields"]);
         }
         return new Resource($$parsedSource as Partial<Resource>);
+    }
+}
+
+/**
+ * ResourceDraft is a proposed resource plus the attributes whose values were
+ * inferred rather than read off the document.
+ */
+export class ResourceDraft {
+    "resource": Resource;
+    "guessed"?: string[];
+
+    /** Creates a new ResourceDraft instance. */
+    constructor($$source: Partial<ResourceDraft> = {}) {
+        if (!("resource" in $$source)) {
+            this["resource"] = (new Resource());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResourceDraft instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResourceDraft {
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("resource" in $$parsedSource) {
+            $$parsedSource["resource"] = $$createField0_0($$parsedSource["resource"]);
+        }
+        if ("guessed" in $$parsedSource) {
+            $$parsedSource["guessed"] = $$createField1_0($$parsedSource["guessed"]);
+        }
+        return new ResourceDraft($$parsedSource as Partial<ResourceDraft>);
+    }
+}
+
+/**
+ * Result is an operation's success response, distilled.
+ * 
+ * Collection says the body yields items; ItemsPath points at the container and
+ * is empty when the body is itself one. ItemsMode says whether that container
+ * is an array or a map keyed by id, and Scalar whether its members are plain
+ * values rather than records. Ambiguous marks an ItemsPath that was chosen by
+ * name because the schema declared several arrays.
+ */
+export class Result {
+    "collection": boolean;
+    "items_path"?: string;
+    "items_mode"?: string;
+    "scalar"?: boolean;
+    "ambiguous"?: boolean;
+    "properties"?: Property[];
+
+    /** Creates a new Result instance. */
+    constructor($$source: Partial<Result> = {}) {
+        if (!("collection" in $$source)) {
+            this["collection"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Result instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Result {
+        const $$createField5_0 = $$createType26;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("properties" in $$parsedSource) {
+            $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
+        }
+        return new Result($$parsedSource as Partial<Result>);
+    }
+}
+
+/**
+ * SpecDocument is an uploaded document prepared for the renderer.
+ */
+export class SpecDocument {
+    "file": string;
+
+    /**
+     * JSON is the document as JSON, converted when the upload was YAML and
+     * escaped so it cannot close the script tag that carries it. Swagger UI
+     * takes an object, and handing it the spec directly avoids any fetch,
+     * which matters inside a webview with no server behind it.
+     */
+    "json": string;
+
+    /**
+     * Format is the version marker the document carries. A Swagger 2.0
+     * document stays 2.0: the renderer handles it natively, and converting
+     * would show the author a document they never uploaded.
+     */
+    "format": string;
+
+    /** Creates a new SpecDocument instance. */
+    constructor($$source: Partial<SpecDocument> = {}) {
+        if (!("file" in $$source)) {
+            this["file"] = "";
+        }
+        if (!("json" in $$source)) {
+            this["json"] = "";
+        }
+        if (!("format" in $$source)) {
+            this["format"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SpecDocument instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SpecDocument {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SpecDocument($$parsedSource as Partial<SpecDocument>);
     }
 }
 
@@ -620,6 +974,53 @@ export class SpecInfo {
             $$parsedSource["catalog"] = $$createField1_0($$parsedSource["catalog"]);
         }
         return new SpecInfo($$parsedSource as Partial<SpecInfo>);
+    }
+}
+
+/**
+ * SpecSource is an uploaded document as stored, for display.
+ */
+export class SpecSource {
+    "file": string;
+    "content": string;
+
+    /**
+     * Language names the syntax to highlight, from the extension the upload
+     * landed under.
+     */
+    "language": string;
+
+    /**
+     * Bytes is the document's real size, which stays honest when Content is
+     * cut, so the panel can say how much is not shown.
+     */
+    "bytes": number;
+    "truncated"?: boolean;
+
+    /** Creates a new SpecSource instance. */
+    constructor($$source: Partial<SpecSource> = {}) {
+        if (!("file" in $$source)) {
+            this["file"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("language" in $$source)) {
+            this["language"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SpecSource instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SpecSource {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SpecSource($$parsedSource as Partial<SpecSource>);
     }
 }
 
@@ -661,6 +1062,221 @@ export class Summary {
 }
 
 /**
+ * SwaggerAssetBundle is the vendored renderer, for a frontend with no server to
+ * fetch it from.
+ */
+export class SwaggerAssetBundle {
+    "css": string;
+    "bundle": string;
+    "preset": string;
+
+    /** Creates a new SwaggerAssetBundle instance. */
+    constructor($$source: Partial<SwaggerAssetBundle> = {}) {
+        if (!("css" in $$source)) {
+            this["css"] = "";
+        }
+        if (!("bundle" in $$source)) {
+            this["bundle"] = "";
+        }
+        if (!("preset" in $$source)) {
+            this["preset"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SwaggerAssetBundle instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SwaggerAssetBundle {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SwaggerAssetBundle($$parsedSource as Partial<SwaggerAssetBundle>);
+    }
+}
+
+/**
+ * TryForm is everything needed to render the console for one operation.
+ */
+export class TryForm {
+    "operation": Operation;
+    "params"?: TryParam[];
+
+    /**
+     * Runnable is false when the console refuses the operation outright, and
+     * Reason says why. Disabling the button beats a failure after the click.
+     */
+    "runnable": boolean;
+    "reason"?: string;
+
+    /** Creates a new TryForm instance. */
+    constructor($$source: Partial<TryForm> = {}) {
+        if (!("operation" in $$source)) {
+            this["operation"] = (new Operation());
+        }
+        if (!("runnable" in $$source)) {
+            this["runnable"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TryForm instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TryForm {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType28;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("operation" in $$parsedSource) {
+            $$parsedSource["operation"] = $$createField0_0($$parsedSource["operation"]);
+        }
+        if ("params" in $$parsedSource) {
+            $$parsedSource["params"] = $$createField1_0($$parsedSource["params"]);
+        }
+        return new TryForm($$parsedSource as Partial<TryForm>);
+    }
+}
+
+/**
+ * TryParam is one input the console has to render for an operation.
+ */
+export class TryParam {
+    "name": string;
+    "in": string;
+    "type"?: string;
+    "required": boolean;
+
+    /**
+     * Value is what a resource already fixes for this parameter, when one
+     * binds the operation. Pre-filling it means trying a bound operation
+     * reproduces the call the field would make, rather than a bare one.
+     */
+    "value"?: string;
+
+    /** Creates a new TryParam instance. */
+    constructor($$source: Partial<TryParam> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("in" in $$source)) {
+            this["in"] = "";
+        }
+        if (!("required" in $$source)) {
+            this["required"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TryParam instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TryParam {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TryParam($$parsedSource as Partial<TryParam>);
+    }
+}
+
+/**
+ * TryRequest runs one catalog operation. Params are keyed by parameter name as
+ * the spec declares them, whatever their location.
+ */
+export class TryRequest {
+    "connection": string;
+    "operation": string;
+    "params"?: { [_ in string]?: string };
+
+    /** Creates a new TryRequest instance. */
+    constructor($$source: Partial<TryRequest> = {}) {
+        if (!("connection" in $$source)) {
+            this["connection"] = "";
+        }
+        if (!("operation" in $$source)) {
+            this["operation"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TryRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TryRequest {
+        const $$createField2_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("params" in $$parsedSource) {
+            $$parsedSource["params"] = $$createField2_0($$parsedSource["params"]);
+        }
+        return new TryRequest($$parsedSource as Partial<TryRequest>);
+    }
+}
+
+/**
+ * TryResult is one console round trip, including an unhappy one.
+ */
+export class TryResult {
+    "method": string;
+    "url": string;
+    "status": number;
+    "status_text"?: string;
+    "content_type"?: string;
+    "body"?: string;
+
+    /**
+     * JSON says the body parsed, in which case Body is indented for reading.
+     */
+    "json": boolean;
+
+    /**
+     * Failed marks a 4xx or 5xx. The call still happened and the body is still
+     * worth showing, so this is a flag rather than an error.
+     */
+    "failed": boolean;
+
+    /**
+     * Truncated says the body was cut for display.
+     */
+    "truncated"?: boolean;
+
+    /**
+     * DurationMS is how long the round trip took.
+     */
+    "duration_ms": number;
+
+    /** Creates a new TryResult instance. */
+    constructor($$source: Partial<TryResult> = {}) {
+        if (!("method" in $$source)) {
+            this["method"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = 0;
+        }
+        if (!("json" in $$source)) {
+            this["json"] = false;
+        }
+        if (!("failed" in $$source)) {
+            this["failed"] = false;
+        }
+        if (!("duration_ms" in $$source)) {
+            this["duration_ms"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TryResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TryResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TryResult($$parsedSource as Partial<TryResult>);
+    }
+}
+
+/**
  * ValidationError is one issue found by Validate. Type is the stable key the
  * frontend translates; Message is a developer-facing fallback.
  */
@@ -683,7 +1299,7 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType18;
+        const $$createField3_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("detail" in $$parsedSource) {
             $$parsedSource["detail"] = $$createField3_0($$parsedSource["detail"]);
@@ -703,12 +1319,23 @@ const $$createType6 = Auth.createFrom;
 const $$createType7 = $Create.Map($Create.Any, $Create.Any);
 const $$createType8 = Resource.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = Param.createFrom;
+const $$createType10 = ResourceDraft.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = Item.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = OpRef.createFrom;
-const $$createType15 = Pagination.createFrom;
-const $$createType16 = FieldMap.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Map($Create.Any, $Create.Any);
+const $$createType12 = MethodColor.createFrom;
+const $$createType13 = Param.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = Result.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = OperationBinding.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = Item.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = OpRef.createFrom;
+const $$createType22 = Pagination.createFrom;
+const $$createType23 = FieldMap.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = Property.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = TryParam.createFrom;
+const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = $Create.Map($Create.Any, $Create.Any);

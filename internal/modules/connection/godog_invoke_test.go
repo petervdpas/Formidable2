@@ -102,6 +102,64 @@ func initInvokeSteps(ctx *godog.ScenarioContext, w *connWorld) {
 		return nil
 	})
 
+	ctx.Step(`^I try the operation "([^"]*)" with:$`, func(op string, table *godog.Table) error {
+		params := map[string]string{}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				return fmt.Errorf("a parameter row needs a name and a value")
+			}
+			params[strings.TrimSpace(row.Cells[0].Value)] = strings.TrimSpace(row.Cells[1].Value)
+		}
+		w.try, w.callErr = w.inv.Try(context.Background(),
+			TryRequest{Connection: "shop", Operation: op, Params: params})
+		return nil
+	})
+
+	ctx.Step(`^the try returned status (\d+)$`, func(status int) error {
+		if w.callErr != nil {
+			return fmt.Errorf("the call failed: %w", w.callErr)
+		}
+		if w.try.Status != status {
+			return fmt.Errorf("status = %d, want %d", w.try.Status, status)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the try is marked failed$`, func() error {
+		if w.try == nil || !w.try.Failed {
+			return errors.New("want the result marked as a failure")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the try body contains "([^"]*)"$`, func(want string) error {
+		if w.callErr != nil {
+			return fmt.Errorf("the call failed: %w", w.callErr)
+		}
+		if !strings.Contains(w.try.Body, want) {
+			return fmt.Errorf("body does not contain %q:\n%s", want, w.try.Body)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the try body is not JSON$`, func() error {
+		if w.try == nil || w.try.JSON {
+			return errors.New("want the body reported as not JSON")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the try was refused with "([^"]*)"$`, func(want string) error {
+		var ie *InvokeError
+		if !errors.As(w.callErr, &ie) {
+			return fmt.Errorf("want a typed refusal, got %v", w.callErr)
+		}
+		if string(ie.Code) != want {
+			return fmt.Errorf("code = %q, want %q", ie.Code, want)
+		}
+		return nil
+	})
+
 	ctx.Step(`^I list "([^"]*)"$`, func(res string) error {
 		w.page, w.callErr = w.inv.List(context.Background(), ListRequest{Connection: "shop", Resource: res})
 		return nil

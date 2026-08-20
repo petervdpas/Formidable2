@@ -7,7 +7,16 @@ import {
   type FetchRequest,
   type Item,
   type ListRequest,
+  type Detection,
+  type MethodDescriptor,
+  type OperationInfo,
   type Page,
+  type SpecDocument,
+  type SpecSource,
+  type SwaggerAssetBundle,
+  type TryForm,
+  type TryRequest,
+  type TryResult,
   type Summary,
   type ValidationError,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/connection";
@@ -25,6 +34,13 @@ const lastError = ref("");
 const dialects = ref<string[]>([]);
 const keyStyles = ref<string[]>([]);
 const paginationStyles = ref<string[]>([]);
+const itemsModes = ref<string[]>([]);
+const shapes = ref<string[]>([]);
+const methods = ref<MethodDescriptor[]>([]);
+
+// The vendored renderer is static and version-pinned, so it crosses the bridge
+// once per session rather than on every visit to the Document tab.
+const swaggerAssets = ref<SwaggerAssetBundle | null>(null);
 
 type Result = { ok: boolean; message: string };
 
@@ -36,6 +52,23 @@ async function loadEnums(): Promise<void> {
   dialects.value = (await ClientSvc.ListDialects()) ?? [];
   keyStyles.value = (await ClientSvc.ListKeyStyles()) ?? [];
   paginationStyles.value = (await ClientSvc.ListPaginationStyles()) ?? [];
+  itemsModes.value = (await ClientSvc.ListItemsModes()) ?? [];
+  shapes.value = (await ClientSvc.ListShapes()) ?? [];
+  methods.value = (await ClientSvc.ListMethods()) ?? [];
+  applyMethodPalette(methods.value);
+}
+
+// The method badge colours come from Go with the method list. Writing them onto
+// the root here keeps the stylesheet free of a second copy that would drift the
+// moment the backend learns a new method.
+function applyMethodPalette(descriptors: MethodDescriptor[]): void {
+  const root = document.documentElement;
+  for (const d of descriptors) {
+    const token = d.method.toLowerCase();
+    root.style.setProperty(`--http-method-${token}-bg`, d.palette.bg);
+    root.style.setProperty(`--http-method-${token}-border`, d.palette.border);
+    root.style.setProperty(`--http-method-${token}-text`, d.palette.text);
+  }
 }
 
 async function refresh(): Promise<void> {
@@ -112,6 +145,89 @@ async function validate(client: Connection): Promise<ValidationError[]> {
   }
 }
 
+// Read the document and propose bindings. The draft goes over rather than the
+// id, so an unsaved edit counts: whatever it already binds is left out.
+async function detectResources(
+  client: Connection,
+): Promise<Result & { detection: Detection | null }> {
+  try {
+    return { ...ok(), detection: await ClientSvc.DetectResources(client) };
+  } catch (err) {
+    return { ...failed(err), detection: null };
+  }
+}
+
+// Every operation the document declares, annotated with what it returns and
+// which resources bind it.
+async function listOperations(
+  client: Connection,
+): Promise<Result & { operations: OperationInfo[] }> {
+  try {
+    return { ...ok(), operations: (await ClientSvc.ListOperations(client)) ?? [] };
+  } catch (err) {
+    return { ...failed(err), operations: [] };
+  }
+}
+
+// The uploaded document as JSON, for the renderer.
+async function specDocument(
+  client: Connection,
+): Promise<Result & { document: SpecDocument | null }> {
+  try {
+    return { ...ok(), document: await ClientSvc.SpecDocument(client) };
+  } catch (err) {
+    return { ...failed(err), document: null };
+  }
+}
+
+async function loadSwaggerAssets(): Promise<void> {
+  if (swaggerAssets.value) return;
+  try {
+    swaggerAssets.value = await ClientSvc.SwaggerAssets();
+  } catch {
+    // Without the renderer the Document tab falls back to the source view,
+    // which is a degraded page rather than a broken panel.
+    swaggerAssets.value = null;
+  }
+}
+
+// The uploaded document itself. Reading the source is half of authoring a
+// binding, so it does not need the client saved first.
+async function specSource(
+  client: Connection,
+): Promise<Result & { source: SpecSource | null }> {
+  try {
+    return { ...ok(), source: await ClientSvc.SpecSource(client) };
+  } catch (err) {
+    return { ...failed(err), source: null };
+  }
+}
+
+// What running an operation would need, with whatever a resource already fixes
+// filled in.
+async function tryForm(
+  client: Connection,
+  operation: string,
+): Promise<Result & { form: TryForm | null }> {
+  try {
+    return { ...ok(), form: await ClientSvc.TryOperationForm(client, operation) };
+  } catch (err) {
+    return { ...failed(err), form: null };
+  }
+}
+
+// A failing status comes back as a result, not an error: seeing the remote's
+// own 404 body is the point. Only a refusal before the call throws.
+async function tryOperation(
+  req: TryRequest,
+): Promise<Result & { result: TryResult | null }> {
+  try {
+    return { ...ok(), result: await ClientSvc.TryOperation(req) };
+  } catch (err) {
+    return { ...failed(err), result: null };
+  }
+}
+
 async function reloadSpecs(): Promise<Result> {
   try {
     await ClientSvc.ReloadSpecs();
@@ -179,6 +295,10 @@ export function useAPIClients() {
     dialects,
     keyStyles,
     paginationStyles,
+    itemsModes,
+    shapes,
+    methods,
+    swaggerAssets,
 
     hasClients: computed(() => summaries.value.length > 0),
     selectedId: computed(() => detail.value?.client.id ?? ""),
@@ -190,6 +310,13 @@ export function useAPIClients() {
     save,
     remove,
     validate,
+    detectResources,
+    listOperations,
+    specSource,
+    specDocument,
+    loadSwaggerAssets,
+    tryForm,
+    tryOperation,
     reloadSpecs,
     listItems,
     fetchItem,

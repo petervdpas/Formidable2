@@ -9,9 +9,20 @@ import Modal from "../../components/Modal.vue";
 import { FormRow, FormSection, SelectField, TextField } from "../../components/fields";
 import Tabs, { type TabItem } from "../../components/Tabs.vue";
 import APIClientResourceDialog from "./APIClientResourceDialog.vue";
+import APIClientDetectDialog from "./APIClientDetectDialog.vue";
+import APIClientOperations from "./APIClientOperations.vue";
+import APIClientTryOperation from "./APIClientTryOperation.vue";
+import CodeEditor from "../../components/CodeEditor.vue";
+import APIClientSwagger from "./APIClientSwagger.vue";
 import type {
   Connection,
+  Detection,
+  OperationInfo,
   Resource,
+  SpecDocument,
+  SpecSource,
+  TryForm,
+  TryResult,
   ValidationError,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/connection";
 
@@ -26,6 +37,8 @@ const {
   dialects,
   keyStyles,
   paginationStyles,
+  itemsModes,
+  shapes,
   hasClients,
   selectedId,
   refresh,
@@ -34,6 +47,14 @@ const {
   save,
   remove,
   validate,
+  detectResources,
+  listOperations,
+  specSource,
+  specDocument,
+  loadSwaggerAssets,
+  swaggerAssets,
+  tryForm,
+  tryOperation,
   reloadSpecs,
   listItems,
   setCredential,
@@ -59,9 +80,73 @@ const specInput = ref<HTMLInputElement | null>(null);
 const resourceOpen = ref(false);
 const resourceIndex = ref(-1);
 
+const source = ref<SpecSource | null>(null);
+const specDoc = ref<SpecDocument | null>(null);
+const sourceBusy = ref(false);
+
+// Rendered is the default: the document is meant to be read, and the raw text
+// is the fallback for when it will not parse or the author wants the bytes.
+const docMode = ref("rendered");
+const docModeOptions = computed(() => [
+  { value: "rendered", label: t("apiclients.document.mode_rendered") },
+  { value: "source", label: t("apiclients.document.mode_source") },
+]);
+
+const operations = ref<OperationInfo[]>([]);
+const resourcePrefill = ref<Resource | null>(null);
+const operationsBusy = ref(false);
+
+const detectOpen = ref(false);
+const detectBusy = ref(false);
+const detection = ref<Detection | null>(null);
+
 const credential = ref("");
 const deleteTarget = ref("");
 const deleteOpen = computed(() => deleteTarget.value !== "");
+
+// The console runs one operation straight from the document, so an endpoint no
+// resource binds can still be tried. Resource and operation are two different
+// questions, so the tab asks which one first.
+const tryMode = ref("resource");
+const tryOp = ref("");
+const tryOpForm = ref<TryForm | null>(null);
+const tryOpResult = ref<TryResult | null>(null);
+const tryOpError = ref("");
+const tryOpRunning = ref(false);
+
+const tryModeOptions = computed(() => [
+  { value: "resource", label: t("apiclients.try.mode_resource") },
+  { value: "operation", label: t("apiclients.try.mode_operation") },
+]);
+
+async function pickTryOperation(id: string) {
+  tryOp.value = id;
+  tryOpResult.value = null;
+  tryOpError.value = "";
+  if (!draft.value || !id) {
+    tryOpForm.value = null;
+    return;
+  }
+  const r = await tryForm(draft.value, id);
+  tryOpForm.value = r.ok ? r.form : null;
+  if (!r.ok) tryOpError.value = r.message;
+}
+
+async function runTryOperation(params: Record<string, string>) {
+  if (!draft.value || !tryOp.value) return;
+  tryOpRunning.value = true;
+  tryOpResult.value = null;
+  tryOpError.value = "";
+  const r = await tryOperation({
+    connection: draft.value.id,
+    operation: tryOp.value,
+    params,
+  } as never);
+  tryOpRunning.value = false;
+  // A 4xx comes back as a result; only a refusal before the call is an error.
+  if (r.ok) tryOpResult.value = r.result;
+  else tryOpError.value = r.message;
+}
 
 const testSearch = ref("");
 const testRunning = ref(false);
@@ -75,16 +160,48 @@ const activeTab = ref("service");
 
 const hasResources = computed(() => (draft.value?.resources ?? []).length > 0);
 
+// The console can run any operation the document declares, so a client with no
+// resources yet is still worth trying: that is how you find out what to bind.
+const canTry = computed(() => hasResources.value || (detail.value?.catalog?.operations?.length ?? 0) > 0);
+
 const tabs = computed<TabItem[]>(() => [
   { id: "service", label: t("apiclients.tab.service") },
+  { id: "operations", label: t("apiclients.tab.operations") },
+  { id: "document", label: t("apiclients.tab.document") },
   { id: "resources", label: t("apiclients.tab.resources") },
-  { id: "test", label: t("apiclients.tab.test"), disabled: !hasResources.value },
+  { id: "test", label: t("apiclients.tab.test"), disabled: !canTry.value },
 ]);
+
+// The first absolute server the document declares, which is what the invoker
+// calls when the client sets no base URL of its own.
+const fallbackServer = computed(() => {
+  for (const raw of detail.value?.catalog?.servers ?? []) {
+    if (/^https?:\/\//i.test(raw)) return raw.replace(/\/$/, "");
+  }
+  return "";
+});
 
 // A client with no resources cannot be tried out, so sitting on that tab would
 // leave an empty pane with nothing explaining why.
+watch(canTry, (can) => {
+  if (!can && activeTab.value === "test") activeTab.value = "resources";
+});
+
+// Trying an operation needs the annotated list, which the Operations tab
+// normally loads. Entering the console directly has to fetch it too.
+watch(
+  () => [activeTab.value, tryMode.value] as const,
+  ([tab, mode]) => {
+    if (tab === "test" && mode === "operation" && operations.value.length === 0) {
+      void refreshOperations();
+    }
+  },
+);
+
+// A resource with no list binding cannot be tried, and the picker would offer
+// a row that always fails.
 watch(hasResources, (has) => {
-  if (!has && activeTab.value === "test") activeTab.value = "resources";
+  if (!has && tryMode.value === "resource") tryMode.value = "operation";
 });
 
 const clientOptions = computed(() =>
@@ -146,16 +263,98 @@ onMounted(() => {
 
 // Re-clone whenever a different client is selected, so the editor never shows
 // one client's edits under another's name.
-watch(detail, (d) => {
-  draft.value = d ? (JSON.parse(JSON.stringify(d.client)) as Connection) : null;
-  credential.value = "";
-  testRows.value = null;
-  testResource.value = d?.client.resources?.[0]?.key ?? "";
-  void revalidate();
-});
+// Immediate, because `detail` is module-scoped and survives this component.
+// Coming back to the panel would otherwise leave the draft null under a picker
+// still showing the loaded client, and re-picking the same id fires no change
+// event, so the editor could never be reopened.
+watch(
+  detail,
+  (d) => {
+    draft.value = d ? (JSON.parse(JSON.stringify(d.client)) as Connection) : null;
+    credential.value = "";
+    testRows.value = null;
+    testResource.value = d?.client.resources?.[0]?.key ?? "";
+    void revalidate();
+  },
+  { immediate: true },
+);
 
 async function revalidate() {
   problems.value = draft.value ? await validate(draft.value) : [];
+}
+
+// The bound-by column tracks the draft, so a resource added but not yet saved
+// already shows up against its operation.
+async function refreshOperations() {
+  if (!draft.value) {
+    operations.value = [];
+    return;
+  }
+  operationsBusy.value = true;
+  const r = await listOperations(draft.value);
+  operationsBusy.value = false;
+  operations.value = r.ok ? r.operations : [];
+  if (!r.ok) toast.error("apiclients.toast.operations_failed", [r.message]);
+}
+
+watch(
+  () => [activeTab.value, selectedId.value] as const,
+  ([tab]) => {
+    if (tab === "operations") void refreshOperations();
+    if (tab === "document") void refreshSource();
+  },
+);
+
+// The document is read on demand rather than with the client: it is the
+// largest thing here and most sessions never open this tab.
+async function refreshSource() {
+  if (!draft.value) {
+    source.value = null;
+    return;
+  }
+  sourceBusy.value = true;
+  const [src, doc] = await Promise.all([
+    specSource(draft.value),
+    specDocument(draft.value),
+    loadSwaggerAssets(),
+  ]);
+  sourceBusy.value = false;
+
+  source.value = src.ok ? src.source : null;
+  specDoc.value = doc.ok ? doc.document : null;
+
+  // A document that will not parse still has readable bytes, so the source
+  // view stands in rather than the tab showing nothing.
+  if (!doc.ok && src.ok) docMode.value = "source";
+  if (!src.ok) toast.error("apiclients.toast.source_failed", [src.message]);
+}
+
+// The editor is read-only, so this is display state rather than a draft.
+const sourceText = computed({
+  get: () => source.value?.content ?? "",
+  set: () => {},
+});
+
+// The stored copy is byte-identical to the upload, and a drift check compares
+// it against the remote, so editing it here would break that comparison.
+const sourceLang = computed<"yaml" | "markdown">(() =>
+  source.value?.language === "json" || source.value?.language === "yaml" ? "yaml" : "markdown",
+);
+
+// Binding an operation opens the resource editor with the list already picked,
+// which is the whole reason to browse the operation list in the first place.
+function bindOperation(info: OperationInfo) {
+  resourceIndex.value = -1;
+  resourcePrefill.value = {
+    key: "",
+    list: { operation: info.operation.id },
+    get: { operation: "" },
+    id_path: "",
+    label_path: "",
+    items_path: info.operation.result?.items_path ?? "",
+    items_mode: info.operation.result?.items_mode ?? "",
+  } as unknown as Resource;
+  resourceOpen.value = true;
 }
 
 async function onPick(id: string) {
@@ -251,11 +450,13 @@ async function onReloadSpecs() {
 
 function addResource() {
   resourceIndex.value = -1;
+  resourcePrefill.value = null;
   resourceOpen.value = true;
 }
 
 function editResource(index: number) {
   resourceIndex.value = index;
+  resourcePrefill.value = null;
   resourceOpen.value = true;
 }
 
@@ -263,6 +464,7 @@ function removeResource(index: number) {
   if (!draft.value) return;
   draft.value.resources = (draft.value.resources ?? []).filter((_, i) => i !== index);
   void revalidate();
+  if (activeTab.value === "operations") void refreshOperations();
 }
 
 function applyResource(value: Resource) {
@@ -272,11 +474,44 @@ function applyResource(value: Resource) {
   else list[resourceIndex.value] = value;
   draft.value.resources = list;
   resourceOpen.value = false;
+  resourcePrefill.value = null;
   void revalidate();
+  if (activeTab.value === "operations") void refreshOperations();
+}
+
+// Detection reads the document and proposes bindings, so an empty Resources
+// tab does not have to be filled in by hand. The draft goes over rather than
+// the saved client, so anything just added is already excluded.
+async function detect() {
+  if (!draft.value) return;
+  detection.value = null;
+  detectBusy.value = true;
+  detectOpen.value = true;
+  const r = await detectResources(draft.value);
+  detectBusy.value = false;
+  if (!r.ok) {
+    detectOpen.value = false;
+    toast.error("apiclients.toast.detect_failed", [r.message]);
+    return;
+  }
+  detection.value = r.detection;
+}
+
+// Proposals land in the draft unsaved, so they can be edited or dropped before
+// anything reaches disk.
+function applyDetected(resources: Resource[]) {
+  if (!draft.value) return;
+  draft.value.resources = [...(draft.value.resources ?? []), ...resources];
+  detectOpen.value = false;
+  toast.success("apiclients.toast.detected", [String(resources.length)]);
+  void revalidate();
+  if (activeTab.value === "operations") void refreshOperations();
 }
 
 const editingResource = computed<Resource | null>(() =>
-  resourceIndex.value >= 0 ? (draft.value?.resources?.[resourceIndex.value] ?? null) : null,
+  resourceIndex.value >= 0
+    ? (draft.value?.resources?.[resourceIndex.value] ?? null)
+    : resourcePrefill.value,
 );
 
 // Credential ------------------------------------------------------------
@@ -497,6 +732,53 @@ function readAsBase64(file: File): Promise<string> {
         </FormSection>
       </template>
 
+      <template #operations>
+        <APIClientOperations
+          :operations="operations"
+          :client="draft"
+          :fallback-server="fallbackServer"
+          :shapes="shapes"
+          :loading="operationsBusy"
+          @bind="bindOperation"
+        />
+      </template>
+
+      <template #document>
+        <div class="apiclients-block">
+          <div class="apiclients-test-controls">
+            <SelectField v-model="docMode" :options="docModeOptions" />
+            <span v-if="source" class="muted small">
+              <code>{{ source.file }}</code>
+              {{ t('apiclients.document.size', [String(source.bytes)]) }}
+            </span>
+          </div>
+
+          <APIClientSwagger
+            v-if="docMode === 'rendered'"
+            :document="specDoc"
+            :assets="swaggerAssets"
+            :loading="sourceBusy"
+          />
+
+          <template v-else>
+            <p v-if="sourceBusy" class="muted small">{{ t('apiclients.document.loading') }}</p>
+            <p v-else-if="!source" class="muted small">{{ t('apiclients.document.empty') }}</p>
+            <template v-else>
+              <p v-if="source.truncated" class="apiclients-problems">
+                {{ t('apiclients.document.truncated') }}
+              </p>
+              <CodeEditor
+                v-model="sourceText"
+                :lang="sourceLang"
+                :height="440"
+                readonly
+                :title="source.file"
+              />
+            </template>
+          </template>
+        </div>
+      </template>
+
       <!-- Plain blocks, not FormSection: that is a two-column label/control
            grid, and a bare table or button dropped into it lands in a cell
            and collides with its neighbour. -->
@@ -545,12 +827,33 @@ function readAsBase64(file: File): Promise<string> {
               <i class="fa-solid fa-plus" aria-hidden="true"></i>
               {{ t('apiclients.resource.add') }}
             </button>
+            <button class="tool-btn" type="button" :disabled="detectBusy" @click="detect">
+              <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+              {{ t('apiclients.detect.action') }}
+            </button>
           </div>
         </div>
       </template>
 
       <template #test>
         <div class="apiclients-block">
+          <div class="apiclients-test-controls">
+            <SelectField v-model="tryMode" :options="tryModeOptions" />
+          </div>
+        </div>
+
+        <APIClientTryOperation
+          v-if="tryMode === 'operation'"
+          :operations="operations"
+          :form="tryOpForm"
+          :result="tryOpResult"
+          :running="tryOpRunning"
+          :error="tryOpError"
+          @pick="pickTryOperation"
+          @run="runTryOperation"
+        />
+
+        <div v-else class="apiclients-block">
           <p class="muted small">{{ t('apiclients.test.hint') }}</p>
 
           <div class="apiclients-test-controls">
@@ -632,8 +935,17 @@ function readAsBase64(file: File): Promise<string> {
     :catalog="detail?.catalog ?? null"
     :key-styles="keyStyles"
     :pagination-styles="paginationStyles"
+    :items-modes="itemsModes"
     @apply="applyResource"
     @close="resourceOpen = false"
+  />
+
+  <APIClientDetectDialog
+    :open="detectOpen"
+    :detection="detection"
+    :busy="detectBusy"
+    @apply="applyDetected"
+    @close="detectOpen = false"
   />
 
   <ConfirmDialog

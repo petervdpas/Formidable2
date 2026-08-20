@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -185,20 +186,12 @@ func (iv *Invoker) List(ctx context.Context, req ListRequest) (*Page, error) {
 		return nil, invokeErr(CodeShapeMismatch,
 			fmt.Sprintf("items_path %q does not resolve in the response", b.resource.ItemsPath), nil)
 	}
-	raw, ok := node.([]any)
-	if !ok {
-		return nil, invokeErr(CodeShapeMismatch,
-			fmt.Sprintf("items_path %q resolves to %T, not a list", b.resource.ItemsPath, node), nil)
+	items, err := b.readItems(node)
+	if err != nil {
+		return nil, err
 	}
 
-	page := &Page{Items: make([]Item, 0, len(raw))}
-	for _, entry := range raw {
-		item, ok := b.project(entry)
-		if !ok {
-			continue
-		}
-		page.Items = append(page.Items, item)
-	}
+	page := &Page{Items: items}
 	switch b.strat.paging.Style {
 	case PageCursor:
 		page.NextCursor, _ = ResolvePointer(doc, b.strat.paging.CursorPath)
@@ -252,6 +245,12 @@ func (iv *Invoker) Fetch(ctx context.Context, req FetchRequest) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A keyed collection has no id inside the record: the caller asked for one
+	// key and that key is the record's identity.
+	if b.resource.ItemsMode == ItemsMap {
+		item := b.itemOf(req.ID, doc)
+		return &item, nil
+	}
 	item, ok := b.project(doc)
 	if !ok {
 		return nil, invokeErr(CodeShapeMismatch,
@@ -304,14 +303,67 @@ func (iv *Invoker) bind(connID, resKey string, sel []string) (*binding, error) {
 
 // project turns one decoded remote record into an Item. A record with no
 // resolvable id is not referenceable, so it is reported as unusable.
+// readItems turns the resolved item container into records. An array yields one
+// per entry; a keyed map yields one per key, with the key as the id, walked in
+// sorted order because a JSON object has none of its own.
+func (b *binding) readItems(node any) ([]Item, error) {
+	if b.resource.ItemsMode == ItemsMap {
+		obj, ok := node.(map[string]any)
+		if !ok {
+			return nil, invokeErr(CodeShapeMismatch,
+				fmt.Sprintf("items_path %q resolves to %T, not a keyed object", b.resource.ItemsPath, node), nil)
+		}
+		keys := make([]string, 0, len(obj))
+		for k := range obj {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		out := make([]Item, 0, len(keys))
+		for _, k := range keys {
+			if k == "" {
+				continue
+			}
+			out = append(out, b.itemOf(k, obj[k]))
+		}
+		return out, nil
+	}
+
+	raw, ok := node.([]any)
+	if !ok {
+		return nil, invokeErr(CodeShapeMismatch,
+			fmt.Sprintf("items_path %q resolves to %T, not a list", b.resource.ItemsPath, node), nil)
+	}
+	out := make([]Item, 0, len(raw))
+	for _, entry := range raw {
+		item, ok := b.project(entry)
+		if !ok {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 func (b *binding) project(node any) (Item, bool) {
 	id, ok := ResolvePointer(node, b.resource.IDPath)
 	if !ok || id == "" {
 		return Item{}, false
 	}
-	label, ok := ResolvePointer(node, b.resource.LabelPath)
-	if !ok || label == "" {
-		label = id
+	return b.itemOf(id, node), true
+}
+
+// itemOf builds a record around an id already established, so the keyed and
+// array paths project the label and fields identically.
+func (b *binding) itemOf(id string, node any) Item {
+	// An unset label pointer means there is no label, not "the whole record":
+	// resolving "" would hand back the entire node, which reads as a JSON blob
+	// in a picker and as the raw value in a keyed collection of scalars.
+	label := id
+	if b.resource.LabelPath != "" {
+		if v, ok := ResolvePointer(node, b.resource.LabelPath); ok && v != "" {
+			label = v
+		}
 	}
 
 	item := Item{ID: id, Label: label}
@@ -323,7 +375,7 @@ func (b *binding) project(node any) (Item, bool) {
 			item.Fields[f.Key] = v
 		}
 	}
-	return item, true
+	return item
 }
 
 // applyPaging writes only the params the resource actually declares, so a

@@ -156,6 +156,7 @@ func buildCatalog(doc *openapi3.T, format string) (*Catalog, error) {
 				Path:    path,
 				Summary: op.Summary,
 				Params:  mergeParams(item.Parameters, op.Parameters),
+				Result:  describeResult(op),
 			}
 			entry.ID = op.OperationID
 			if entry.ID == "" {

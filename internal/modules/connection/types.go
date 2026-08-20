@@ -43,6 +43,20 @@ const (
 	KeyTyped  = "typed"
 )
 
+// Items modes: how a list response's item container yields records.
+//
+//	ItemsArray  ItemsPath addresses a JSON array; each entry is a record
+//	ItemsMap    ItemsPath addresses a JSON object; each key is a record's id
+//	            and its value is the record
+//
+// The map shape is what APIs.guru, feature-flag services and plenty of
+// registries publish. It cannot be read as an array: the identity lives in the
+// key, which no JSON pointer into the value can reach.
+const (
+	ItemsArray = "array"
+	ItemsMap   = "map"
+)
+
 // Param locations, mirroring the OpenAPI `in` values.
 const (
 	InPath   = "path"
@@ -101,7 +115,7 @@ type FieldMap struct {
 // Resource is one referenceable collection inside a connection. List feeds the
 // picker; Get resolves a stored id back to a record. ItemsPath, IDPath and
 // LabelPath are JSON pointers (RFC 6901); an empty ItemsPath means the list
-// response is itself the array.
+// response is itself the item container.
 type Resource struct {
 	Key         string     `json:"key" yaml:"key"`
 	Label       string     `json:"label,omitempty" yaml:"label,omitempty"`
@@ -113,6 +127,11 @@ type Resource struct {
 	SearchParam string     `json:"search_param,omitempty" yaml:"search_param,omitempty"`
 	Pagination  Pagination `json:"pagination,omitzero" yaml:"pagination,omitempty"`
 	Fields      []FieldMap `json:"fields,omitempty" yaml:"fields,omitempty"`
+
+	// ItemsMode says how the item container yields records. Empty means
+	// ItemsArray. Under ItemsMap the key is the id, so IDPath has nothing to
+	// address and must stay empty.
+	ItemsMode string `json:"items_mode,omitempty" yaml:"items_mode,omitempty"`
 
 	// KeyStyle is how a stored id is written into the get operation's path.
 	// Empty takes the dialect default, which is KeyRaw for plain REST.
@@ -192,6 +211,10 @@ type Operation struct {
 	Summary   string  `json:"summary,omitempty"`
 	Params    []Param `json:"params,omitempty"`
 	Synthetic bool    `json:"synthetic,omitempty"`
+
+	// Result is the shape of the success response, when the document describes
+	// one. Resource detection reads it; execution never does.
+	Result *Result `json:"result,omitempty"`
 }
 
 // Catalog is a parsed spec: the interpreter's whole view of a remote service.

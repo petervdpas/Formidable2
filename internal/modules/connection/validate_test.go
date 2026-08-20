@@ -279,3 +279,28 @@ func TestFirstAbsoluteServer_SkipsRelativeAndNonHTTP(t *testing.T) {
 		t.Fatalf("nil catalog = %q", got)
 	}
 }
+
+func TestValidate_ItemsMode(t *testing.T) {
+	cat := mustParse(t, specV3JSON)
+
+	keyed := validConn()
+	keyed.Resources[0].ItemsMode = ItemsMap
+	keyed.Resources[0].IDPath = ""
+	if errs := Validate(&keyed, cat); len(errs) > 0 {
+		t.Fatalf("Validate = %s, want a keyed resource accepted", types(errs))
+	}
+
+	// The key is the identity, so a pointer into the value would silently
+	// never be read.
+	clash := validConn()
+	clash.Resources[0].ItemsMode = ItemsMap
+	if errs := Validate(&clash, cat); !hasType(errs, "id-path-on-keyed-items") {
+		t.Errorf("Validate = %s, want id-path-on-keyed-items", types(errs))
+	}
+
+	unknown := validConn()
+	unknown.Resources[0].ItemsMode = "dictionary"
+	if errs := Validate(&unknown, cat); !hasType(errs, "invalid-items-mode") {
+		t.Errorf("Validate = %s, want invalid-items-mode", types(errs))
+	}
+}

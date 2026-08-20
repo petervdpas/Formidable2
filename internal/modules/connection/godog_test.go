@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -40,7 +41,10 @@ type connWorld struct {
 	inv     *Invoker
 	page    *Page
 	item    *Item
+	try     *TryResult
 	callErr error
+
+	drafts []ResourceDraft
 }
 
 func initConnectionScenario(ctx *godog.ScenarioContext) {
@@ -189,6 +193,117 @@ func initConnectionScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^I detect resources for the spec "([^"]*)"$`, func(file string) error {
+		cat, err := w.mgr.CatalogForSpec(file)
+		if err != nil {
+			return err
+		}
+		w.drafts = DetectResources(cat, nil)
+		return nil
+	})
+
+	ctx.Step(`^I detect resources for connection "([^"]*)"$`, func(id string) error {
+		c, cat, err := w.mgr.Get(id)
+		if err != nil {
+			return err
+		}
+		w.drafts = DetectResources(cat, c)
+		return nil
+	})
+
+	ctx.Step(`^(\d+) resources? (?:is|are) proposed$`, func(n int) error {
+		if len(w.drafts) != n {
+			return fmt.Errorf("proposed %d resources, want %d: %v", len(w.drafts), n, draftKeys(w.drafts))
+		}
+		return nil
+	})
+
+	ctx.Step(`^resource "([^"]*)" binds "([^"]*)" to list and "([^"]*)" to get$`, func(key, list, get string) error {
+		d, err := w.draft(key)
+		if err != nil {
+			return err
+		}
+		if d.Resource.List.Operation != list || d.Resource.Get.Operation != get {
+			return fmt.Errorf("bindings = %q/%q, want %q/%q",
+				d.Resource.List.Operation, d.Resource.Get.Operation, list, get)
+		}
+		return nil
+	})
+
+	ctx.Step(`^resource "([^"]*)" proposes items path "([^"]*)", id path "([^"]*)" and label path "([^"]*)"$`,
+		func(key, items, id, label string) error {
+			d, err := w.draft(key)
+			if err != nil {
+				return err
+			}
+			r := d.Resource
+			if r.ItemsPath != items || r.IDPath != id || r.LabelPath != label {
+				return fmt.Errorf("pointers = %q/%q/%q, want %q/%q/%q",
+					r.ItemsPath, r.IDPath, r.LabelPath, items, id, label)
+			}
+			return nil
+		})
+
+	ctx.Step(`^resource "([^"]*)" reads its items as a "([^"]*)"$`, func(key, mode string) error {
+		d, err := w.draft(key)
+		if err != nil {
+			return err
+		}
+		got := d.Resource.ItemsMode
+		if got == "" {
+			got = ItemsArray
+		}
+		if got != mode {
+			return fmt.Errorf("items mode = %q, want %q", got, mode)
+		}
+		return nil
+	})
+
+	ctx.Step(`^resource "([^"]*)" proposes fields "([^"]*)"$`, func(key, want string) error {
+		d, err := w.draft(key)
+		if err != nil {
+			return err
+		}
+		var got []string
+		for _, f := range d.Resource.Fields {
+			got = append(got, f.Key)
+		}
+		if strings.Join(got, ", ") != want {
+			return fmt.Errorf("fields = %q, want %q", strings.Join(got, ", "), want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^resource "([^"]*)" flags "([^"]*)" as a guess$`, func(key, attr string) error {
+		d, err := w.draft(key)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(d.Guessed, attr) {
+			return fmt.Errorf("guessed = %v, want %q flagged", d.Guessed, attr)
+		}
+		return nil
+	})
+
+	ctx.Step(`^resource "([^"]*)" does not flag "([^"]*)" as a guess$`, func(key, attr string) error {
+		d, err := w.draft(key)
+		if err != nil {
+			return err
+		}
+		if slices.Contains(d.Guessed, attr) {
+			return fmt.Errorf("guessed = %v, want %q derived", d.Guessed, attr)
+		}
+		return nil
+	})
+
+	ctx.Step(`^saving the proposals as connection "([^"]*)" on spec "([^"]*)" succeeds$`, func(id, file string) error {
+		c := &Connection{ID: id, Name: id, SpecFile: file}
+		for _, d := range w.drafts {
+			c.Resources = append(c.Resources, d.Resource)
+		}
+		return w.mgr.Save(c)
+	})
+
 	initInvokeSteps(ctx, w)
 
 	ctx.Step(`^the stored definition does not contain a secret$`, func() error {
@@ -203,4 +318,13 @@ func initConnectionScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+}
+
+func (w *connWorld) draft(key string) (ResourceDraft, error) {
+	for _, d := range w.drafts {
+		if d.Resource.Key == key {
+			return d, nil
+		}
+	}
+	return ResourceDraft{}, fmt.Errorf("no resource %q was proposed; got %v", key, draftKeys(w.drafts))
 }

@@ -289,3 +289,108 @@ func TestService_InvokeWithoutAnInvoker(t *testing.T) {
 		t.Error("no store means no credentials")
 	}
 }
+
+func TestService_DetectResourcesReadsTheDraftsSpec(t *testing.T) {
+	s, _ := newService(t)
+
+	// Nothing saved yet: detection has to reach the spec through the file the
+	// draft names, the same way ValidateClient does.
+	got, err := s.DetectResources(Connection{ID: "crm-prod", Name: "CRM", SpecFile: "crm-prod.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Drafts) != 1 || got.Drafts[0].Resource.Key != "customers" {
+		t.Fatalf("drafts = %+v, want one customers proposal", got)
+	}
+	if got.Drafts[0].Resource.List.Operation != "listCustomers" {
+		t.Errorf("list = %q, want listCustomers", got.Drafts[0].Resource.List.Operation)
+	}
+}
+
+func TestService_DetectResourcesHonoursWhatTheDraftAlreadyBinds(t *testing.T) {
+	s, _ := newService(t)
+
+	got, err := s.DetectResources(validConn())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Drafts) != 0 {
+		t.Fatalf("drafts = %+v, want nothing left to propose", got)
+	}
+	if got.Bound != 1 {
+		t.Errorf("Bound = %d, want the already-bound list operation counted", got.Bound)
+	}
+}
+
+func TestService_DetectResourcesWithoutASpecFails(t *testing.T) {
+	s, _ := newService(t)
+	if _, err := s.DetectResources(Connection{ID: "nope", SpecFile: "missing.json"}); err == nil {
+		t.Fatal("want an error when the spec cannot be read")
+	}
+}
+
+func TestService_ListItemsModes(t *testing.T) {
+	s, _ := newService(t)
+	got := s.ListItemsModes()
+	if len(got) != 2 || got[0] != ItemsArray || got[1] != ItemsMap {
+		t.Fatalf("modes = %v, want array then map", got)
+	}
+}
+
+func TestService_ListOperationsAnnotatesTheCatalog(t *testing.T) {
+	s, _ := newService(t)
+
+	got, err := s.ListOperations(validConn())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("listed %d operations, want all three in the document", len(got))
+	}
+	if info := infoFor(t, got, "listCustomers"); len(info.BoundBy) != 1 {
+		t.Errorf("listCustomers bound by %+v, want the customers resource", info.BoundBy)
+	}
+	// Every method, not only the ones a resource can use.
+	if info := infoFor(t, got, "createCustomer"); info.Operation.Method != "POST" {
+		t.Errorf("createCustomer = %+v, want the POST listed too", info.Operation)
+	}
+}
+
+func TestService_ListShapesCoversEveryShapeName(t *testing.T) {
+	s, _ := newService(t)
+	got := s.ListShapes()
+	want := []string{ShapeRecords, ShapeKeyed, ShapeValues, ShapeKeyedValues, ShapeRecord, ShapeUnknown}
+	if len(got) != len(want) {
+		t.Fatalf("shapes = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("shapes = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestService_TryOperationFormReadsTheDraft(t *testing.T) {
+	s, _ := newService(t)
+
+	form, err := s.TryOperationForm(validConn(), "listCustomers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !form.Runnable || len(form.Params) == 0 {
+		t.Fatalf("form = %+v, want a runnable form with parameters", form)
+	}
+	// The draft's own fixed params, not the saved file's.
+	for _, p := range form.Params {
+		if p.Name == "tenant" && p.Value != "acme" {
+			t.Errorf("tenant = %+v, want the draft's fixed value", p)
+		}
+	}
+}
+
+func TestService_TryOperationNeedsAnInvoker(t *testing.T) {
+	s := NewService(NewManager(newMemFS(), nil), nil, nil)
+	if _, err := s.TryOperation(TryRequest{Connection: "crm-prod", Operation: "listCustomers"}); err == nil {
+		t.Fatal("want an error when no invoker is configured")
+	}
+}

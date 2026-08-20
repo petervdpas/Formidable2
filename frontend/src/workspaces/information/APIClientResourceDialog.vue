@@ -18,6 +18,7 @@ const props = defineProps<{
   catalog: Catalog | null;
   keyStyles: string[];
   paginationStyles: string[];
+  itemsModes: string[];
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +43,7 @@ interface DraftResource {
   list: { operation: string; params: Record<string, string> };
   get: { operation: string; params: Record<string, string> };
   items_path: string;
+  items_mode: string;
   id_path: string;
   label_path: string;
   search_param: string;
@@ -70,6 +72,7 @@ function blank(): DraftResource {
     list: { operation: "", params: {} },
     get: { operation: "", params: {} },
     items_path: "",
+    items_mode: "",
     id_path: "",
     label_path: "",
     search_param: "",
@@ -132,6 +135,28 @@ const getOptions = computed(() => [
   ...operationOptions.value,
 ]);
 
+// An unset mode means an array, which is what nearly every document publishes.
+// Naming it in the picker keeps the stored value empty while still showing the
+// author which of the two shapes is in force.
+const itemsModeOptions = computed(() => {
+  const fallback = props.itemsModes[0] ?? "array";
+  return [
+    { value: "", label: t("apiclients.resource.items_mode_default", [fallback]) },
+    ...props.itemsModes.map((m) => ({ value: m, label: t(ITEMS_MODE_LABEL_KEYS[m] ?? "") || m })),
+  ];
+});
+
+// Explicit keys: the mode set is closed, and an interpolated lookup would hide
+// these strings from every extractor.
+const ITEMS_MODE_LABEL_KEYS: Record<string, string> = {
+  array: "apiclients.resource.items_mode_array",
+  map: "apiclients.resource.items_mode_map",
+};
+
+// A keyed collection carries its id in the key, so the pointer has nothing to
+// address and the backend refuses it outright.
+const keyedItems = computed(() => draft.value.items_mode === "map");
+
 const keyStyleOptions = computed(() => [
   { value: "", label: t("apiclients.resource.none") },
   ...props.keyStyles.map((s) => ({ value: s, label: s })),
@@ -164,6 +189,7 @@ function removeField(index: number) {
 function apply() {
   if (!canApply.value) return;
   const out = JSON.parse(JSON.stringify(draft.value)) as DraftResource;
+  if (out.items_mode === "map") out.id_path = "";
   // Drop half-typed field rows rather than saving a binding the backend would
   // reject for an empty key.
   out.fields = out.fields.filter((f) => f.key.trim().length > 0);
@@ -207,8 +233,20 @@ function apply() {
       >
         <TextField v-model="draft.items_path" placeholder="/value" />
       </FormRow>
-      <FormRow :label="t('apiclients.resource.id_path')">
+      <FormRow
+        :label="t('apiclients.resource.items_mode')"
+        :description="t('apiclients.resource.items_mode_hint')"
+      >
+        <SelectField v-model="draft.items_mode" :options="itemsModeOptions" />
+      </FormRow>
+      <FormRow
+        v-if="!keyedItems"
+        :label="t('apiclients.resource.id_path')"
+      >
         <TextField v-model="draft.id_path" placeholder="/id" />
+      </FormRow>
+      <FormRow v-else :label="t('apiclients.resource.id_path')">
+        <p class="muted small">{{ t('apiclients.resource.id_path_keyed') }}</p>
       </FormRow>
       <FormRow :label="t('apiclients.resource.label_path')">
         <TextField v-model="draft.label_path" placeholder="/name" />

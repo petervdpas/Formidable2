@@ -30,6 +30,13 @@ func ValidPointer(s string) bool {
 	return true
 }
 
+// escapeToken writes a literal property name as an RFC 6901 token, so a key
+// containing a slash addresses the key rather than a nesting level.
+func escapeToken(tok string) string {
+	tok = strings.ReplaceAll(tok, "~", "~0")
+	return strings.ReplaceAll(tok, "/", "~1")
+}
+
 // unescapeToken reverses the RFC 6901 escapes. Order matters: ~1 first, so a
 // literal "~1" written as "~01" does not decode into a slash.
 func unescapeToken(tok string) string {

@@ -146,3 +146,299 @@
 .apiclients-file-input {
   display: none;
 }
+
+/* Detected resources -------------------------------------------------- */
+
+.apiclients-detect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin-top: 0.8em;
+}
+
+.apiclients-detect-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7em;
+  padding: 0.6em 0.7em;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+}
+
+.apiclients-detect-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.apiclients-detect-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  flex-wrap: wrap;
+}
+
+.apiclients-detect-meta {
+  margin-top: 0.35em;
+  font-size: 0.85em;
+}
+
+/* The guessed line is the one thing in this dialog that must not be skimmed
+   past, so it carries the warning tint rather than the muted grey. */
+.apiclients-detect-guessed {
+  margin: 0.45em 0 0;
+  padding: 0.35em 0.55em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  background: var(--color-warn-bg, #fff3cd);
+  color: var(--color-warn-text, #856404);
+  border: 1px solid var(--color-warn-border, #ffeeba);
+}
+
+/* Operations ---------------------------------------------------------- */
+
+/* List beside detail, the way an API console reads: pick an endpoint on the
+   left, see what it takes and returns on the right. */
+.apiclients-ops {
+  display: grid;
+  grid-template-columns: minmax(16em, 24em) 1fr;
+  gap: 1em;
+  align-items: start;
+}
+
+.apiclients-ops-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 30em;
+  overflow: auto;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+}
+
+.apiclients-ops-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.35em 0.5em;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border, #dee2e6);
+}
+
+.apiclients-ops-row:last-child {
+  border-bottom: none;
+}
+
+.apiclients-ops-row:hover {
+  background: var(--accent-bg, rgba(74, 144, 226, 0.06));
+}
+
+.apiclients-ops-row.selected {
+  background: var(--accent-bg, rgba(74, 144, 226, 0.10));
+  box-shadow: inset 3px 0 0 var(--accent-color, #4a90e2);
+}
+
+.apiclients-ops-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.apiclients-ops-bound {
+  color: var(--color-muted-text, #495057);
+  font-size: 0.8em;
+}
+
+.apiclients-ops-detail {
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+  padding: 0.8em 1em;
+}
+
+.apiclients-ops-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+  margin-bottom: 0.5em;
+}
+
+.apiclients-ops-url {
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.apiclients-ops-summary {
+  margin: 0 0 0.7em;
+  font-size: 0.9em;
+}
+
+.apiclients-ops-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25em 0.8em;
+  margin: 0 0 0.9em;
+  font-size: 0.88em;
+}
+
+.apiclients-ops-facts dt {
+  font-weight: 600;
+  color: var(--color-muted-text, #495057);
+}
+
+.apiclients-ops-facts dd {
+  margin: 0;
+}
+
+.apiclients-ops-heading {
+  margin: 0.9em 0 0.4em;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted-text, #495057);
+}
+
+.apiclients-ops-props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+/* Method badges. The colours arrive from Go with the method list and are
+   written onto :root at load, so this file names no colour of its own. */
+.apiclients-method {
+  display: inline-block;
+  min-width: 4.6em;
+  padding: 0.15em 0.45em;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.apiclients-method-get {
+  background: var(--http-method-get-bg);
+  border-color: var(--http-method-get-border);
+  color: var(--http-method-get-text);
+}
+
+.apiclients-method-post {
+  background: var(--http-method-post-bg);
+  border-color: var(--http-method-post-border);
+  color: var(--http-method-post-text);
+}
+
+.apiclients-method-put {
+  background: var(--http-method-put-bg);
+  border-color: var(--http-method-put-border);
+  color: var(--http-method-put-text);
+}
+
+.apiclients-method-patch {
+  background: var(--http-method-patch-bg);
+  border-color: var(--http-method-patch-border);
+  color: var(--http-method-patch-text);
+}
+
+.apiclients-method-delete {
+  background: var(--http-method-delete-bg);
+  border-color: var(--http-method-delete-border);
+  color: var(--http-method-delete-text);
+}
+
+.apiclients-method-head {
+  background: var(--http-method-head-bg);
+  border-color: var(--http-method-head-border);
+  color: var(--http-method-head-text);
+}
+
+.apiclients-method-options {
+  background: var(--http-method-options-bg);
+  border-color: var(--http-method-options-border);
+  color: var(--http-method-options-text);
+}
+
+.apiclients-method-trace {
+  background: var(--http-method-trace-bg);
+  border-color: var(--http-method-trace-border);
+  color: var(--http-method-trace-text);
+}
+
+/* Test console -------------------------------------------------------- */
+
+.apiclients-try-required {
+  margin-left: 0.15em;
+  color: var(--color-error-text, #721c24);
+  font-weight: 700;
+}
+
+.apiclients-try-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+  margin: 1em 0 0.4em;
+}
+
+/* The status is the first thing read, so it carries the verdict's colour
+   rather than sitting in the same grey as everything around it. */
+.apiclients-try-status {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: 0.85em;
+}
+
+.apiclients-try-status.ok {
+  background: var(--color-ok-bg, #d4edda);
+  color: var(--color-ok-text, #155724);
+  border: 1px solid var(--color-ok-border, #c3e6cb);
+}
+
+.apiclients-try-status.failed {
+  background: var(--color-error-bg, #f8d7da);
+  color: var(--color-error-text, #721c24);
+  border: 1px solid var(--color-error-border, #f5c6cb);
+}
+
+.apiclients-try-url {
+  display: block;
+  font-size: 0.82em;
+  overflow-wrap: anywhere;
+  margin-bottom: 0.5em;
+}
+
+.apiclients-try-body {
+  margin: 0;
+  padding: 0.7em 0.9em;
+  max-height: 28em;
+  overflow: auto;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82em;
+  line-height: 1.45;
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* Rendered document --------------------------------------------------- */
+
+/* Swagger UI ships a full reset stylesheet, so it renders inside an iframe
+   rather than in the app's own document, where it would repaint every panel
+   around it. */
+.apiclients-swagger {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  min-height: 30em;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+  background: #ffffff;
+}

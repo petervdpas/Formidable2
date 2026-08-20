@@ -95,3 +95,36 @@ Feature: Invoking a bound resource
     Given the remote answers with an HTML page
     When I list "customers"
     Then the call failed with "bad_response"
+
+  # The test console -----------------------------------------------------
+
+  Scenario: An operation is run straight from the document
+    When I try the operation "listCustomers" with:
+      | tenant | acme |
+    Then the try returned status 200
+    And the try body contains "Ada"
+
+  Scenario: A failing status is shown rather than swallowed
+    Given the remote answers with status 404
+    When I try the operation "listCustomers" with:
+      | tenant | acme |
+    Then the try returned status 404
+    And the try is marked failed
+
+  Scenario: An HTML login page is shown verbatim instead of refused
+    Given the remote answers with an HTML page
+    When I try the operation "listCustomers" with:
+      | tenant | acme |
+    Then the try body contains "please log in"
+    And the try body is not JSON
+
+  Scenario: A parameter the document does not declare is refused
+    When I try the operation "listCustomers" with:
+      | tenant   | acme |
+      | nonsense | 1    |
+    Then the try was refused with "unknown_field"
+
+  Scenario: A required parameter left empty never reaches the remote
+    When I try the operation "getCustomer" with:
+      | tenant | acme |
+    Then the try was refused with "missing_param"

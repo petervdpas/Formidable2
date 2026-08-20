@@ -27,11 +27,23 @@ export function DeleteClient(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * DetectResources proposes resources by reading the client's spec, for the
+ * detect button in the resource editor. It takes the draft rather than an id so
+ * an unsaved edit counts: whatever the draft already binds is left out of the
+ * proposal, and its keys are not reused.
+ */
+export function DetectResources(c: $models.Connection): $CancellablePromise<$models.Detection> {
+    return $Call.ByID(3487237138, c).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * FetchItem resolves one stored id back to a record.
  */
 export function FetchItem(req: $models.FetchRequest): $CancellablePromise<$models.Item | null> {
     return $Call.ByID(4230382725, req).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -42,7 +54,7 @@ export function FetchItem(req: $models.FetchRequest): $CancellablePromise<$model
  */
 export function FetchSnapshot(req: $models.FetchRequest): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(4176554170, req).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -59,7 +71,7 @@ export function ForgetCredential(id: string): $CancellablePromise<void> {
  */
 export function GetCatalog(id: string): $CancellablePromise<$models.Catalog | null> {
     return $Call.ByID(318381573, id).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -68,7 +80,7 @@ export function GetCatalog(id: string): $CancellablePromise<$models.Catalog | nu
  */
 export function GetClient(id: string): $CancellablePromise<$models.ClientDetail | null> {
     return $Call.ByID(1347498253, id).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -88,7 +100,7 @@ export function HasCredential(id: string): $CancellablePromise<boolean> {
  */
 export function ImportSpec(name: string, base64Data: string): $CancellablePromise<$models.SpecInfo> {
     return $Call.ByID(2441444904, name, base64Data).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -97,7 +109,7 @@ export function ImportSpec(name: string, base64Data: string): $CancellablePromis
  */
 export function ListClients(): $CancellablePromise<$models.Summary[]> {
     return $Call.ByID(1491783306).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -106,7 +118,7 @@ export function ListClients(): $CancellablePromise<$models.Summary[]> {
  */
 export function ListDialects(): $CancellablePromise<string[]> {
     return $Call.ByID(4065150377).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
@@ -116,7 +128,17 @@ export function ListDialects(): $CancellablePromise<string[]> {
  */
 export function ListItems(req: $models.ListRequest): $CancellablePromise<$models.Page | null> {
     return $Call.ByID(4255165002, req).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType13($result);
+    });
+}
+
+/**
+ * ListItemsModes returns the known item-container shapes, for the picker in the
+ * resource editor.
+ */
+export function ListItemsModes(): $CancellablePromise<string[]> {
+    return $Call.ByID(1019706854).then(($result: any) => {
+        return $$createType11($result);
     });
 }
 
@@ -125,7 +147,28 @@ export function ListItems(req: $models.ListRequest): $CancellablePromise<$models
  */
 export function ListKeyStyles(): $CancellablePromise<string[]> {
     return $Call.ByID(2374331071).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
+    });
+}
+
+/**
+ * ListMethods returns the HTTP methods a catalog can contain with the colours
+ * their badges render in, so the operation list needs no palette of its own.
+ */
+export function ListMethods(): $CancellablePromise<$models.MethodDescriptor[]> {
+    return $Call.ByID(3988471008).then(($result: any) => {
+        return $$createType15($result);
+    });
+}
+
+/**
+ * ListOperations returns every operation the client's document declares, with
+ * what its response reads as and which resources already bind it. The draft
+ * goes over rather than an id so the bound-by column tracks unsaved edits.
+ */
+export function ListOperations(c: $models.Connection): $CancellablePromise<$models.OperationInfo[]> {
+    return $Call.ByID(3987997792, c).then(($result: any) => {
+        return $$createType17($result);
     });
 }
 
@@ -134,7 +177,17 @@ export function ListKeyStyles(): $CancellablePromise<string[]> {
  */
 export function ListPaginationStyles(): $CancellablePromise<string[]> {
     return $Call.ByID(2413398840).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
+    });
+}
+
+/**
+ * ListShapes returns the response shapes an operation row can carry, for the
+ * editor's filter.
+ */
+export function ListShapes(): $CancellablePromise<string[]> {
+    return $Call.ByID(1986071000).then(($result: any) => {
+        return $$createType11($result);
     });
 }
 
@@ -162,28 +215,92 @@ export function SetCredential(id: string, secret: string): $CancellablePromise<v
 }
 
 /**
+ * SpecDocument returns the uploaded document as JSON, for rendering it with
+ * Swagger UI.
+ */
+export function SpecDocument(c: $models.Connection): $CancellablePromise<$models.SpecDocument> {
+    return $Call.ByID(3960498900, c).then(($result: any) => {
+        return $$createType18($result);
+    });
+}
+
+/**
+ * SpecSource returns the uploaded document behind a client, for the Document
+ * tab. The draft goes over rather than an id so a client whose upload is not
+ * saved yet still shows what was just imported.
+ */
+export function SpecSource(c: $models.Connection): $CancellablePromise<$models.SpecSource> {
+    return $Call.ByID(2394517720, c).then(($result: any) => {
+        return $$createType19($result);
+    });
+}
+
+/**
+ * SwaggerAssets returns the vendored swagger-ui files. They never change
+ * between calls, so the frontend fetches them once per session.
+ */
+export function SwaggerAssets(): $CancellablePromise<$models.SwaggerAssetBundle> {
+    return $Call.ByID(4270496547).then(($result: any) => {
+        return $$createType20($result);
+    });
+}
+
+/**
+ * TryOperation runs one operation straight from the document and returns what
+ * came back, including a failing status: seeing the remote's own error is the
+ * point of a console.
+ */
+export function TryOperation(req: $models.TryRequest): $CancellablePromise<$models.TryResult | null> {
+    return $Call.ByID(2367422776, req).then(($result: any) => {
+        return $$createType22($result);
+    });
+}
+
+/**
+ * TryOperationForm describes what running an operation would need: its
+ * parameters, whatever a resource already fixes for them, and whether the
+ * console will run it at all.
+ */
+export function TryOperationForm(c: $models.Connection, operation: string): $CancellablePromise<$models.TryForm> {
+    return $Call.ByID(3284087550, c, operation).then(($result: any) => {
+        return $$createType23($result);
+    });
+}
+
+/**
  * ValidateClient reports what is wrong with a client without saving it, so the
  * editor can show problems while the user is still typing.
  */
 export function ValidateClient(c: $models.Connection): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(503905979, c).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType25($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.Item.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Map($Create.Any, $Create.Any);
-const $$createType3 = $models.Catalog.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = $models.ClientDetail.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.SpecInfo.createFrom;
-const $$createType8 = $models.Summary.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $Create.Array($Create.Any);
-const $$createType11 = $models.Page.createFrom;
-const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = $models.ValidationError.createFrom;
-const $$createType14 = $Create.Array($$createType13);
+const $$createType0 = $models.Detection.createFrom;
+const $$createType1 = $models.Item.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = $models.Catalog.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $models.ClientDetail.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $models.SpecInfo.createFrom;
+const $$createType9 = $models.Summary.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $Create.Array($Create.Any);
+const $$createType12 = $models.Page.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $models.MethodDescriptor.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $models.OperationInfo.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $models.SpecDocument.createFrom;
+const $$createType19 = $models.SpecSource.createFrom;
+const $$createType20 = $models.SwaggerAssetBundle.createFrom;
+const $$createType21 = $models.TryResult.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = $models.TryForm.createFrom;
+const $$createType24 = $models.ValidationError.createFrom;
+const $$createType25 = $Create.Array($$createType24);

@@ -14,6 +14,9 @@ const (
 	CodeBindingInvalid     InvokeErrorCode = "binding_invalid"
 	CodeUnknownField       InvokeErrorCode = "unknown_field"
 	CodeNotConfigured      InvokeErrorCode = "not_configured"
+	CodeOperationNotFound  InvokeErrorCode = "operation_not_found"
+	CodeMissingParam       InvokeErrorCode = "missing_param"
+	CodeMethodNotAllowed   InvokeErrorCode = "method_not_allowed"
 
 	// Transport: the call went out and did not come back usable.
 	CodeUnreachable InvokeErrorCode = "unreachable"
