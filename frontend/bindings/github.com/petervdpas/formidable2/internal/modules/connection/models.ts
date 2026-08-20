@@ -1062,39 +1062,6 @@ export class Summary {
 }
 
 /**
- * SwaggerAssetBundle is the vendored renderer, for a frontend with no server to
- * fetch it from.
- */
-export class SwaggerAssetBundle {
-    "css": string;
-    "bundle": string;
-    "preset": string;
-
-    /** Creates a new SwaggerAssetBundle instance. */
-    constructor($$source: Partial<SwaggerAssetBundle> = {}) {
-        if (!("css" in $$source)) {
-            this["css"] = "";
-        }
-        if (!("bundle" in $$source)) {
-            this["bundle"] = "";
-        }
-        if (!("preset" in $$source)) {
-            this["preset"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new SwaggerAssetBundle instance from a string or object.
-     */
-    static createFrom($$source: any = {}): SwaggerAssetBundle {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new SwaggerAssetBundle($$parsedSource as Partial<SwaggerAssetBundle>);
-    }
-}
-
-/**
  * TryForm is everything needed to render the console for one operation.
  */
 export class TryForm {

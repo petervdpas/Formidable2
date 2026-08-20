@@ -118,27 +118,6 @@ func TestSpecDocument_RefusesADocumentThatIsNotASpec(t *testing.T) {
 	}
 }
 
-func TestSwaggerAssets_CarryTheVendoredBundle(t *testing.T) {
-	// Reusing the copy Formidable already vendors, rather than a second one on
-	// the frontend that could drift from it.
-	a, err := SwaggerAssets()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for name, body := range map[string]string{
-		"css":    a.CSS,
-		"bundle": a.Bundle,
-		"preset": a.Preset,
-	} {
-		if len(body) < 1000 {
-			t.Errorf("%s is %d bytes, want the real asset", name, len(body))
-		}
-	}
-	if !strings.Contains(a.Bundle, "SwaggerUIBundle") {
-		t.Error("bundle does not define SwaggerUIBundle")
-	}
-}
-
 func TestService_SpecDocumentReadsTheDraftsFile(t *testing.T) {
 	s, _ := newService(t)
 	doc, err := s.SpecDocument(Connection{ID: "crm-prod", SpecFile: "crm-prod.json"})

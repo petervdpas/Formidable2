@@ -19,7 +19,6 @@ import type {
   Detection,
   OperationInfo,
   Resource,
-  SpecDocument,
   SpecSource,
   TryForm,
   TryResult,
@@ -50,9 +49,7 @@ const {
   detectResources,
   listOperations,
   specSource,
-  specDocument,
-  loadSwaggerAssets,
-  swaggerAssets,
+  docsURL,
   tryForm,
   tryOperation,
   reloadSpecs,
@@ -81,7 +78,7 @@ const resourceOpen = ref(false);
 const resourceIndex = ref(-1);
 
 const source = ref<SpecSource | null>(null);
-const specDoc = ref<SpecDocument | null>(null);
+const docURL = ref("");
 const sourceBusy = ref(false);
 
 // Rendered is the default: the document is meant to be read, and the raw text
@@ -313,19 +310,15 @@ async function refreshSource() {
     return;
   }
   sourceBusy.value = true;
-  const [src, doc] = await Promise.all([
-    specSource(draft.value),
-    specDocument(draft.value),
-    loadSwaggerAssets(),
-  ]);
+  const [src, docs] = await Promise.all([specSource(draft.value), docsURL(draft.value)]);
   sourceBusy.value = false;
 
   source.value = src.ok ? src.source : null;
-  specDoc.value = doc.ok ? doc.document : null;
+  docURL.value = docs.ok ? docs.url : "";
 
   // A document that will not parse still has readable bytes, so the source
   // view stands in rather than the tab showing nothing.
-  if (!doc.ok && src.ok) docMode.value = "source";
+  if (!docs.ok && src.ok) docMode.value = "source";
   if (!src.ok) toast.error("apiclients.toast.source_failed", [src.message]);
 }
 
@@ -755,8 +748,7 @@ function readAsBase64(file: File): Promise<string> {
 
           <APIClientSwagger
             v-if="docMode === 'rendered'"
-            :document="specDoc"
-            :assets="swaggerAssets"
+            :url="docURL"
             :loading="sourceBusy"
           />
 

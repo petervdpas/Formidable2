@@ -33,7 +33,6 @@ export {
     SpecInfo,
     SpecSource,
     Summary,
-    SwaggerAssetBundle,
     TryForm,
     TryParam,
     TryRequest,

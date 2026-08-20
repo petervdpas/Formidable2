@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,11 +32,21 @@ type Service struct {
 	m    *Manager
 	inv  *Invoker
 	keys SecretWriter
+
+	// docsPorts are ports the docs server must not bind, typically the
+	// configured internal server port.
+	docsPorts []int
+
+	// The docs server binds a port, and most sessions never open the Document
+	// tab, so it starts on first use rather than at boot.
+	docsMu sync.Mutex
+	docs   *DocsServer
 }
 
-// NewService binds a Manager and an Invoker for Wails.
-func NewService(m *Manager, inv *Invoker, keys SecretWriter) *Service {
-	return &Service{m: m, inv: inv, keys: keys}
+// NewService binds a Manager and an Invoker for Wails. reservedPorts are ports
+// the lazily-started docs server must avoid.
+func NewService(m *Manager, inv *Invoker, keys SecretWriter, reservedPorts ...int) *Service {
+	return &Service{m: m, inv: inv, keys: keys, docsPorts: reservedPorts}
 }
 
 // ClientDetail is one client plus everything the editor needs to bind it: the
@@ -165,9 +176,38 @@ func (s *Service) SpecDocument(c Connection) (SpecDocument, error) {
 	return s.m.SpecDocument(c.SpecFile)
 }
 
-// SwaggerAssets returns the vendored swagger-ui files. They never change
-// between calls, so the frontend fetches them once per session.
-func (s *Service) SwaggerAssets() (SwaggerAssetBundle, error) { return SwaggerAssets() }
+// DocsURL returns the page that renders a client's document with Swagger UI,
+// starting the loopback server that serves it on first use.
+func (s *Service) DocsURL(c Connection) (string, error) {
+	if err := checkSpecFile(c.SpecFile); err != nil {
+		return "", err
+	}
+	// Fail before binding a port when the document cannot be read at all.
+	if _, err := s.m.SpecDocument(c.SpecFile); err != nil {
+		return "", err
+	}
+
+	s.docsMu.Lock()
+	defer s.docsMu.Unlock()
+	if s.docs == nil || s.docs.Addr() == "" {
+		d, err := NewDocsServer(s.m, nil, s.docsPorts...)
+		if err != nil {
+			return "", err
+		}
+		s.docs = d
+	}
+	return s.docs.URLFor(c.SpecFile), nil
+}
+
+// CloseDocs stops the docs server. Wired into app shutdown; safe to call when
+// nothing ever started it.
+func (s *Service) CloseDocs() error {
+	s.docsMu.Lock()
+	defer s.docsMu.Unlock()
+	err := s.docs.Close()
+	s.docs = nil
+	return err
+}
 
 // ReloadSpecs drops the parsed-spec cache, for after a spec file is edited by
 // hand outside the app.

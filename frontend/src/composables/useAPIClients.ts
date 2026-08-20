@@ -11,9 +11,7 @@ import {
   type MethodDescriptor,
   type OperationInfo,
   type Page,
-  type SpecDocument,
   type SpecSource,
-  type SwaggerAssetBundle,
   type TryForm,
   type TryRequest,
   type TryResult,
@@ -38,9 +36,6 @@ const itemsModes = ref<string[]>([]);
 const shapes = ref<string[]>([]);
 const methods = ref<MethodDescriptor[]>([]);
 
-// The vendored renderer is static and version-pinned, so it crosses the bridge
-// once per session rather than on every visit to the Document tab.
-const swaggerAssets = ref<SwaggerAssetBundle | null>(null);
 
 type Result = { ok: boolean; message: string };
 
@@ -169,25 +164,14 @@ async function listOperations(
   }
 }
 
-// The uploaded document as JSON, for the renderer.
-async function specDocument(
-  client: Connection,
-): Promise<Result & { document: SpecDocument | null }> {
+// The page that renders this client's document with Swagger UI. Loopback HTTP
+// rather than a blob: the renderer resolves refs by fetching the document, and
+// only a real origin makes that fetch succeed.
+async function docsURL(client: Connection): Promise<Result & { url: string }> {
   try {
-    return { ...ok(), document: await ClientSvc.SpecDocument(client) };
+    return { ...ok(), url: await ClientSvc.DocsURL(client) };
   } catch (err) {
-    return { ...failed(err), document: null };
-  }
-}
-
-async function loadSwaggerAssets(): Promise<void> {
-  if (swaggerAssets.value) return;
-  try {
-    swaggerAssets.value = await ClientSvc.SwaggerAssets();
-  } catch {
-    // Without the renderer the Document tab falls back to the source view,
-    // which is a degraded page rather than a broken panel.
-    swaggerAssets.value = null;
+    return { ...failed(err), url: "" };
   }
 }
 
@@ -298,7 +282,6 @@ export function useAPIClients() {
     itemsModes,
     shapes,
     methods,
-    swaggerAssets,
 
     hasClients: computed(() => summaries.value.length > 0),
     selectedId: computed(() => detail.value?.client.id ?? ""),
@@ -313,8 +296,7 @@ export function useAPIClients() {
     detectResources,
     listOperations,
     specSource,
-    specDocument,
-    loadSwaggerAssets,
+    docsURL,
     tryForm,
     tryOperation,
     reloadSpecs,

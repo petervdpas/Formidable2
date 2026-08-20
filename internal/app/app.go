@@ -824,7 +824,7 @@ func New(d Deps) (*App, error) {
 		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
 		Index:             newIndexService(ehM, opsRegistry),
 		Vault:             vaultSvc,
-		APIClient:         connection.NewService(clientM, clientInv, clientKeys),
+		APIClient:         connection.NewService(clientM, clientInv, clientKeys, wikiPort),
 		templateManager:   tplM,
 		storageManager:    stoM,
 		formManager:       formM,

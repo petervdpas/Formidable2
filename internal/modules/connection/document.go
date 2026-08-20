@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	oasyaml "github.com/oasdiff/yaml"
-	"github.com/petervdpas/formidable2/internal/modules/api/swaggerui"
 )
 
 // The panel renders an uploaded document the way every other API tool does,
@@ -77,30 +76,4 @@ func scriptSafeJSON(doc string) string {
 		"\u2028", `\u2028`,
 		"\u2029", `\u2029`,
 	).Replace(doc)
-}
-
-// SwaggerAssetBundle is the vendored renderer, for a frontend with no server to
-// fetch it from.
-type SwaggerAssetBundle struct {
-	CSS    string `json:"css"`
-	Bundle string `json:"bundle"`
-	Preset string `json:"preset"`
-}
-
-// SwaggerAssets returns the bundled swagger-ui files. They are static and
-// version-pinned, so a caller is expected to ask once and keep them.
-func SwaggerAssets() (SwaggerAssetBundle, error) {
-	var out SwaggerAssetBundle
-	for name, dst := range map[string]*string{
-		"swagger-ui.css":                  &out.CSS,
-		"swagger-ui-bundle.js":            &out.Bundle,
-		"swagger-ui-standalone-preset.js": &out.Preset,
-	} {
-		data, _, ok := swaggerui.File(name)
-		if !ok {
-			return SwaggerAssetBundle{}, fmt.Errorf("connection: bundled asset %q is missing", name)
-		}
-		*dst = string(data)
-	}
-	return out, nil
 }

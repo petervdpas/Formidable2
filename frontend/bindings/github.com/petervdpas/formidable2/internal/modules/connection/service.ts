@@ -19,6 +19,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * CloseDocs stops the docs server. Wired into app shutdown; safe to call when
+ * nothing ever started it.
+ */
+export function CloseDocs(): $CancellablePromise<void> {
+    return $Call.ByID(2009764185);
+}
+
+/**
  * DeleteClient removes a client, its spec when nothing else uses it, and its
  * stored credential.
  */
@@ -36,6 +44,14 @@ export function DetectResources(c: $models.Connection): $CancellablePromise<$mod
     return $Call.ByID(3487237138, c).then(($result: any) => {
         return $$createType0($result);
     });
+}
+
+/**
+ * DocsURL returns the page that renders a client's document with Swagger UI,
+ * starting the loopback server that serves it on first use.
+ */
+export function DocsURL(c: $models.Connection): $CancellablePromise<string> {
+    return $Call.ByID(1322132966, c);
 }
 
 /**
@@ -236,23 +252,13 @@ export function SpecSource(c: $models.Connection): $CancellablePromise<$models.S
 }
 
 /**
- * SwaggerAssets returns the vendored swagger-ui files. They never change
- * between calls, so the frontend fetches them once per session.
- */
-export function SwaggerAssets(): $CancellablePromise<$models.SwaggerAssetBundle> {
-    return $Call.ByID(4270496547).then(($result: any) => {
-        return $$createType20($result);
-    });
-}
-
-/**
  * TryOperation runs one operation straight from the document and returns what
  * came back, including a failing status: seeing the remote's own error is the
  * point of a console.
  */
 export function TryOperation(req: $models.TryRequest): $CancellablePromise<$models.TryResult | null> {
     return $Call.ByID(2367422776, req).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType21($result);
     });
 }
 
@@ -263,7 +269,7 @@ export function TryOperation(req: $models.TryRequest): $CancellablePromise<$mode
  */
 export function TryOperationForm(c: $models.Connection, operation: string): $CancellablePromise<$models.TryForm> {
     return $Call.ByID(3284087550, c, operation).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType22($result);
     });
 }
 
@@ -273,7 +279,7 @@ export function TryOperationForm(c: $models.Connection, operation: string): $Can
  */
 export function ValidateClient(c: $models.Connection): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(503905979, c).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType24($result);
     });
 }
 
@@ -298,9 +304,8 @@ const $$createType16 = $models.OperationInfo.createFrom;
 const $$createType17 = $Create.Array($$createType16);
 const $$createType18 = $models.SpecDocument.createFrom;
 const $$createType19 = $models.SpecSource.createFrom;
-const $$createType20 = $models.SwaggerAssetBundle.createFrom;
-const $$createType21 = $models.TryResult.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $models.TryForm.createFrom;
-const $$createType24 = $models.ValidationError.createFrom;
-const $$createType25 = $Create.Array($$createType24);
+const $$createType20 = $models.TryResult.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.TryForm.createFrom;
+const $$createType23 = $models.ValidationError.createFrom;
+const $$createType24 = $Create.Array($$createType23);
