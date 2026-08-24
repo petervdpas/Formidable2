@@ -21,11 +21,14 @@ import QueryGroup from "./QueryGroup.vue";
 import QueryOrder from "./QueryOrder.vue";
 import QueryText from "./QueryText.vue";
 import QueryResult from "./QueryResult.vue";
+import QuerySavedBar from "./QuerySavedBar.vue";
+import ConfirmDialog from "./ConfirmDialog.vue";
 import { SwitchField } from "./fields";
 import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { backendErrMessage } from "../utils/backendError";
 import { useQueryBuilder } from "../composables/useQueryBuilder";
+import { useSavedQueries } from "../composables/useSavedQueries";
 import { Service as QuerySvc, type Result } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/query";
 import { Service as CsvSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import type { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -42,6 +45,8 @@ const { chooseSaveFile } = useDialog();
 const toast = useToast();
 
 const builder = useQueryBuilder(toRef(props, "templateFilename"));
+const saved = useSavedQueries(toRef(props, "templateFilename"));
+const confirmDeleteKey = ref("");
 
 const result = ref<Result | null>(null);
 const running = ref(false);
@@ -71,8 +76,15 @@ watch(
     exportDelimiter.value = ",";
     exportQuoteAll.value = true;
     exportFormat.value = "csv";
+    confirmDeleteKey.value = "";
+    saved.clear();
     try {
       await builder.load();
+    } catch (e) {
+      errorMsg.value = backendErrMessage(e);
+    }
+    try {
+      await saved.refresh();
     } catch (e) {
       errorMsg.value = backendErrMessage(e);
     }
@@ -105,6 +117,48 @@ async function run() {
     toast.error("query.failed");
   } finally {
     running.value = false;
+  }
+}
+
+// Opening a saved query replaces the builder wholesale, so the stale result
+// of the previous one goes with it.
+async function openSaved(key: string) {
+  errorMsg.value = "";
+  try {
+    const spec = await saved.open(key);
+    builder.loadSpec(spec);
+    result.value = null;
+    if (activeTab.value === "sql") void refreshSql();
+    toast.success("query.saved.opened", [saved.name]);
+  } catch (e) {
+    errorMsg.value = backendErrMessage(e);
+    toast.error("query.saved.open_failed");
+  }
+}
+
+async function saveCurrent() {
+  if (!builder.canRun) return;
+  errorMsg.value = "";
+  try {
+    const stored = await saved.save(builder.buildSpec());
+    toast.success("query.saved.stored", [stored.name]);
+  } catch (e) {
+    errorMsg.value = backendErrMessage(e);
+    toast.error("query.saved.save_failed");
+  }
+}
+
+async function confirmDelete() {
+  const key = confirmDeleteKey.value;
+  confirmDeleteKey.value = "";
+  if (!key) return;
+  errorMsg.value = "";
+  try {
+    await saved.remove(key);
+    toast.success("query.saved.deleted");
+  } catch (e) {
+    errorMsg.value = backendErrMessage(e);
+    toast.error("query.saved.delete_failed");
   }
 }
 
@@ -150,6 +204,13 @@ async function exportData() {
         <span class="query-target-label">{{ t('query.template') }}:</span>
         <code class="query-target-value">{{ template?.name || templateFilename }}</code>
       </div>
+      <QuerySavedBar
+        :saved="saved"
+        :can-save="builder.canRun"
+        @open="openSaved"
+        @save="saveCurrent"
+        @delete="(key: string) => (confirmDeleteKey = key)"
+      />
       <p v-if="builder.sources.length === 0" class="form-description">{{ t('query.empty_sources') }}</p>
       <div v-if="errorMsg" class="form-error">{{ errorMsg }}</div>
     </template>
@@ -208,4 +269,16 @@ async function exportData() {
       </button>
     </template>
   </Modal>
+
+  <ConfirmDialog
+    :open="confirmDeleteKey !== ''"
+    elevated
+    variant="danger"
+    :title="t('query.saved.delete_title')"
+    :message="t('query.saved.delete_confirm', [saved.selected?.name ?? ''])"
+    :confirm-label="t('query.saved.delete')"
+    :cancel-label="t('common.cancel')"
+    @confirm="confirmDelete"
+    @cancel="confirmDeleteKey = ''"
+  />
 </template>

@@ -10,6 +10,7 @@ import { useI18n } from "vue-i18n";
 import {
   Service as QuerySvc,
   Spec,
+  type Source,
   type SourceInfo,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/query";
 
@@ -59,6 +60,14 @@ export interface OrderRow {
   id: string;
   targetKey: string; // a column id, or "m:<measure id>"
   desc: boolean;
+}
+
+// A Source is identified by its own three fields, the same identity the
+// backend gives each SourceInfo. Matching on the fields (never on the id
+// string's shape) is what lets a stored Spec find its way back to a picker
+// entry when a saved query is reopened.
+function sameSource(a: Source, b: Source): boolean {
+  return a.kind === b.kind && a.key === b.key && (a.col ?? null) === (b.col ?? null);
 }
 
 export function useQueryBuilder(templateFilename: Ref<string>) {
@@ -217,6 +226,49 @@ export function useQueryBuilder(templateFilename: Ref<string>) {
     });
   }
 
+  // loadSpec rebuilds the builder from a stored Spec: the spec is the saved
+  // artifact, so the UI is derived from it rather than persisted next to it.
+  // A source the template no longer has leaves its row with an empty picker
+  // instead of vanishing: a query that lost a field should say so.
+  function loadSpec(spec: Spec) {
+    reset();
+    const idFor = (src: Source | undefined): string =>
+      (src && sources.value.find((s) => sameSource(s.source, src))?.id) || "";
+
+    columns.value = (spec.columns ?? []).map((c) => ({
+      id: `col-${seq++}`,
+      header: c.header ?? "",
+      sourceId: idFor(c.source),
+    }));
+    filters.value = (spec.filters ?? []).map((f) => ({
+      id: `flt-${seq++}`,
+      sourceId: idFor(f.source),
+      op: f.op || ops.value[0] || "eq",
+      value: f.value ?? "",
+    }));
+    groupDims.value = (spec.groupBy ?? [])
+      .map((i) => columns.value[i]?.id)
+      .filter((id): id is string => !!id);
+    measures.value = groupDims.value.length
+      ? (spec.measures ?? []).map((m) => ({
+          id: `mea-${seq++}`,
+          func: ((AGG_FUNCS as readonly string[]).includes(m.func) ? m.func : "count") as AggFunc,
+          sourceId: idFor(m.source),
+          header: m.header ?? "",
+        }))
+      : [];
+    distinct.value = !!spec.distinct;
+    limit.value = spec.limit ?? 0;
+
+    // orderBy holds result-column indices; orderTargets is the same ordered
+    // list buildSpec indexed into, so reading it back maps index to target.
+    const targets = orderTargets.value;
+    orders.value = (spec.orderBy ?? []).flatMap((o) => {
+      const target = targets[o.column];
+      return target ? [{ id: `ord-${seq++}`, targetKey: target.key, desc: !!o.desc }] : [];
+    });
+  }
+
   async function refreshSql() {
     if (!canRun.value) {
       sqlText.value = "";
@@ -256,6 +308,7 @@ export function useQueryBuilder(templateFilename: Ref<string>) {
     addOrder,
     removeOrder,
     buildSpec,
+    loadSpec,
     refreshSql,
   });
 }

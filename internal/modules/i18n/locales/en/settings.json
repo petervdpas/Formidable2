@@ -72,6 +72,8 @@
   "settings.field.reload_button": "Reload Button",
   "settings.field.remote_backend": "Remote Backend",
   "settings.desc.remote_backend": "Configure the backend's connection details in the Collaboration workspace.",
+  "settings.field.saved_query_location": "Saved Queries",
+  "settings.desc.saved_query_location": "Where a new saved query is written. On this machine keeps it outside the context folder, so saving never produces a commit; shared writes it into the storage tree, which git and gigot sync. Queries already stored stay where they are, and both are always listed.",
   "settings.field.sidebar_width": "Sidebar width",
   "settings.field.toast_timeout": "Toast duration",
   "settings.field.window_size": "Window Size",

@@ -45,6 +45,7 @@ func defaultConfig() Config {
 		ContextFolder:        "./Examples",
 		SelectedTemplate:     "basic.yaml",
 		SelectedDataFile:     "",
+		SavedQueryLocation:   "local",
 		AuthorName:           "unknown",
 		AuthorEmail:          "unknown@example.com",
 		Language:             "en",

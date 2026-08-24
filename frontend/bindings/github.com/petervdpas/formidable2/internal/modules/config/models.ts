@@ -36,6 +36,7 @@ export class Config {
     "selected_template": string;
     "selected_data_file": string;
     "enabled_templates": string[];
+    "saved_query_location": string;
     "author_name": string;
     "author_email": string;
     "language": string;
@@ -128,6 +129,9 @@ export class Config {
         if (!("enabled_templates" in $$source)) {
             this["enabled_templates"] = [];
         }
+        if (!("saved_query_location" in $$source)) {
+            this["saved_query_location"] = "";
+        }
         if (!("author_name" in $$source)) {
             this["author_name"] = "";
         }
@@ -179,29 +183,29 @@ export class Config {
      */
     static createFrom($$source: any = {}): Config {
         const $$createField24_0 = $$createType0;
-        const $$createField29_0 = $$createType1;
-        const $$createField30_0 = $$createType2;
-        const $$createField33_0 = $$createType3;
-        const $$createField37_0 = $$createType4;
-        const $$createField38_0 = $$createType5;
+        const $$createField30_0 = $$createType1;
+        const $$createField31_0 = $$createType2;
+        const $$createField34_0 = $$createType3;
+        const $$createField38_0 = $$createType4;
+        const $$createField39_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabled_templates" in $$parsedSource) {
             $$parsedSource["enabled_templates"] = $$createField24_0($$parsedSource["enabled_templates"]);
         }
         if ("git" in $$parsedSource) {
-            $$parsedSource["git"] = $$createField29_0($$parsedSource["git"]);
+            $$parsedSource["git"] = $$createField30_0($$parsedSource["git"]);
         }
         if ("gigot" in $$parsedSource) {
-            $$parsedSource["gigot"] = $$createField30_0($$parsedSource["gigot"]);
+            $$parsedSource["gigot"] = $$createField31_0($$parsedSource["gigot"]);
         }
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField33_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField34_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField37_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField38_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField38_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField39_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

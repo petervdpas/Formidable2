@@ -33,6 +33,7 @@ type Config struct {
 	SelectedTemplate     string        `json:"selected_template"`
 	SelectedDataFile     string        `json:"selected_data_file"`
 	EnabledTemplates     []string      `json:"enabled_templates"`
+	SavedQueryLocation   string        `json:"saved_query_location"`
 	AuthorName           string        `json:"author_name"`
 	AuthorEmail          string        `json:"author_email"`
 	Language             string        `json:"language"`

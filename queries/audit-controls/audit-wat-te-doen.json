@@ -1,0 +1,43 @@
+{
+  "id": "audit-wat-te-doen",
+  "name": "Audit - Wat te doen",
+  "template": "audit-controls.yaml",
+  "spec": {
+    "template": "audit-controls.yaml",
+    "columns": [
+      {
+        "header": "NBA-ID",
+        "source": {
+          "kind": "field",
+          "key": "nba-id"
+        }
+      },
+      {
+        "header": "Categorie beheersmaatregel",
+        "source": {
+          "kind": "field",
+          "key": "control-measure"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "source": {
+          "kind": "facet",
+          "key": "flag"
+        },
+        "op": "eq",
+        "value": "IN SCOPE"
+      }
+    ],
+    "orderBy": [
+      {
+        "column": 0,
+        "desc": false,
+        "numeric": false
+      }
+    ]
+  },
+  "created": "2026-08-24T08:01:24.288562542Z",
+  "updated": "2026-08-24T08:01:24.288562542Z"
+}

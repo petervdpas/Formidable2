@@ -14,6 +14,7 @@ export {
     Filter,
     Measure,
     Result,
+    SavedQuery,
     Sort,
     Source,
     SourceInfo,

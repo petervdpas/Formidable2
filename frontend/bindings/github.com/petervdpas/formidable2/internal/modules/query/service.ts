@@ -17,6 +17,22 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * DefaultSavedQueryLocation is where a new save lands under the current
+ * profile setting. The query panel shows it so "Save" is never a surprise.
+ */
+export function DefaultSavedQueryLocation(): $CancellablePromise<string> {
+    return $Call.ByID(3493408303);
+}
+
+/**
+ * DeleteSavedQuery removes a saved query from one location; deleting a missing
+ * one succeeds.
+ */
+export function DeleteSavedQuery(template: string, id: string, location: string): $CancellablePromise<void> {
+    return $Call.ByID(1574624234, template, id, location);
+}
+
+/**
  * Explain returns a read-only SQL-shaped preview of a spec, rendered by
  * the backend so it stays truthful to what the engine runs.
  */
@@ -36,13 +52,55 @@ export function FilterOps(): $CancellablePromise<string[]> {
 }
 
 /**
+ * GetSavedQuery returns one saved query, spec included, so the panel can
+ * rebuild the builder from it. Location comes from the list row: the same id
+ * may exist locally and in the shared tree.
+ */
+export function GetSavedQuery(template: string, id: string, location: string): $CancellablePromise<$models.SavedQuery> {
+    return $Call.ByID(3994040925, template, id, location).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * ListSavedQueries returns the template's saved queries, name-ascending, for
+ * the query panel's picker.
+ */
+export function ListSavedQueries(template: string): $CancellablePromise<$models.SavedQuery[]> {
+    return $Call.ByID(2304553037, template).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Run executes a query Spec and returns the typed Result. Errors
  * (bad template, out-of-range column, invalid filter op) surface as the
  * returned error so the frontend toast shows the backend message.
  */
 export function Run(spec: $models.Spec): $CancellablePromise<$models.Result> {
     return $Call.ByID(2990207941, spec).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * SaveQuery stores a named spec and returns the stored record (id derived from
+ * the name when the caller left it empty, location from the profile setting
+ * when the record does not already have one).
+ */
+export function SaveQuery(q: $models.SavedQuery): $CancellablePromise<$models.SavedQuery> {
+    return $Call.ByID(1828450059, q).then(($result: any) => {
         return $$createType1($result);
+    });
+}
+
+/**
+ * SavedQueryLocations returns the closed location set, in display order, so
+ * the settings picker renders the backend's list instead of restating it.
+ */
+export function SavedQueryLocations(): $CancellablePromise<string[]> {
+    return $Call.ByID(1398217315).then(($result: any) => {
+        return $$createType0($result);
     });
 }
 
@@ -54,12 +112,14 @@ export function Run(spec: $models.Spec): $CancellablePromise<$models.Result> {
  */
 export function Sources(template: string): $CancellablePromise<$models.SourceInfo[]> {
     return $Call.ByID(2517068050, template).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $models.Result.createFrom;
-const $$createType2 = $models.SourceInfo.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType1 = $models.SavedQuery.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.Result.createFrom;
+const $$createType4 = $models.SourceInfo.createFrom;
+const $$createType5 = $Create.Array($$createType4);

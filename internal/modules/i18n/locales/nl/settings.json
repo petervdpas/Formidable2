@@ -72,6 +72,8 @@
   "settings.field.reload_button": "Herlaadknop",
   "settings.field.remote_backend": "Remote backend",
   "settings.desc.remote_backend": "Stel de verbindingsgegevens van de backend in via de Samenwerken-werkruimte.",
+  "settings.field.saved_query_location": "Opgeslagen query's",
+  "settings.desc.saved_query_location": "Waar een nieuwe opgeslagen query wordt weggeschreven. Op deze machine houdt hem buiten de contextmap, zodat opslaan nooit een commit oplevert; gedeeld schrijft hem in de opslagboom, die git en gigot synchroniseren. Bestaande query's blijven staan waar ze staan en beide worden altijd getoond.",
   "settings.field.sidebar_width": "Zijbalkbreedte",
   "settings.field.toast_timeout": "Toastduur",
   "settings.field.window_size": "Venstergrootte",

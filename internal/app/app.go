@@ -455,8 +455,25 @@ func New(d Deps) (*App, error) {
 	// Query: read-only SELECT (FDRM) over an in-memory matrix. Reads forms
 	// directly, not the index, so any field is queryable and table rows
 	// stay row-aligned.
+	// Saved queries land where the profile says: local (<AppRoot>/queries/,
+	// outside the context folder, so a save never becomes a commit) or shared
+	// (<storage>/<template>/queries/, which git and gigot already sync). Both
+	// roots are always readable; the setting only steers new saves.
 	queryM := query.NewManager(newQueryLoaderAdapter(tplM, stoM))
-	querySvc := query.NewService(queryM)
+	queryStore := query.NewStore(
+		sysM,
+		filepath.Join(d.AppRoot, "queries"),
+		storagePath,
+		func() string {
+			cfg, err := cfgM.LoadUserConfig()
+			if err != nil {
+				return ""
+			}
+			return cfg.SavedQueryLocation
+		},
+		d.Logger,
+	)
+	querySvc := query.NewService(queryM, queryStore)
 
 	// EnabledTemplates self-healing: a deleted template must drop from the
 	// profile's list so downstream pickers (storage, wiki, api) reflect

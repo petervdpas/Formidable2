@@ -260,6 +260,53 @@ export class Result {
 }
 
 /**
+ * SavedQuery is a named Spec. The Spec is stored verbatim, so what reopens is
+ * exactly what the engine ran: the builder UI is reconstructed from it rather
+ * than persisted alongside it. Location is where the record was found, filled
+ * in on read and never written to the file: the folder it sits in is the one
+ * source of truth for that.
+ */
+export class SavedQuery {
+    "id": string;
+    "name": string;
+    "template": string;
+    "location"?: string;
+    "spec": Spec;
+    "created"?: string;
+    "updated"?: string;
+
+    /** Creates a new SavedQuery instance. */
+    constructor($$source: Partial<SavedQuery> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("template" in $$source)) {
+            this["template"] = "";
+        }
+        if (!("spec" in $$source)) {
+            this["spec"] = (new Spec());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SavedQuery instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SavedQuery {
+        const $$createField4_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("spec" in $$parsedSource) {
+            $$parsedSource["spec"] = $$createField4_0($$parsedSource["spec"]);
+        }
+        return new SavedQuery($$parsedSource as Partial<SavedQuery>);
+    }
+}
+
+/**
  * Sort orders by a projected column (index into Spec.Columns). Numeric sorts on
  * the parsed number (2 < 10, not lexical). Row-listing mode; group mode orders
  * by group key.
@@ -373,7 +420,7 @@ export class SourceInfo {
      */
     static createFrom($$source: any = {}): SourceInfo {
         const $$createField2_0 = $$createType0;
-        const $$createField7_0 = $$createType8;
+        const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField2_0($$parsedSource["source"]);
@@ -418,11 +465,11 @@ export class Spec {
      * Creates a new Spec instance from a string or object.
      */
     static createFrom($$source: any = {}): Spec {
-        const $$createField1_0 = $$createType10;
-        const $$createField2_0 = $$createType12;
-        const $$createField4_0 = $$createType13;
-        const $$createField5_0 = $$createType15;
-        const $$createField8_0 = $$createType17;
+        const $$createField1_0 = $$createType11;
+        const $$createField2_0 = $$createType13;
+        const $$createField4_0 = $$createType14;
+        const $$createField5_0 = $$createType16;
+        const $$createField8_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField1_0($$parsedSource["columns"]);
@@ -451,14 +498,15 @@ const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = Anomaly.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = Choice.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = Column.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = Filter.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = Measure.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = Sort.createFrom;
-const $$createType17 = $Create.Array($$createType16);
+const $$createType7 = Spec.createFrom;
+const $$createType8 = Choice.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = Column.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = Filter.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = $Create.Array($Create.Any);
+const $$createType15 = Measure.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = Sort.createFrom;
+const $$createType18 = $Create.Array($$createType17);
