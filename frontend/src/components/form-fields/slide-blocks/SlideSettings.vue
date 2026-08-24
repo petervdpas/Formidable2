@@ -27,7 +27,7 @@ const TRANSITION_OPTIONS = ["", "none", "fade", "slide", "convex", "concave", "z
   <label class="slide-inspector-row">
     {{ t('workspace.storage.slide.transition') }}
     <select :value="transition" @change="emit('update:transition', ($event.target as HTMLSelectElement).value)">
-      <option v-for="tr in TRANSITION_OPTIONS" :key="tr" :value="tr">{{ tr || '—' }}</option>
+      <option v-for="tr in TRANSITION_OPTIONS" :key="tr" :value="tr">{{ tr || '-' }}</option>
     </select>
   </label>
   <label class="slide-inspector-col">

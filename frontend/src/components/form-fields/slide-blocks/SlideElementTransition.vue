@@ -19,7 +19,7 @@ const FRAGMENT_OPTIONS = [
   <label class="slide-inspector-row">
     {{ t('workspace.storage.slide.element_transition') }}
     <select :value="block.fragment ?? ''" @change="emit('patch', { fragment: ($event.target as HTMLSelectElement).value })">
-      <option v-for="f in FRAGMENT_OPTIONS" :key="f" :value="f">{{ f || '—' }}</option>
+      <option v-for="f in FRAGMENT_OPTIONS" :key="f" :value="f">{{ f || '-' }}</option>
     </select>
   </label>
 </template>

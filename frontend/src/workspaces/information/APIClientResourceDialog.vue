@@ -125,7 +125,7 @@ const operationOptions = computed(() => {
   const ops = props.catalog?.operations ?? [];
   return ops.map((op) => ({
     value: op.id,
-    label: `${op.method} ${op.path}${op.summary ? " — " + op.summary : ""}`.replace(" — ", " · "),
+    label: `${op.method} ${op.path}${op.summary ? " · " + op.summary : ""}`,
   }));
 });
 

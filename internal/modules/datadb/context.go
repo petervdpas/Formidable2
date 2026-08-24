@@ -36,10 +36,10 @@ for programmatic and AI-agent use. Nothing here can be changed through the API.
 
 Base path ` + "`/api`" + `, GET only:
 
-- ` + "`GET /api/templates`" + ` — the collections in this bundle, with counts.
-- ` + "`GET /api/templates/{tpl}`" + ` — a collection's records (guid + title).
-- ` + "`GET /api/records/{guid}`" + ` — one record with its full payload.
-- ` + "`GET /api/search?q=<terms>`" + ` — full-text search across records.
+- ` + "`GET /api/templates`" + `: the collections in this bundle, with counts.
+- ` + "`GET /api/templates/{tpl}`" + `: a collection's records (guid + title).
+- ` + "`GET /api/records/{guid}`" + `: one record with its full payload.
+- ` + "`GET /api/search?q=<terms>`" + `: full-text search across records.
 
 The machine-readable schema is ` + "`GET /api/openapi.json`" + ` (interactive docs
 at ` + "`/api/docs/`" + `). The data endpoints require an API key, sent as an
@@ -73,7 +73,7 @@ func BuildContext(cols []Collection) []byte {
 			b.WriteString(c.Filename)
 			b.WriteString("`)")
 			if keys := schemaFieldKeys(c.Data); len(keys) > 0 {
-				b.WriteString(" — fields: ")
+				b.WriteString(", fields: ")
 				b.WriteString(strings.Join(keys, ", "))
 			}
 			b.WriteByte('\n')

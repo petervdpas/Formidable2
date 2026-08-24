@@ -59,7 +59,7 @@
   "common.sidebar_open": "Open sidebar",
   "common.sidebar_close": "Close sidebar",
   "footer.user_profile_label": "User Profile:",
-  "footer.user_profile_unknown": "—",
+  "footer.user_profile_unknown": "-",
   "ribbon.collaboration": "Collaboration",
   "ribbon.history.back": "Back",
   "ribbon.history.forward": "Forward",
