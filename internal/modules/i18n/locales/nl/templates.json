@@ -21,7 +21,7 @@
   "workspace.templates.api_client_editor.client_placeholder": "Kies een API-client",
   "workspace.templates.api_client_editor.col.key": "Extern veld",
   "workspace.templates.api_client_editor.col.label": "Label",
-  "workspace.templates.api_client_editor.multiple": "Meerdere toestaan",
+  "workspace.templates.api_client_editor.multiple": "Meerdere records",
   "workspace.templates.api_client_editor.multiple_hint": "Uit bewaart een record; aan bewaart een lijst.",
   "workspace.templates.api_client_editor.no_clients": "Nog geen API-clients. Voeg er een toe onder Informatie, API-clients.",
   "workspace.templates.api_client_editor.no_projectable": "Deze resource levert geen velden om te projecteren.",

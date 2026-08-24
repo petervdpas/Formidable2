@@ -19,6 +19,16 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * CanFetch reports whether a resource can resolve a stored id back to a record,
+ * which is exactly whether it binds a get operation. A field uses it to hide a
+ * Refresh button that could only ever fail. An unknown client or resource
+ * cannot fetch, so the answer is false rather than an error.
+ */
+export function CanFetch(clientID: string, resource: string): $CancellablePromise<boolean> {
+    return $Call.ByID(3848129232, clientID, resource);
+}
+
+/**
  * CloseDocs stops the docs server. Wired into app shutdown; safe to call when
  * nothing ever started it.
  */
@@ -228,6 +238,18 @@ export function SaveClient(c: $models.Connection): $CancellablePromise<void> {
  */
 export function SetCredential(id: string, secret: string): $CancellablePromise<void> {
     return $Call.ByID(458003311, id, secret);
+}
+
+/**
+ * SnapshotOf builds the stored pick from a list row the caller already holds.
+ * A resource may bind list only (the get operation is optional), and without a
+ * get binding there is no id to resolve: the row the picker showed is then the
+ * only truth there is, so it is what gets stored. No second call either way.
+ */
+export function SnapshotOf(item: $models.Item, selectKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
+    return $Call.ByID(1176244079, item, selectKeys).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**

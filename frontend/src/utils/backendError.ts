@@ -10,18 +10,31 @@
 // inline status banner.
 
 export function backendErrMessage(err: unknown): string {
-  if (err instanceof Error) {
+  if (!(err instanceof Error)) return String(err);
+  return unwrapMessage(err.message);
+}
+
+// Some Go errors are themselves JSON (connection.InvokeError marshals
+// {code, message, status} out of Error()), so Wails wraps an envelope in an
+// envelope and one parse leaves a JSON blob in the toast. Peel while each
+// layer is JSON carrying a string `message`; the bound stops a pathological
+// payload from looping.
+const MAX_ENVELOPES = 4;
+
+function unwrapMessage(raw: string): string {
+  let out = raw;
+  for (let i = 0; i < MAX_ENVELOPES; i++) {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(err.message);
-      if (parsed && typeof parsed.message === "string") {
-        return parsed.message;
-      }
+      parsed = JSON.parse(out);
     } catch {
-      // err.message wasn't JSON - fall through to the raw message.
+      return out; // not JSON: this layer is the human message.
     }
-    return err.message;
+    const inner = (parsed as { message?: unknown } | null)?.message;
+    if (typeof inner !== "string" || inner === "") return out;
+    out = inner;
   }
-  return String(err);
+  return out;
 }
 
 // Typed envelope produced by pdf.ExportError on the Go side. The Go

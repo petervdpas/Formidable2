@@ -21,7 +21,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "pick", id: string): void;
+  // The whole row, not just its id: a resource may bind list only, and then
+  // this is the only record the caller will ever see.
+  (e: "pick", item: Item): void;
 }>();
 
 const { t } = useI18n();
@@ -99,7 +101,7 @@ function preview(item: Item): string {
         </button>
       </form>
 
-      <p v-if="loading" class="muted small">{{ t('shell.common.loading') }}</p>
+      <p v-if="loading" class="muted small">{{ t('common.loading') }}</p>
       <p v-else-if="error" class="error small">{{ error }}</p>
       <p v-else-if="!items.length" class="muted small">
         {{ t('workspace.storage.api_client_field.no_results') }}
@@ -107,7 +109,7 @@ function preview(item: Item): string {
 
       <ul v-else class="api-client-picker-list">
         <li v-for="item in items" :key="item.id">
-          <button type="button" class="api-client-picker-row" @click="emit('pick', item.id)">
+          <button type="button" class="api-client-picker-row" @click="emit('pick', item)">
             <span class="api-client-picker-title">{{ item.label || item.id }}</span>
             <span v-if="preview(item)" class="api-client-picker-preview">{{ preview(item) }}</span>
             <span class="api-client-picker-id">{{ item.id }}</span>

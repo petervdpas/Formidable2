@@ -250,6 +250,31 @@ async function fetchSnapshot(
   }
 }
 
+// SnapshotOf turns a list row the picker already holds into the stored pick.
+// A resource with no get binding cannot resolve an id, so the row is the only
+// truth there is; this also spares a second call when it could resolve one.
+async function snapshotOf(
+  item: Item,
+  selectKeys: string[],
+): Promise<Result & { snapshot: Record<string, any> | null }> {
+  try {
+    return { ...ok(), snapshot: await ClientSvc.SnapshotOf(item, selectKeys) };
+  } catch (err) {
+    return { ...failed(err), snapshot: null };
+  }
+}
+
+// canFetch is the backend's answer to "does this resource bind a get
+// operation", so a field can hide a Refresh that could only ever fail.
+async function canFetch(clientID: string, resource: string): Promise<boolean> {
+  if (!clientID || !resource) return false;
+  try {
+    return await ClientSvc.CanFetch(clientID, resource);
+  } catch {
+    return false;
+  }
+}
+
 async function setCredential(id: string, secret: string): Promise<Result> {
   try {
     await ClientSvc.SetCredential(id, secret);
@@ -303,6 +328,8 @@ export function useAPIClients() {
     listItems,
     fetchItem,
     fetchSnapshot,
+    snapshotOf,
+    canFetch,
     setCredential,
     forgetCredential,
   };

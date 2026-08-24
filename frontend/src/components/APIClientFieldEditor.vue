@@ -164,7 +164,7 @@ const noClients = computed(
           :options="resourceOptions"
           :placeholder="
             loadingResources
-              ? t('shell.common.loading')
+              ? t('common.loading')
               : t('workspace.templates.api_client_editor.resource_placeholder')
           "
           :disabled="loadingResources || resourceOptions.length === 0"

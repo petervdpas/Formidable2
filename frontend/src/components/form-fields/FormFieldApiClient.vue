@@ -7,10 +7,12 @@
 //
 // modelValue: a snapshot object, an array of them, or null.
 
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import APIClientPicker from "./APIClientPicker.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Item } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/connection";
 import { useAPIClients } from "../../composables/useAPIClients";
 import { useToast } from "../../composables/useToast";
 import { FORM_VALUES_KEY } from "../../composables/formValues";
@@ -40,6 +42,11 @@ const formValues = inject(FORM_VALUES_KEY, null);
 
 const pickerOpen = ref(false);
 const refreshing = ref("");
+
+// Whether the bound resource can resolve a stored id back to a record. The get
+// operation is optional, so without one there is nothing to refresh against and
+// the button would only ever fail. Backend-owned answer.
+const canRefresh = ref(false);
 
 const multi = computed(() => props.field.multiple === true);
 const mapKeys = computed<string[]>(() =>
@@ -98,13 +105,20 @@ function fetchedLabel(s: Snapshot): string {
   return d.toLocaleString();
 }
 
-async function onPicked(id: string) {
+// The picked row already carries the id, the label and the projected fields,
+// so the pick is stored from it directly. That keeps a list-only resource
+// usable, which is what the resource editor's "get is optional" promises.
+async function onPicked(item: Item) {
   pickerOpen.value = false;
-  const res = await fetchSnapshot(id);
-  if (!res) return;
+  const res = await clients.snapshotOf(item, mapKeys.value);
+  if (!res.ok || !res.snapshot) {
+    toast.error(res.message || "workspace.storage.api_client_field.fetch_failed");
+    return;
+  }
+  const snap = res.snapshot as Snapshot;
   const next = multi.value
-    ? [...picks.value.filter((p) => p.id !== res.id), res]
-    : [res];
+    ? [...picks.value.filter((p) => p.id !== snap.id), snap]
+    : [snap];
   emitPicks(next);
 }
 
@@ -137,6 +151,14 @@ function remove(pick: Snapshot) {
 }
 
 const bound = computed(() => !!props.field.client_id && !!props.field.resource);
+
+watch(
+  () => [props.field.client_id, props.field.resource] as const,
+  async ([client, resource]) => {
+    canRefresh.value = await clients.canFetch(client ?? "", resource ?? "");
+  },
+  { immediate: true },
+);
 const pickLabel = computed(() =>
   multi.value && picks.value.length
     ? t("workspace.storage.api_client_field.pick_another")
@@ -153,41 +175,58 @@ const pickLabel = computed(() =>
     </p>
 
     <template v-else>
-      <section v-for="pick in picks" :key="pick.id" class="api-client-card">
-        <header class="api-client-card-head">
-          <span class="api-client-card-title">{{ pick.label || pick.id }}</span>
-          <span class="api-client-actions">
-            <button
-              type="button"
-              class="tool-btn small"
-              :disabled="refreshing === pick.id"
-              :title="t('workspace.storage.api_client_field.refresh')"
-              @click="refresh(pick)"
-            >
-              {{ refreshing === pick.id
-                ? t('shell.common.loading')
-                : t('workspace.storage.api_client_field.refresh') }}
-            </button>
-            <button
-              type="button"
-              class="tool-btn small danger"
-              :title="t('workspace.storage.api_client_field.remove')"
-              @click="remove(pick)"
-            >✕</button>
-          </span>
-        </header>
+      <draggable
+        :model-value="picks"
+        tag="div"
+        class="api-client-picks"
+        handle=".dnd-handle"
+        :animation="150"
+        ghost-class="dnd-ghost"
+        chosen-class="dnd-chosen"
+        drag-class="dnd-drag"
+        item-key="id"
+        @update:model-value="emitPicks"
+      >
+        <template #item="{ element: pick }">
+          <section class="api-client-card">
+            <header class="api-client-card-head">
+              <span v-if="multi" class="dnd-handle" aria-hidden="true">☰</span>
+              <span class="api-client-card-title">{{ pick.label || pick.id }}</span>
+              <span class="api-client-actions">
+                <button
+                  v-if="canRefresh"
+                  type="button"
+                  class="tool-btn small"
+                  :disabled="refreshing === pick.id"
+                  :title="t('workspace.storage.api_client_field.refresh')"
+                  @click="refresh(pick)"
+                >
+                  {{ refreshing === pick.id
+                    ? t('common.loading')
+                    : t('workspace.storage.api_client_field.refresh') }}
+                </button>
+                <button
+                  type="button"
+                  class="tool-btn small danger"
+                  :title="t('workspace.storage.api_client_field.remove')"
+                  @click="remove(pick)"
+                >✕</button>
+              </span>
+            </header>
 
-        <dl v-if="mapKeys.length" class="api-client-rows">
-          <template v-for="m in mapKeys" :key="m">
-            <dt>{{ labelFor(m) }}</dt>
-            <dd>{{ display(pick.fields?.[m]) }}</dd>
-          </template>
-        </dl>
+            <dl v-if="mapKeys.length" class="api-client-rows">
+              <template v-for="m in mapKeys" :key="m">
+                <dt>{{ labelFor(m) }}</dt>
+                <dd>{{ display(pick.fields?.[m]) }}</dd>
+              </template>
+            </dl>
 
-        <p class="api-client-stamp muted small">
-          {{ t('workspace.storage.api_client_field.fetched_at', [fetchedLabel(pick)]) }}
-        </p>
-      </section>
+            <p class="api-client-stamp muted small">
+              {{ t('workspace.storage.api_client_field.fetched_at', [fetchedLabel(pick)]) }}
+            </p>
+          </section>
+        </template>
+      </draggable>
 
       <div class="api-client-empty">
         <span v-if="!picks.length" class="muted small">

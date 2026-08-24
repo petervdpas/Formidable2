@@ -259,6 +259,31 @@ func (s *Service) FetchSnapshot(req FetchRequest) (map[string]any, error) {
 	return Snapshot(*item, req.Select, time.Now()), nil
 }
 
+// SnapshotOf builds the stored pick from a list row the caller already holds.
+// A resource may bind list only (the get operation is optional), and without a
+// get binding there is no id to resolve: the row the picker showed is then the
+// only truth there is, so it is what gets stored. No second call either way.
+func (s *Service) SnapshotOf(item Item, selectKeys []string) (map[string]any, error) {
+	snap := Snapshot(item, selectKeys, time.Now())
+	if snap == nil {
+		return nil, invokeErr(CodeBindingInvalid, "list row has no id", nil)
+	}
+	return snap, nil
+}
+
+// CanFetch reports whether a resource can resolve a stored id back to a record,
+// which is exactly whether it binds a get operation. A field uses it to hide a
+// Refresh button that could only ever fail. An unknown client or resource
+// cannot fetch, so the answer is false rather than an error.
+func (s *Service) CanFetch(clientID, resource string) bool {
+	c, _, err := s.m.Get(clientID)
+	if err != nil || c == nil {
+		return false
+	}
+	r, ok := c.Resource(resource)
+	return ok && strings.TrimSpace(r.Get.Operation) != ""
+}
+
 // TryOperationForm describes what running an operation would need: its
 // parameters, whatever a resource already fixes for them, and whether the
 // console will run it at all.

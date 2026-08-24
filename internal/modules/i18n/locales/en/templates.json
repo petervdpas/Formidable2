@@ -21,7 +21,7 @@
   "workspace.templates.api_client_editor.client_placeholder": "Pick an API client",
   "workspace.templates.api_client_editor.col.key": "Remote field",
   "workspace.templates.api_client_editor.col.label": "Label",
-  "workspace.templates.api_client_editor.multiple": "Allow several",
+  "workspace.templates.api_client_editor.multiple": "Multiple records",
   "workspace.templates.api_client_editor.multiple_hint": "Off stores one remote record; on stores a list.",
   "workspace.templates.api_client_editor.no_clients": "No API clients yet. Add one under Information, API Clients.",
   "workspace.templates.api_client_editor.no_projectable": "This resource declares no fields to project.",

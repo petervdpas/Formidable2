@@ -394,3 +394,77 @@ func TestService_TryOperationNeedsAnInvoker(t *testing.T) {
 		t.Fatal("want an error when no invoker is configured")
 	}
 }
+
+// A resource may bind list only: the get_op hint calls it optional and says the
+// saved label carries the display. These cover the path that makes that true,
+// building the stored pick from the list row the picker already holds instead
+// of resolving the id through a get binding that is not there.
+
+func TestService_SnapshotOfBuildsFromAListRow(t *testing.T) {
+	s, _ := newService(t)
+	item := Item{
+		ID:    "c-42",
+		Label: "Acme BV",
+		Fields: map[string]string{
+			"name":   "Acme BV",
+			"status": "active",
+			"secret": "not projected",
+		},
+	}
+
+	snap, err := s.SnapshotOf(item, []string{"name", "status"})
+	if err != nil {
+		t.Fatalf("SnapshotOf: %v", err)
+	}
+	if snap["id"] != "c-42" || snap["label"] != "Acme BV" {
+		t.Fatalf("identity lost: %+v", snap)
+	}
+	fields, ok := snap["fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("fields = %T, want a map", snap["fields"])
+	}
+	if fields["name"] != "Acme BV" || fields["status"] != "active" {
+		t.Fatalf("projected fields lost: %+v", fields)
+	}
+	if _, present := fields["secret"]; present {
+		t.Fatalf("stored a field the map never asked for: %+v", fields)
+	}
+	if stamp, _ := snap["fetched"].(string); stamp == "" {
+		t.Fatal("a pick must carry when it was fetched")
+	}
+}
+
+func TestService_SnapshotOfRefusesARowWithNoID(t *testing.T) {
+	s, _ := newService(t)
+	if _, err := s.SnapshotOf(Item{Label: "no id"}, []string{"name"}); err == nil {
+		t.Fatal("a row with no id is not a pick")
+	}
+}
+
+func TestService_CanFetchReportsTheGetBinding(t *testing.T) {
+	s, _ := newService(t)
+	c := validConn()
+	c.Resources = append(c.Resources, Resource{
+		Key:       "events",
+		Label:     "Events",
+		List:      OpRef{Operation: "listCustomers", Params: map[string]string{"tenant": "acme"}},
+		IDPath:    "/id",
+		LabelPath: "/name",
+	})
+	if err := s.SaveClient(c); err != nil {
+		t.Fatalf("SaveClient: %v", err)
+	}
+
+	if !s.CanFetch("crm-prod", "customers") {
+		t.Error("customers binds get, so a stored id can be resolved")
+	}
+	if s.CanFetch("crm-prod", "events") {
+		t.Error("events binds list only, so Refresh cannot work")
+	}
+	if s.CanFetch("crm-prod", "nope") {
+		t.Error("an unknown resource cannot fetch")
+	}
+	if s.CanFetch("nope", "customers") {
+		t.Error("an unknown client cannot fetch")
+	}
+}

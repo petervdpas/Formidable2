@@ -9,6 +9,13 @@
   flex-direction: column;
   gap: 8px;
 }
+/* Picked records stack in stored order; with `multiple` on, the handle drags
+   them into the order the record should read in. */
+.api-client-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .api-client-empty {
   display: flex;
   align-items: center;

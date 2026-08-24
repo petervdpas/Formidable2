@@ -111,7 +111,7 @@ const filteredItems = () => {
         :placeholder="t('workspace.storage.api_picker.filter_placeholder')"
         class="api-picker-search"
       />
-      <p v-if="loading" class="muted small">{{ t("shell.common.loading") }}</p>
+      <p v-if="loading" class="muted small">{{ t("common.loading") }}</p>
       <p v-if="error" class="error small">{{ error }}</p>
       <p
         v-if="!loading && !error && items.length === 0"

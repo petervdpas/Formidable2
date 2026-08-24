@@ -314,7 +314,7 @@ function clearFilter() { props.field.filter = null; }
           :options="targetOptions"
           :placeholder="
             relationsLoading
-              ? t('shell.common.loading')
+              ? t('common.loading')
               : t('workspace.templates.api_editor.target_placeholder')
           "
           :disabled="relationsLoading || targetOptions.length === 0"
