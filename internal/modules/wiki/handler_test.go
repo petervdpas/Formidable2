@@ -1124,3 +1124,48 @@ func TestStorage_UnaffectedByFilter(t *testing.T) {
 		t.Errorf("image route status = %d, want 200", w.Code)
 	}
 }
+
+// The chrome assets are embedded in the binary and re-embedded on every build,
+// while their URLs never change. Without a cache header a webview keeps the
+// copy it already has, so a rebuilt stylesheet never arrives and the page runs
+// new markup against old CSS. Every asset on this route must say no-store.
+func TestStatic_EmbeddedAssetsAreNeverCached(t *testing.T) {
+	h, _ := newTestHandler(t)
+	for _, path := range []string{
+		"/_/css/base.css",
+		"/_/css/header.css",
+		"/_/css/content.css",
+		"/_/css/formidable-prose.css",
+		"/_/js/crumbs.js",
+		"/_/js/filter.js",
+		"/_/js/zoom.js",
+		"/_/img/logo.png",
+	} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusOK {
+			t.Errorf("%s: status = %d, want 200", path, w.Code)
+			continue
+		}
+		if got := w.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("%s: Cache-Control = %q, want no-store", path, got)
+		}
+	}
+}
+
+// The reading zoom ships with the chrome, so the control in the topbar has
+// something to wire itself to.
+func TestStatic_ServesTheReadingZoomScript(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/js/zoom.js", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/javascript") {
+		t.Errorf("content-type = %q, want text/javascript", ct)
+	}
+	if !strings.Contains(w.Body.String(), "page-wrap") {
+		t.Error("zoom.js must scale the page body, not the chrome")
+	}
+}

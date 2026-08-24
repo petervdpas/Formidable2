@@ -450,7 +450,9 @@ const offlineCrumbsJS = `(function () {
 // /_/ refs rewritten relative), the render-module prose stylesheet and mermaid
 // lib, the offline crumbs.js, the unchanged filter/lightbox/mermaid-init JS, and
 // the logo. When withDeck is set, the reveal/katex/deck client assets are added
-// too (only decks need them).
+// too (only decks need them). Every script layout.html references must be in
+// here, or a bundle ships a page whose chrome half-works; a test walks the
+// layout and checks exactly that.
 func offlineAssets(withDeck bool) ([]exportEntry, error) {
 	var out []exportEntry
 
@@ -463,7 +465,7 @@ func offlineAssets(withDeck bool) ([]exportEntry, error) {
 	}
 	out = append(out, exportEntry{name: "_/css/formidable-prose.css", data: []byte(rewriteCSS(render.ProseCSS()))})
 
-	for _, name := range []string{"filter.js", "lightbox.js", "mermaid-init.js"} {
+	for _, name := range []string{"filter.js", "lightbox.js", "mermaid-init.js", "zoom.js"} {
 		b, err := fs.ReadFile(staticFS, "js/"+name)
 		if err != nil {
 			return nil, err

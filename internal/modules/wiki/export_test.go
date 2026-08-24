@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -364,4 +365,53 @@ func TestExportBundle_EmptyPresentationSkipped(t *testing.T) {
 	if _, err := h.ExportBundle(context.Background(), map[string][]string{"deck.yaml": nil}); err == nil {
 		t.Errorf("expected an error when a slideless presentation is the only selection")
 	}
+}
+
+// Drift guard: an offline bundle is the wiki chrome with no server behind it,
+// so every script the layout pulls in has to be copied into _/js/. Adding a
+// script to layout.html and forgetting the export list ships a page whose
+// controls are wired to a 404.
+func TestOfflineAssets_CarryEveryScriptTheLayoutReferences(t *testing.T) {
+	layout, err := tplFiles.ReadFile("templates/layout.html")
+	if err != nil {
+		t.Fatalf("read layout: %v", err)
+	}
+	refs := regexp.MustCompile(`src="/_/js/([A-Za-z0-9._-]+)"`).FindAllStringSubmatch(string(layout), -1)
+	if len(refs) == 0 {
+		t.Fatal("no scripts found in layout.html; the guard is not looking at the right thing")
+	}
+
+	assets, err := offlineAssets(false)
+	if err != nil {
+		t.Fatalf("offlineAssets: %v", err)
+	}
+	shipped := map[string]bool{}
+	for _, a := range assets {
+		shipped[a.name] = true
+	}
+
+	for _, m := range refs {
+		want := "_/js/" + m[1]
+		if !shipped[want] {
+			t.Errorf("layout.html loads /_/js/%s but the bundle does not ship %s", m[1], want)
+		}
+	}
+}
+
+// The reading zoom must survive an export: a bundle is often the copy someone
+// else reads, and they cannot change a setting that lives in the app.
+func TestOfflineAssets_IncludeTheReadingZoom(t *testing.T) {
+	assets, err := offlineAssets(false)
+	if err != nil {
+		t.Fatalf("offlineAssets: %v", err)
+	}
+	for _, a := range assets {
+		if a.name == "_/js/zoom.js" {
+			if len(a.data) == 0 {
+				t.Fatal("zoom.js shipped empty")
+			}
+			return
+		}
+	}
+	t.Fatal("no _/js/zoom.js in the bundle")
 }

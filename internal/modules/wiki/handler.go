@@ -759,6 +759,12 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
+	// Every asset here is embedded in the binary and re-embedded on each build,
+	// while its URL never changes. With no cache header at all a webview keeps
+	// the copy it already has, so a rebuilt stylesheet or script silently does
+	// not arrive: the page loads new markup against old CSS. The server is
+	// in-process, so re-reading is free.
+	w.Header().Set("Cache-Control", "no-store")
 	if rel == "css/formidable-prose.css" {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		_, _ = w.Write([]byte(render.ProseCSS()))
@@ -781,14 +787,10 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(render.RevealCSS()))
 		return
 	case "css/deck.css":
-		// no-store: this authored asset is re-embedded on every build; a webview
-		// caching the old copy across rebuilds would serve stale deck styling/JS.
-		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		_, _ = w.Write([]byte(render.DeckCSS()))
 		return
 	case "js/deck-init.js":
-		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(render.DeckInitJS())
 		return
