@@ -11,6 +11,7 @@
 
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import { SelectField, SwitchField, TextField } from "./fields";
 import {
   APIMap,
@@ -202,38 +203,53 @@ const noClients = computed(
         <table v-if="(field.params ?? []).length" class="api-client-map-table">
           <thead>
             <tr>
+              <th aria-label="drag"></th>
               <th>{{ t("workspace.templates.api_client_editor.param.name") }}</th>
               <th>{{ t("workspace.templates.api_client_editor.param.source") }}</th>
               <th>{{ t("workspace.templates.api_client_editor.param.value") }}</th>
               <th class="api-client-col-actions"></th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="(row, i) in field.params ?? []" :key="i">
-              <td><TextField v-model="row.name" placeholder="$filter" /></td>
-              <td>
-                <SelectField
-                  :model-value="row.field_key ?? ''"
-                  :options="siblingOptions"
-                  @update:model-value="(k: string) => onParamSource(row, k)"
-                />
-              </td>
-              <td>
-                <TextField v-if="!row.field_key" v-model="row.value" />
-                <span v-else class="muted small">
-                  {{ t("workspace.templates.api_client_editor.param.from_field") }}
-                </span>
-              </td>
-              <td class="api-client-col-actions">
-                <button
-                  type="button"
-                  class="tool-btn small danger"
-                  :title="t('workspace.templates.api_client_editor.param.remove')"
-                  @click="removeParam(i)"
-                >−</button>
-              </td>
-            </tr>
-          </tbody>
+          <draggable
+            :list="field.params"
+            tag="tbody"
+            handle=".dnd-handle"
+            :animation="150"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
+            :item-key="(_e: any, i: number) => i"
+          >
+            <template #item="{ element: row, index: i }">
+              <tr>
+                <td>
+                  <span class="dnd-handle" aria-hidden="true">⠿</span>
+                </td>
+                <td><TextField v-model="row.name" placeholder="$filter" /></td>
+                <td>
+                  <SelectField
+                    :model-value="row.field_key ?? ''"
+                    :options="siblingOptions"
+                    @update:model-value="(k: string) => onParamSource(row, k)"
+                  />
+                </td>
+                <td>
+                  <TextField v-if="!row.field_key" v-model="row.value" />
+                  <span v-else class="muted small">
+                    {{ t("workspace.templates.api_client_editor.param.from_field") }}
+                  </span>
+                </td>
+                <td class="api-client-col-actions">
+                  <button
+                    type="button"
+                    class="tool-btn small danger"
+                    :title="t('workspace.templates.api_client_editor.param.remove')"
+                    @click="removeParam(i)"
+                  >−</button>
+                </td>
+              </tr>
+            </template>
+          </draggable>
         </table>
         <button
           type="button"
@@ -256,31 +272,46 @@ const noClients = computed(
         <table v-if="(field.map ?? []).length" class="api-client-map-table">
           <thead>
             <tr>
+              <th aria-label="drag"></th>
               <th>{{ t("workspace.templates.api_client_editor.col.key") }}</th>
               <th>{{ t("workspace.templates.api_client_editor.col.label") }}</th>
               <th class="api-client-col-actions"></th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="(row, i) in field.map ?? []" :key="i">
-              <td>
-                <SelectField
-                  v-model="row.key"
-                  :options="projectableOptions"
-                  :disabled="projectableOptions.length === 0"
-                />
-              </td>
-              <td><TextField v-model="row.label" /></td>
-              <td class="api-client-col-actions">
-                <button
-                  type="button"
-                  class="tool-btn small danger"
-                  :title="t('workspace.templates.api_client_editor.remove_column')"
-                  @click="removeRow(i)"
-                >−</button>
-              </td>
-            </tr>
-          </tbody>
+          <draggable
+            :list="field.map"
+            tag="tbody"
+            handle=".dnd-handle"
+            :animation="150"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
+            :item-key="(_e: any, i: number) => i"
+          >
+            <template #item="{ element: row, index: i }">
+              <tr>
+                <td>
+                  <span class="dnd-handle" aria-hidden="true">⠿</span>
+                </td>
+                <td>
+                  <SelectField
+                    v-model="row.key"
+                    :options="projectableOptions"
+                    :disabled="projectableOptions.length === 0"
+                  />
+                </td>
+                <td><TextField v-model="row.label" /></td>
+                <td class="api-client-col-actions">
+                  <button
+                    type="button"
+                    class="tool-btn small danger"
+                    :title="t('workspace.templates.api_client_editor.remove_column')"
+                    @click="removeRow(i)"
+                  >−</button>
+                </td>
+              </tr>
+            </template>
+          </draggable>
         </table>
         <button
           type="button"

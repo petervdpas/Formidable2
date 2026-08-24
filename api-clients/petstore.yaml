@@ -1,0 +1,30 @@
+id: petstore
+name: Swagger Petstore
+base_url: https://petstore.swagger.io/v2
+spec_file: petstore.json
+spec_url: https://petstore.swagger.io/v2/swagger.json
+auth:
+    kind: none
+resources:
+    - key: pets
+      label: Pets
+      list:
+        operation: findPetsByStatus
+        params:
+            status: available
+      get:
+        operation: getPetById
+      id_path: /id
+      label_path: /name
+      pagination:
+        style: none
+      fields:
+        - key: name
+          label: Name
+          pointer: /name
+        - key: status
+          label: Status
+          pointer: /status
+        - key: category
+          label: Category
+          pointer: /category/name

@@ -456,11 +456,25 @@ func (iv *Invoker) call(
 	if resp.StatusCode >= 400 {
 		return nil, &InvokeError{
 			Code:    statusCode(resp.StatusCode),
-			Message: fmt.Sprintf("%s %s returned %s", op.Method, op.Path, resp.Status),
+			Message: fmt.Sprintf("%s %s returned %s", op.Method, requestPath(target, op.Path), resp.Status),
 			Status:  resp.StatusCode,
 		}
 	}
 	return decodeJSON(resp, body)
+}
+
+// requestPath is the path actually called, for an error message. The spec's
+// template would read as a broken binding ("/pet/{petId} returned 404") when
+// what happened is that one record is gone ("/pet/42 returned 404"). The query
+// string is dropped, never trimmed for looks: an api-key-in-query connection
+// carries its secret there, and this message reaches toasts, logs and the
+// journal. Falls back to the template if the URL will not parse.
+func requestPath(target, specPath string) string {
+	u, err := url.Parse(target)
+	if err != nil || u.Path == "" {
+		return specPath
+	}
+	return u.Path
 }
 
 // buildURL substitutes path params and appends the query. Values are escaped

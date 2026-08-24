@@ -735,3 +735,33 @@ func TestFetch_KeyedRecordKeepsTheRequestedID(t *testing.T) {
 		t.Errorf("fields = %+v, want the value projected", item.Fields)
 	}
 }
+
+// A failing status names the path that was actually called, not the spec's
+// template: "/customers/{id} returned 404" reads as a broken binding, while
+// "/customers/c-9 returned 404" reads as the record being gone, which is what
+// happened. The query string is deliberately left out, since an api-key-in-
+// query connection carries the secret there and this message reaches toasts,
+// logs and the journal.
+func TestInvoke_ErrorNamesTheCalledPathWithoutTheQuery(t *testing.T) {
+	iv, _, reconfigure := shopFixture(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+	c := shopConn(t, iv)
+	c.Auth = Auth{Kind: AuthAPIKey, In: InQuery, Name: "api_key"}
+	reconfigure(c)
+
+	_, err := iv.Fetch(context.Background(), FetchRequest{Connection: "shop", Resource: "customers", ID: "c-9"})
+	if err == nil {
+		t.Fatal("want a 404")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "/customers/c-9") {
+		t.Errorf("message %q does not name the record that was asked for", msg)
+	}
+	if strings.Contains(msg, "{id}") || strings.Contains(msg, "{customerId}") {
+		t.Errorf("message %q still carries the spec's placeholder", msg)
+	}
+	if strings.Contains(msg, "s3cret") || strings.Contains(msg, "api_key") {
+		t.Errorf("message %q leaks the credential", msg)
+	}
+}
