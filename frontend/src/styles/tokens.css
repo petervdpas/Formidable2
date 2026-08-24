@@ -13,13 +13,31 @@
     --radius-sm: 3px;
     --radius-md: 4px;
 
-    --font-size-sm: 12px;
-    --font-size-md: 14px;
-    --font-size-lg: 18px;
-    --font-size-xl: 24px;
+    /* The size the whole UI is drawn from, as the root em. Owned by Go
+       (config.ui_font_size) and written onto the root by useAppFont; the 16px
+       here is the browser default every rem in these stylesheets was authored
+       against, so the app renders identically until the setting moves it. */
+    --font-size-root: 16px;
 
+    /* Every rung is a fraction of the root em, so moving --font-size-root moves
+       them together. The comments are what each works out to at the default,
+       which is exactly what the app rendered when these were absolute px. */
+    --font-size-sm: 0.75rem;  /* 12px */
+    --font-size-md: 0.875rem; /* 14px */
+    --font-size-lg: 1.125rem; /* 18px */
+    --font-size-xl: 1.5rem;   /* 24px */
+
+    /* The app typeface, also owned by Go (config.ui_font_family, resolved to a
+       stack by the fonts module) and written onto the root at boot. Code and
+       other monospace surfaces read --font-mono and never follow it. */
     --font-stack:
         "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
         "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* The root em itself. Every rem in the stylesheets resolves against this, so
+   it is the single declaration that makes the whole UI scale. */
+html {
+    font-size: var(--font-size-root);
 }

@@ -20,6 +20,9 @@ type Config struct {
 	LoopStateCollapsed   bool          `json:"loop_state_collapsed"`
 	FieldStateCollapsed  bool          `json:"field_state_collapsed"`
 	FontSize             int           `json:"font_size"`
+	UIFontSize           int           `json:"ui_font_size"`
+	UIFontFamily         string        `json:"ui_font_family"`
+	HTMLPreviewZoom      int           `json:"html_preview_zoom"`
 	DevelopmentEnable    bool          `json:"development_enable"`
 	LoggingEnabled       bool          `json:"logging_enabled"`
 	EnablePlugins        bool          `json:"enable_plugins"`

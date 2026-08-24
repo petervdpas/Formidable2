@@ -8,6 +8,7 @@ import ToastContainer from "./components/ToastContainer.vue";
 import PluginRunDialog from "./components/PluginRunDialog.vue";
 import { WORKSPACES, type WorkspaceId } from "./workspaces";
 import { useTheme } from "./composables/useTheme";
+import { loadAppFont } from "./composables/useAppFont";
 import { useActiveWorkspace } from "./composables/useActiveWorkspace";
 import { useRestartGate } from "./composables/useRestartGate";
 import { useConfig } from "./composables/useConfig";
@@ -18,6 +19,7 @@ import { confirmLeave } from "./composables/useNavGuard";
 import { Service as SystemSvc } from "../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
 useTheme(); // installs the data-theme attribute reactively
+void loadAppFont(); // installs the profile's typeface and root size
 
 const { active, setActive } = useActiveWorkspace();
 const { bootConfig } = useRestartGate();

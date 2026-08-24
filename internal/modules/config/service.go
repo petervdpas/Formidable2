@@ -70,3 +70,11 @@ func (s *Service) IsTemplateEnabled(filename string) bool {
 func (s *Service) SetTemplateEnabled(filename string, on bool) ([]string, error) {
 	return s.m.SetTemplateEnabled(filename, on)
 }
+
+// UIFontSizes lists the UI root sizes on offer, in pixels and in display order,
+// so the settings picker renders the backend's set instead of restating it.
+func (s *Service) UIFontSizes() []int { return append([]int(nil), UIFontSizes...) }
+
+// HTMLPreviewZooms lists the preview zoom levels on offer, as percentages in
+// display order, so the preview's picker renders the backend's set.
+func (s *Service) HTMLPreviewZooms() []int { return append([]int(nil), HTMLPreviewZooms...) }

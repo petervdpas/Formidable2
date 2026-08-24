@@ -33,6 +33,9 @@ func defaultConfig() Config {
 		LoopStateCollapsed:   false,
 		FieldStateCollapsed:  false,
 		FontSize:             14,
+		UIFontSize:           UIFontSizeDefault,
+		UIFontFamily:         "",
+		HTMLPreviewZoom:      HTMLPreviewZoomDefault,
 		DevelopmentEnable:    false,
 		LoggingEnabled:       false,
 		EnablePlugins:        false,
@@ -80,4 +83,50 @@ func defaultConfig() Config {
 
 func defaultBootConfig() BootConfig {
 	return BootConfig{ActiveProfile: "user.json"}
+}
+
+// UI font sizes on offer, as the root em in pixels, in display order. The root
+// the whole interface is drawn from, so the set is closed on purpose: an
+// arbitrary value would let a profile land on a size no layout was checked at.
+//
+// This is a new key rather than the older `font_size`, which mirrors the
+// Electron schema and was never wired to anything. A profile written before
+// this existed has no `ui_font_size` at all, so it loads as 0 and snaps to the
+// default below, which is the browser root every rem in the stylesheets was
+// authored against. Reusing the dead key would instead have read its inert 14
+// as a deliberate choice and shrunk every existing profile by an eighth.
+var UIFontSizes = []int{12, 13, 14, 15, 16, 17, 18, 20}
+
+// UIFontSizeDefault is the browser default root, which is what the app has
+// always rendered at.
+const UIFontSizeDefault = 16
+
+// KnownUIFontSize reports whether px is one of the offered sizes.
+func KnownUIFontSize(px int) bool {
+	for _, s := range UIFontSizes {
+		if s == px {
+			return true
+		}
+	}
+	return false
+}
+
+// Zoom levels for the HTML preview, as percentages in display order. The
+// preview shows a rendered document rather than app chrome, so it zooms on its
+// own: the reading size of a report has nothing to do with how big the
+// surrounding UI should be. A closed set, for the same reason the font sizes
+// are one.
+var HTMLPreviewZooms = []int{75, 90, 100, 110, 125, 150, 175, 200}
+
+// HTMLPreviewZoomDefault renders the document at its authored size.
+const HTMLPreviewZoomDefault = 100
+
+// KnownHTMLPreviewZoom reports whether pct is one of the offered levels.
+func KnownHTMLPreviewZoom(pct int) bool {
+	for _, z := range HTMLPreviewZooms {
+		if z == pct {
+			return true
+		}
+	}
+	return false
 }

@@ -118,6 +118,7 @@
   "workspace.storage.preview.copy_html": "HTML kopiëren",
   "workspace.storage.preview.copy_markdown": "Markdown kopiëren",
   "workspace.storage.preview.html": "HTML-voorbeeld",
+  "workspace.storage.preview.zoom": "Zoom voorbeeld",
   "workspace.storage.preview.html_empty": "Sla het formulier op om de gerenderde HTML te zien.",
   "workspace.storage.preview.html_error": "De template kon niet worden gerenderd naar HTML:",
   "workspace.storage.preview.html_handle": "HTML",

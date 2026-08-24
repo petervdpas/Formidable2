@@ -42,6 +42,15 @@ func (s *Service) DeleteFont(name string) error { return s.m.Delete(name) }
 // RestoreDefaultFonts rewrites any factory (seed) font the user deleted.
 func (s *Service) RestoreDefaultFonts() error { return s.m.Scaffold() }
 
+// ListUIFonts returns the interface fonts a profile can pick from: the built-in
+// stacks plus every uploaded family. Backend-owned, so the settings picker
+// renders this list rather than keeping a font list of its own.
+func (s *Service) ListUIFonts() ([]UIFont, error) { return s.m.UIFonts() }
+
+// ResolveUIFont turns the profile's stored font id into the font to draw with,
+// falling back to the system stack when the id no longer resolves.
+func (s *Service) ResolveUIFont(id string) UIFont { return s.m.ResolveUIFont(id) }
+
 // FontFaceCSS returns @font-face rules (fonts inlined as data: URIs) so the slide
 // canvas editor can inject uploaded fonts and preview them live.
 func (s *Service) FontFaceCSS() (string, error) { return s.m.FontFaceCSS() }

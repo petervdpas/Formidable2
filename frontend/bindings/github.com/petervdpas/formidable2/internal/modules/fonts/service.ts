@@ -41,10 +41,31 @@ export function ListFonts(): $CancellablePromise<$models.FontInfo[]> {
 }
 
 /**
+ * ListUIFonts returns the interface fonts a profile can pick from: the built-in
+ * stacks plus every uploaded family. Backend-owned, so the settings picker
+ * renders this list rather than keeping a font list of its own.
+ */
+export function ListUIFonts(): $CancellablePromise<$models.UIFont[]> {
+    return $Call.ByID(3890214946).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * LoadFont returns one font's bytes, base64-encoded for a JSON round-trip.
  */
 export function LoadFont(name: string): $CancellablePromise<string> {
     return $Call.ByID(386054555, name);
+}
+
+/**
+ * ResolveUIFont turns the profile's stored font id into the font to draw with,
+ * falling back to the system stack when the id no longer resolves.
+ */
+export function ResolveUIFont(id: string): $CancellablePromise<$models.UIFont> {
+    return $Call.ByID(651044081, id).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
 
 /**
@@ -65,3 +86,5 @@ export function SaveFont(name: string, base64Data: string): $CancellablePromise<
 // Private type creation functions
 const $$createType0 = $models.FontInfo.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.UIFont.createFrom;
+const $$createType3 = $Create.Array($$createType2);

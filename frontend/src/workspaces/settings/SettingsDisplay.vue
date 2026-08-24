@@ -4,12 +4,24 @@ import { useI18n } from "vue-i18n";
 import { FormSection, FormRow, SelectField, SwitchField, TextField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 import { useTheme, type ThemeId } from "../../composables/useTheme";
+import { useAppFont } from "../../composables/useAppFont";
 
 const { t } = useI18n();
 const { config, update } = useConfig();
 const cfg = computed(() => config.value!);
 
 const { theme, setTheme } = useTheme();
+
+// Typeface and root size are backend-owned: the choice sets come from Go (the
+// fonts module resolves each id to a CSS stack, config owns the size ladder),
+// so this picker never keeps a font list of its own.
+const appFont = useAppFont();
+const fontFamilyOptions = computed(() =>
+  appFont.fonts.value.map((f) => ({ value: f.id, label: f.label })),
+);
+const fontSizeOptions = computed(() =>
+  appFont.sizes.value.map((px) => ({ value: String(px), label: `${px}px` })),
+);
 
 const themeOptions = computed(() => [
   { value: "light",    label: t("theme.light") },
@@ -99,6 +111,26 @@ function clampDecimalPrecision(n: number): number {
         :model-value="theme"
         @update:model-value="(v) => setTheme(v as ThemeId)"
         :options="themeOptions"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('settings.field.ui_font_family')"
+      :description="t('settings.desc.ui_font_family')"
+    >
+      <SelectField
+        :model-value="appFont.family.value"
+        @update:model-value="(v) => appFont.setFamily(v)"
+        :options="fontFamilyOptions"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('settings.field.ui_font_size')"
+      :description="t('settings.desc.ui_font_size')"
+    >
+      <SelectField
+        :model-value="String(appFont.size.value)"
+        @update:model-value="(v) => appFont.setSize(Number(v))"
+        :options="fontSizeOptions"
       />
     </FormRow>
     <FormRow

@@ -1272,3 +1272,123 @@ func TestJournalSyncOnLoad(t *testing.T) {
 		t.Errorf("backend forwarded = %q, want \"none\"", j.lastBack)
 	}
 }
+
+// The UI font size is the root everything else is drawn from, so an off-ladder
+// value (hand-edited user.json, a profile from another version) snaps back to
+// the default rather than being clamped to whichever neighbour is nearest.
+func TestClampNumericSettings_SnapsUIFontSizeToTheOfferedSet(t *testing.T) {
+	cases := map[int]int{
+		16:  16,
+		12:  12,
+		20:  20,
+		13:  13,
+		19:  UIFontSizeDefault,
+		999: UIFontSizeDefault,
+		-3:  UIFontSizeDefault,
+	}
+	for in, want := range cases {
+		cfg := defaultConfig()
+		cfg.UIFontSize = in
+		changed := clampNumericSettings(&cfg)
+		if cfg.UIFontSize != want {
+			t.Errorf("UIFontSize %d snapped to %d, want %d", in, cfg.UIFontSize, want)
+		}
+		if wantChanged := in != want; changed != wantChanged {
+			t.Errorf("UIFontSize %d: changed = %v, want %v", in, changed, wantChanged)
+		}
+	}
+}
+
+// The whole reason this is a new key: a profile written before the setting
+// existed has no ui_font_size, which unmarshals to 0 and must land on the
+// browser root every rem in the stylesheets was authored against. Reading the
+// dead font_size instead would have shrunk every existing profile.
+func TestClampNumericSettings_ProfileWithoutTheKeyGetsTheBrowserRoot(t *testing.T) {
+	cfg := defaultConfig()
+	cfg.UIFontSize = 0 // absent from the JSON
+	cfg.FontSize = 14  // the dead Electron-mirror value every profile carries
+	if !clampNumericSettings(&cfg) {
+		t.Fatal("an absent size must be filled in")
+	}
+	if cfg.UIFontSize != UIFontSizeDefault {
+		t.Errorf("UIFontSize = %d, want the %dpx browser root", cfg.UIFontSize, UIFontSizeDefault)
+	}
+	if cfg.FontSize != 14 {
+		t.Errorf("the dead font_size must be left alone, got %d", cfg.FontSize)
+	}
+}
+
+func TestUIFontSizesIsAClosedSetContainingTheDefault(t *testing.T) {
+	if !KnownUIFontSize(UIFontSizeDefault) {
+		t.Fatalf("the default %d is not one of the offered sizes %v", UIFontSizeDefault, UIFontSizes)
+	}
+	if len(UIFontSizes) < 2 {
+		t.Fatalf("UIFontSizes = %v, a picker needs choices", UIFontSizes)
+	}
+	seen := map[int]bool{}
+	last := 0
+	for _, s := range UIFontSizes {
+		if seen[s] {
+			t.Errorf("duplicate size %d", s)
+		}
+		if s <= last {
+			t.Errorf("UIFontSizes must ascend for the picker: %v", UIFontSizes)
+		}
+		seen[s], last = true, s
+	}
+}
+
+// A fresh profile must render at the default rather than at a zero-value size.
+func TestDefaultConfigCarriesAUsableFont(t *testing.T) {
+	cfg := defaultConfig()
+	if !KnownUIFontSize(cfg.UIFontSize) {
+		t.Errorf("default UIFontSize = %d, not one of %v", cfg.UIFontSize, UIFontSizes)
+	}
+	if cfg.UIFontFamily != "" {
+		t.Errorf("default UIFontFamily = %q, want empty (the built-in stack)", cfg.UIFontFamily)
+	}
+}
+
+// The preview zoom is independent of the interface size: a report is read at
+// whatever size suits the document, not at whatever suits the chrome around it.
+func TestClampNumericSettings_SnapsHTMLPreviewZoomToTheOfferedSet(t *testing.T) {
+	cases := map[int]int{
+		100: 100,
+		75:  75,
+		200: 200,
+		0:   HTMLPreviewZoomDefault, // absent from a profile written before this existed
+		137: HTMLPreviewZoomDefault,
+		-50: HTMLPreviewZoomDefault,
+		999: HTMLPreviewZoomDefault,
+	}
+	for in, want := range cases {
+		cfg := defaultConfig()
+		cfg.HTMLPreviewZoom = in
+		changed := clampNumericSettings(&cfg)
+		if cfg.HTMLPreviewZoom != want {
+			t.Errorf("zoom %d snapped to %d, want %d", in, cfg.HTMLPreviewZoom, want)
+		}
+		if wantChanged := in != want; changed != wantChanged {
+			t.Errorf("zoom %d: changed = %v, want %v", in, changed, wantChanged)
+		}
+	}
+}
+
+func TestHTMLPreviewZoomsIsAClosedSetContainingTheDefault(t *testing.T) {
+	if !KnownHTMLPreviewZoom(HTMLPreviewZoomDefault) {
+		t.Fatalf("the default %d is not offered: %v", HTMLPreviewZoomDefault, HTMLPreviewZooms)
+	}
+	last := 0
+	for _, z := range HTMLPreviewZooms {
+		if z <= last {
+			t.Fatalf("zoom levels must ascend for the picker: %v", HTMLPreviewZooms)
+		}
+		last = z
+	}
+	// The interface size and the preview zoom must stay separate settings; a
+	// shared one would tie the reading size of a document to the chrome.
+	cfg := defaultConfig()
+	if cfg.HTMLPreviewZoom == 0 || cfg.UIFontSize == 0 {
+		t.Fatal("both defaults must be real values")
+	}
+}

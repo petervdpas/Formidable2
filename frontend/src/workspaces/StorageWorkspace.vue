@@ -10,6 +10,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import UnsavedChangesDialog from "../components/UnsavedChangesDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import RenderedHtml from "../components/RenderedHtml.vue";
+import { useHTMLPreviewZoom } from "../composables/usePreviewZoom";
 import ImportDialog from "../components/ImportDialog.vue";
 import ExportDialog from "../components/ExportDialog.vue";
 import ExportPDFDialog from "../components/ExportPDFDialog.vue";
@@ -969,6 +970,10 @@ async function confirmDelete() {
 // while it's open).
 const mdOpen = ref(false);
 const htmlOpen = ref(false);
+
+// The rendered document zooms independently of the interface font size: a
+// report is read at whatever size suits the document.
+const htmlZoom = useHTMLPreviewZoom();
 const markdown = ref("");
 const html = ref("");
 const markdownError = ref("");
@@ -1650,6 +1655,17 @@ setTopbarMenu(() => [
       offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
     >
       <template #header-actions>
+        <select
+          class="right-slideout-zoom"
+          :value="String(htmlZoom.zoom.value)"
+          :title="t('workspace.storage.preview.zoom')"
+          :aria-label="t('workspace.storage.preview.zoom')"
+          @change="htmlZoom.setZoom(Number(($event.target as HTMLSelectElement).value))"
+        >
+          <option v-for="pct in htmlZoom.levels.value" :key="pct" :value="String(pct)">
+            {{ pct }}%
+          </option>
+        </select>
         <CopyButton
           :text="fetchFullHtml"
           :disabled="!html"
@@ -1662,6 +1678,7 @@ setTopbarMenu(() => [
       <RenderedHtml
         v-if="html"
         class="preview-html formidable-prose"
+        :style="{ zoom: htmlZoom.factor.value }"
         :html="html"
         @click="onHtmlPreviewClick"
       />

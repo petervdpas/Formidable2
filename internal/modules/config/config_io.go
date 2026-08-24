@@ -90,9 +90,25 @@ func migrateFlatCollaboration(probe map[string]any, cfg *Config) bool {
 }
 
 // clampNumericSettings coerces range-bound numeric fields (ToastTimeout,
-// DecimalPrecision) into bounds, returning true if any value changed.
+// DecimalPrecision) into bounds and snaps UIFontSize to the offered set,
+// returning true if any value changed.
 func clampNumericSettings(cfg *Config) bool {
 	changed := false
+	// UIFontSize is a closed set rather than a range: it is the root the whole
+	// UI is drawn from, so an off-ladder value is snapped back to the default
+	// instead of clamped to a neighbour nobody chose. A profile from before the
+	// setting existed carries no value at all, which lands here as 0 and picks
+	// up the default.
+	if !KnownUIFontSize(cfg.UIFontSize) {
+		cfg.UIFontSize = UIFontSizeDefault
+		changed = true
+	}
+	// Same closed-set treatment for the preview zoom, and the same reason a
+	// profile from before it existed lands on the default: 0 is not a level.
+	if !KnownHTMLPreviewZoom(cfg.HTMLPreviewZoom) {
+		cfg.HTMLPreviewZoom = HTMLPreviewZoomDefault
+		changed = true
+	}
 	if cfg.ToastTimeout < ToastTimeoutMin {
 		cfg.ToastTimeout = ToastTimeoutMin
 		changed = true

@@ -7,5 +7,6 @@ export {
 };
 
 export {
-    FontInfo
+    FontInfo,
+    UIFont
 } from "./models.js";

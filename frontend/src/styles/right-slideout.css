@@ -157,3 +157,22 @@
     transform: translateX(100%);
     opacity: 0;
 }
+
+/* Zoom picker in the preview header. Sized like .right-slideout-action but
+   left as a native select, so the arrow says it opens a list. */
+.right-slideout-zoom {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+}
+.right-slideout-zoom:hover {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
+}

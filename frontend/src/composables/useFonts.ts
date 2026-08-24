@@ -4,6 +4,7 @@ import {
   type FontInfo,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/fonts";
 import { backendErrMessage } from "../utils/backendError";
+import { useAppFont } from "./useAppFont";
 
 // Module-scope refs so the Fonts panel keeps its list when the user clicks to a
 // sibling Information section and back (mirrors usePDFCoverImages).
@@ -18,6 +19,10 @@ async function refresh(): Promise<void> {
   try {
     fonts.value = (await FontsSvc.ListFonts()) ?? [];
     fontFaceCss.value = (await FontsSvc.FontFaceCSS()) ?? "";
+    // A font added or removed here also changes what the app itself can be
+    // drawn in, so the interface picker and the installed faces follow along
+    // without waiting for a restart.
+    void useAppFont().refresh();
   } catch (err) {
     lastError.value = backendErrMessage(err);
     fonts.value = [];

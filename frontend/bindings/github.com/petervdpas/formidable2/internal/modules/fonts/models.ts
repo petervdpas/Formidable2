@@ -43,3 +43,41 @@ export class FontInfo {
         return new FontInfo($$parsedSource as Partial<FontInfo>);
     }
 }
+
+/**
+ * UIFont is one selectable interface font. ID is what the profile stores; Stack
+ * is the CSS font-family value to write onto the root. Uploaded marks a font
+ * from <AppRoot>/fonts/, whose face comes from FontFaceCSS.
+ */
+export class UIFont {
+    "id": string;
+    "label": string;
+    "stack": string;
+    "uploaded": boolean;
+
+    /** Creates a new UIFont instance. */
+    constructor($$source: Partial<UIFont> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("stack" in $$source)) {
+            this["stack"] = "";
+        }
+        if (!("uploaded" in $$source)) {
+            this["uploaded"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UIFont instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UIFont {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UIFont($$parsedSource as Partial<UIFont>);
+    }
+}
