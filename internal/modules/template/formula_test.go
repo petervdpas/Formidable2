@@ -62,3 +62,40 @@ func TestFormulasErrors_CleanCatalogPasses(t *testing.T) {
 		t.Errorf("clean catalog should pass, got %+v", errs)
 	}
 }
+
+func TestEffectiveFormulaType(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"", "number"},
+		{"   ", "number"},
+		{"number", "number"},
+		{"text", "text"},
+		{"date", "date"},
+		{"bool", "bool"},
+		{"  date  ", "date"},
+		{"nonsense", "nonsense"},
+	}
+	for _, c := range cases {
+		if got := EffectiveFormulaType(c.in); got != c.want {
+			t.Errorf("EffectiveFormulaType(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestEffectiveFormulaTypeMatchesNormalizeDefault(t *testing.T) {
+	tpl := &Template{
+		Name:     "t",
+		Fields:   []Field{},
+		Formulas: []Formula{{Key: "untyped", Expression: "1 + 1"}},
+	}
+	Normalize(tpl)
+	if len(tpl.Formulas) != 1 {
+		t.Fatalf("expected the formula to survive normalize, got %d", len(tpl.Formulas))
+	}
+	if tpl.Formulas[0].Type != EffectiveFormulaType("") {
+		t.Errorf("normalize default %q diverges from EffectiveFormulaType(\"\") = %q",
+			tpl.Formulas[0].Type, EffectiveFormulaType(""))
+	}
+}

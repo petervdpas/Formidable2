@@ -158,6 +158,37 @@ export class FieldRef {
     }
 }
 
+/**
+ * FormulaRef is the slim per-formula shape Compile needs. A formula shares the
+ * F["key"] accessor with a real field, so a predicate targets it the same way;
+ * Type is the formula's declared result type (number/text/date/bool), which
+ * decides its RuleKind. No Options: no formula result is enumerable.
+ */
+export class FormulaRef {
+    "key": string;
+    "type": string;
+
+    /** Creates a new FormulaRef instance. */
+    constructor($$source: Partial<FormulaRef> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FormulaRef instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FormulaRef {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FormulaRef($$parsedSource as Partial<FormulaRef>);
+    }
+}
+
 export enum NumberOp {
     /**
      * The Go zero value for the underlying type of the enum.
@@ -274,6 +305,51 @@ export class Predicate {
             $$parsedSource["enumValues"] = $$createField4_0($$parsedSource["enumValues"]);
         }
         return new Predicate($$parsedSource as Partial<Predicate>);
+    }
+}
+
+/**
+ * PredicateSourceOption is one entry the rule editor's "add predicate for..."
+ * picker offers: the key it compiles to as F["key"], a display label, the
+ * declared type the caller hands back when asking for a default Predicate, and
+ * a group so the UI can separate real fields from formulas. Assembled by the
+ * Service (it has the template) from the predicateable fields plus the
+ * predicateable formulas.
+ */
+export class PredicateSourceOption {
+    "key": string;
+    "label": string;
+    "type": string;
+
+    /**
+     * "field" | "formula"
+     */
+    "group": string;
+
+    /** Creates a new PredicateSourceOption instance. */
+    constructor($$source: Partial<PredicateSourceOption> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("group" in $$source)) {
+            this["group"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PredicateSourceOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PredicateSourceOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PredicateSourceOption($$parsedSource as Partial<PredicateSourceOption>);
     }
 }
 

@@ -9,7 +9,6 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { SelectField, SwitchField } from "../fields";
-import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   DateOp,
   EnumOp,
@@ -23,11 +22,14 @@ import {
 
 const props = defineProps<{
   predicate: Predicate;
-  field: Field | null;
+  /** Display name for the predicate's target, resolved by the parent
+   *  against the backend's predicate-source list (a field or a
+   *  formula; both compile to the same F["key"] accessor). */
+  label: string;
   /** Pre-resolved option list for the field (backend-driven via
    *  ExpressionSvc.BuilderFieldOptions in the parent modal). Empty
-   *  for non-enumerable types and for facet fields whose binding
-   *  doesn't resolve. */
+   *  for non-enumerable types, for formulas, and for facet fields
+   *  whose binding doesn't resolve. */
   options: FieldOption[];
   enumOps: Operator[];
   numberOps: Operator[];
@@ -36,7 +38,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 
-const fieldLabel = computed(() => props.field?.label || props.field?.key || props.predicate.fieldKey);
+const targetLabel = computed(() => props.label || props.predicate.fieldKey);
 
 const fieldOptions = computed<FieldOption[]>(() => props.options ?? []);
 
@@ -104,7 +106,7 @@ function setDateArg(v: number) {
 
 <template>
   <div class="expr-pred-row">
-    <span class="expr-pred-field">{{ fieldLabel }}</span>
+    <span class="expr-pred-field">{{ targetLabel }}</span>
 
     <!-- Boolean: just true/false toggle -->
     <SwitchField

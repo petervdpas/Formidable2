@@ -56,7 +56,7 @@ func fieldsFour() []FieldRef {
 // ── Empty-config short-circuit ───────────────────────────────────
 
 func TestCompile_EmptyConfigIsEmptyString(t *testing.T) {
-	got, err := Compile(DefaultConfig(), fieldsFour())
+	got, err := Compile(DefaultConfig(), fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestCompile_EmptyConfigIsEmptyString(t *testing.T) {
 
 func TestCompile_DefaultOutcomeOnlyEmitsBareLiteral(t *testing.T) {
 	cfg := Config{Default: Outcome{Color: "gray", Text: textValue("title")}}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestCompile_BooleanPredicateTrue(t *testing.T) {
 			Outcome:    Outcome{Text: textValue("title"), Color: "green"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestCompile_BooleanPredicateFalse(t *testing.T) {
 			Outcome:    Outcome{Classes: []string{"expr-warn"}},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestCompile_EnumSingleValueEquals(t *testing.T) {
 			Outcome:    Outcome{Color: "green"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestCompile_EnumMultiValueEqualsIsSwitchCase(t *testing.T) {
 		{Key: "size", Type: "dropdown", Options: []FieldOption{
 			{Value: "S", Label: "Small"}, {Value: "L", Label: "Large"}, {Value: "XL", Label: "Extra"},
 		}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestCompile_EnumNotEqualsMultiValue(t *testing.T) {
 	}
 	got, err := Compile(cfg, []FieldRef{
 		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "S"}, {Value: "M"}}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestCompile_NumberGreaterThan(t *testing.T) {
 			Outcome:    Outcome{Color: "orange"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestCompile_NumberFractionalValue(t *testing.T) {
 			Outcome:    Outcome{Bg: "#fff"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestCompile_DateNoArg(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestCompile_DateGtUsesAgeInDays(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestCompile_DateLtUsesAgeInDays(t *testing.T) {
 			Outcome:    Outcome{Color: "blue"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestCompile_DateGtMissingArgIsError(t *testing.T) {
 			Predicates: []Predicate{predDate("due", DateOpDateGt)},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for dateGt predicate with no arg")
 	}
 }
@@ -285,7 +285,7 @@ func TestCompile_DateWithArg(t *testing.T) {
 			Outcome:    Outcome{Color: "orange"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestCompile_RulePredicatesAreANDed(t *testing.T) {
 			Outcome: Outcome{Color: "red"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestCompile_EmptyPredicatesAlwaysMatches(t *testing.T) {
 			Outcome:    Outcome{Color: "blue"},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestCompile_TextLiteral(t *testing.T) {
 			Outcome:    Outcome{Text: textLiteral("DONE")},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestCompile_TextFieldValueEmitsFBracket(t *testing.T) {
 	cfg := Config{
 		Default: Outcome{Text: textValue("title")},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestCompile_TextFieldLabelEmitsOBracket(t *testing.T) {
 			{Value: "S", Label: "Small"},
 			{Value: "L", Label: "Large"},
 		}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestCompile_TextFieldLabelOnFieldWithoutOptionsFallsBackToValue(t *testing.
 	cfg := Config{
 		Default: Outcome{Text: textLabel("title")}, // text field, no options
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestCompile_MultipleRulesNestedTernary(t *testing.T) {
 		{Key: "size", Type: "dropdown", Options: []FieldOption{
 			{Value: "L"}, {Value: "XL"},
 		}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -474,7 +474,7 @@ func TestCompile_UserWorkedExample(t *testing.T) {
 		}},
 		{Key: "due", Type: "date"},
 		{Key: "title", Type: "text"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -494,7 +494,7 @@ func TestCompile_StyleStringWithDoubleQuotesIsEscaped(t *testing.T) {
 			Outcome:    Outcome{Text: textLiteral(`He said "hi"`)},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestCompile_PredicateMissingFieldKey(t *testing.T) {
 			Predicates: []Predicate{{Kind: KindBoolean, BoolValue: boolPtr(true)}},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for predicate with empty fieldKey")
 	}
 }
@@ -524,7 +524,7 @@ func TestCompile_PredicateUnknownField(t *testing.T) {
 			Predicates: []Predicate{predBool("ghost", true)},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for predicate against unknown field")
 	}
 }
@@ -537,7 +537,7 @@ func TestCompile_PredicateKindMismatchWithFieldType(t *testing.T) {
 			Predicates: []Predicate{{Kind: KindBoolean, FieldKey: "size", BoolValue: boolPtr(true)}},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for boolean predicate on dropdown field")
 	}
 }
@@ -549,7 +549,7 @@ func TestCompile_BooleanPredicateMissingValue(t *testing.T) {
 			Predicates: []Predicate{{Kind: KindBoolean, FieldKey: "check"}},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for boolean predicate with nil BoolValue")
 	}
 }
@@ -561,7 +561,7 @@ func TestCompile_EnumPredicateEmptyValues(t *testing.T) {
 			Predicates: []Predicate{{Kind: KindEnum, FieldKey: "size", EnumOp: EnumOpEquals}},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for enum predicate with no values")
 	}
 }
@@ -573,7 +573,7 @@ func TestCompile_NumberPredicateMissingValue(t *testing.T) {
 			Predicates: []Predicate{{Kind: KindNumber, FieldKey: "score", NumberOp: NumberOpGt}},
 		}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for number predicate with nil NumberValue")
 	}
 }
@@ -582,7 +582,7 @@ func TestCompile_TextSourceUnknownKind(t *testing.T) {
 	cfg := Config{
 		Default: Outcome{Text: &TextSource{Kind: "garbage"}},
 	}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Error("expected error for unknown text source kind")
 	}
 }
@@ -607,7 +607,7 @@ func TestCompile_PartsTwo(t *testing.T) {
 	got, err := Compile(cfg, []FieldRef{
 		{Key: "unit-number", Type: "text"},
 		{Key: "street", Type: "text"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -630,7 +630,7 @@ func TestCompile_PartsThreeWithLiteralSeparator(t *testing.T) {
 	got, err := Compile(cfg, []FieldRef{
 		{Key: "unit-number", Type: "text"},
 		{Key: "street", Type: "text"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -654,7 +654,7 @@ func TestCompile_PartsMixedLFO(t *testing.T) {
 	}
 	got, err := Compile(cfg, []FieldRef{
 		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "L", Label: "Large"}}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -667,11 +667,11 @@ func TestCompile_PartsMixedLFO(t *testing.T) {
 func TestCompile_PartsSingleElementMatchesText(t *testing.T) {
 	a := Config{Default: Outcome{Parts: []TextSource{{Kind: TextKindFieldValue, FieldKey: "title"}}}}
 	b := Config{Default: Outcome{Text: textValue("title")}}
-	gotA, err := Compile(a, fieldsFour())
+	gotA, err := Compile(a, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("a: %v", err)
 	}
-	gotB, err := Compile(b, fieldsFour())
+	gotB, err := Compile(b, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("b: %v", err)
 	}
@@ -685,7 +685,7 @@ func TestCompile_PartsTakesPrecedenceOverText(t *testing.T) {
 		Text:  textLiteral("ignored"),
 		Parts: []TextSource{{Kind: TextKindFieldValue, FieldKey: "title"}},
 	}}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -708,7 +708,7 @@ func TestCompile_PartsInRuleOutcome(t *testing.T) {
 			},
 		}},
 	}
-	got, err := Compile(cfg, fieldsFour())
+	got, err := Compile(cfg, fieldsFour(), nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -724,7 +724,7 @@ func TestCompile_PartsRejectsOverMaxConcatParts(t *testing.T) {
 		parts[i] = TextSource{Kind: TextKindLiteral, Value: "x"}
 	}
 	cfg := Config{Default: Outcome{Parts: parts}}
-	if _, err := Compile(cfg, fieldsFour()); err == nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err == nil {
 		t.Errorf("expected error for %d parts (max %d)", len(parts), MaxConcatParts)
 	}
 }
@@ -735,7 +735,7 @@ func TestCompile_PartsAtMaxConcatPartsStillCompiles(t *testing.T) {
 		parts[i] = TextSource{Kind: TextKindLiteral, Value: "x"}
 	}
 	cfg := Config{Default: Outcome{Parts: parts}}
-	if _, err := Compile(cfg, fieldsFour()); err != nil {
+	if _, err := Compile(cfg, fieldsFour(), nil); err != nil {
 		t.Errorf("at-cap should compile cleanly: %v", err)
 	}
 }
@@ -756,7 +756,7 @@ func TestCompile_HyphenKeyBoolean(t *testing.T) {
 			Outcome:    Outcome{Color: "green"},
 		}},
 	}
-	got, err := Compile(cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+	got, err := Compile(cfg, []FieldRef{{Key: "has-license", Type: "boolean"}}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -774,7 +774,7 @@ func TestCompile_HyphenKeyDateGt(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	got, err := Compile(cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+	got, err := Compile(cfg, []FieldRef{{Key: "due-date", Type: "date"}}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -791,7 +791,7 @@ func TestCompile_HyphenKeyTextLabelEmitsOBracket(t *testing.T) {
 			{Value: "paid", Label: "Paid"},
 			{Value: "due", Label: "Outstanding"},
 		}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -841,7 +841,7 @@ func TestCompile_EmittedSourceIsValidExprLang(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			src, err := Compile(c.cfg, fields)
+			src, err := Compile(c.cfg, fields, nil)
 			if err != nil {
 				t.Fatalf("compile: %v", err)
 			}

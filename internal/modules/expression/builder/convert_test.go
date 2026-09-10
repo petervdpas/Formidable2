@@ -78,7 +78,7 @@ func TestConvert_ObservedShapes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := Convert(tc.in, fields)
+			got, err := Convert(tc.in, fields, nil)
 			if err != nil {
 				t.Fatalf("Convert returned error: %v", err)
 			}
@@ -125,7 +125,7 @@ func TestConvert_RoundTripsThroughBuilder(t *testing.T) {
 
 	for _, src := range sources {
 		t.Run(src, func(t *testing.T) {
-			converted, err := Convert(src, fields)
+			converted, err := Convert(src, fields, nil)
 			if err != nil {
 				t.Fatalf("Convert: %v", err)
 			}
@@ -133,7 +133,7 @@ func TestConvert_RoundTripsThroughBuilder(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse(converted): %v\n  converted: %s", err, converted)
 			}
-			recompiled, err := Compile(cfg, fields)
+			recompiled, err := Compile(cfg, fields, nil)
 			if err != nil {
 				t.Fatalf("Compile(Parse(converted)): %v", err)
 			}
@@ -150,14 +150,14 @@ func TestConvert_RoundTripsThroughBuilder(t *testing.T) {
 // frontend uses Convert as a fallback when Parse fails, and an empty
 // sidebar_expression must not trigger conversion at all.
 func TestConvert_Empty(t *testing.T) {
-	got, err := Convert("", nil)
+	got, err := Convert("", nil, nil)
 	if err != nil {
 		t.Fatalf("Convert(\"\"): %v", err)
 	}
 	if got != "" {
 		t.Errorf("Convert(\"\") = %q, want empty", got)
 	}
-	got, err = Convert("   \n  ", nil)
+	got, err = Convert("   \n  ", nil, nil)
 	if err != nil {
 		t.Fatalf("Convert whitespace: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestConvert_Empty(t *testing.T) {
 // only fires when Parse already failed, so a Convert failure means
 // "really not migratable" - the user should know.
 func TestConvert_GarbageReturnsError(t *testing.T) {
-	_, err := Convert(`this is not @ valid expression`, nil)
+	_, err := Convert(`this is not @ valid expression`, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for unparseable input")
 	}

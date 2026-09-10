@@ -27,6 +27,8 @@ import {
   type FieldOption,
   type FieldRef,
   type Operator,
+  type FormulaRef,
+  type PredicateSourceOption,
   type Rule,
   type TextSourceOption,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
@@ -67,18 +69,36 @@ const expressionFields = computed(() =>
   }),
 );
 
-// Backend tells us which field types accept predicates; we filter
-// against that list rather than hardcoding to keep parity with the
-// engine's vocabulary.
-const predicateableFields = ref<Field[]>([]);
+// Everything a rule may test, assembled by the backend: the expression
+// fields whose type carries a rule kind, then the formulas whose result
+// type does. A formula compiles to the same F["key"] accessor a field
+// does, so both are predicate targets; the frontend renders the list, it
+// does not decide what is testable.
+const predicateSources = ref<PredicateSourceOption[]>([]);
 
-async function refreshPredicateableFields() {
-  const out: Field[] = [];
-  for (const f of expressionFields.value) {
-    const kind = await ExpressionSvc.BuilderKindForFieldType(f.type || "");
-    if (kind) out.push(f);
-  }
-  predicateableFields.value = out;
+async function refreshPredicateSources() {
+  predicateSources.value = await ExpressionSvc.BuilderPredicateSources(
+    expressionFields.value,
+    props.formulas ?? [],
+  );
+}
+
+const predicateFieldSources = computed(() =>
+  predicateSources.value.filter((s) => s.group === "field"),
+);
+const predicateFormulaSources = computed(() =>
+  predicateSources.value.filter((s) => s.group === "formula"),
+);
+
+function predicateSourceByKey(key: string): PredicateSourceOption | null {
+  return predicateSources.value.find((s) => s.key === key) ?? null;
+}
+
+// Label for an existing predicate row. The source list covers the live
+// catalog; a predicate whose target has since been renamed or unflagged
+// falls back to the raw key rather than rendering blank.
+function predicateLabel(key: string): string {
+  return predicateSourceByKey(key)?.label ?? key;
 }
 
 // Backend signal again: which field types are valid in OUTCOME display
@@ -99,16 +119,17 @@ async function refreshTextSources() {
   );
 }
 
+// The formula catalog Compile needs to resolve formula-backed predicate keys.
+const formulaRefs = computed<FormulaRef[]>(() =>
+  (props.formulas ?? []).map((f) => ({ key: f.key, type: f.type || "" })),
+);
+
 const enumFields = computed(() =>
   expressionFields.value.filter((f) => {
     const tt = (f.type || "").toLowerCase();
     return tt === "dropdown" || tt === "radio";
   }),
 );
-
-function fieldByKey(key: string): Field | null {
-  return expressionFields.value.find((f) => f.key === key) ?? null;
-}
 
 // Backend-resolved option list per field. Populated by
 // refreshFieldOptions: for each expression field we call
@@ -193,7 +214,7 @@ watch(
     addPredicateField.value = "";
     await Promise.all([
       loadMetadata(),
-      refreshPredicateableFields(),
+      refreshPredicateSources(),
       refreshTextSources(),
       refreshFieldOptions(),
     ]);
@@ -268,17 +289,16 @@ const addPredicateField = ref<string>("");
 
 async function onAddPredicateChange() {
   const key = addPredicateField.value;
-  if (!key || !selectedRule.value) {
-    addPredicateField.value = "";
-    return;
-  }
-  const f = fieldByKey(key);
-  if (!f) {
+  const source = key ? predicateSourceByKey(key) : null;
+  if (!source || !selectedRule.value) {
     addPredicateField.value = "";
     return;
   }
   try {
-    const p = await ExpressionSvc.BuilderDefaultPredicate(f.type || "", f.key);
+    const p =
+      source.group === "formula"
+        ? await ExpressionSvc.BuilderDefaultPredicateForFormula(source.type, source.key)
+        : await ExpressionSvc.BuilderDefaultPredicate(source.type, source.key);
     selectedRule.value.predicates = [...(selectedRule.value.predicates ?? []), p];
   } catch (err) {
     applyError.value = backendErrMessage(err);
@@ -304,7 +324,11 @@ async function onApply() {
       type: f.type || "",
       options: fieldOptionsFor(f.key),
     }));
-    const src = await ExpressionSvc.BuilderCompile(config.value, fieldRefs);
+    const src = await ExpressionSvc.BuilderCompile(
+      config.value,
+      fieldRefs,
+      formulaRefs.value,
+    );
     applyError.value = "";
     emit("apply", src);
   } catch (err) {
@@ -339,7 +363,7 @@ const canApply = computed(() => {
     </p>
 
     <p
-      v-if="!expressionFields.length"
+      v-if="!expressionFields.length && !(formulas ?? []).length"
       class="muted small expr-builder-empty"
     >
       {{ t('workspace.templates.expression_builder.no_fields') }}
@@ -430,7 +454,7 @@ const canApply = computed(() => {
                 >
                   <PredicateRow
                     :predicate="p"
-                    :field="fieldByKey(p.fieldKey)"
+                    :label="predicateLabel(p.fieldKey)"
                     :options="fieldOptionsFor(p.fieldKey)"
                     :enum-ops="enumOps"
                     :number-ops="numberOps"
@@ -456,14 +480,26 @@ const canApply = computed(() => {
               <option value="">
                 {{ t('workspace.templates.expression_builder.predicate.add_for') }}
               </option>
-              <option
-                v-for="f in predicateableFields"
-                :key="f.key"
-                :value="f.key"
+              <optgroup
+                v-if="predicateFieldSources.length"
+                :label="t('workspace.templates.expression_builder.predicate_source_group.field')"
               >
-                {{ f.label || f.key }}
-              </option>
+                <option v-for="s in predicateFieldSources" :key="s.key" :value="s.key">
+                  {{ s.label }}
+                </option>
+              </optgroup>
+              <optgroup
+                v-if="predicateFormulaSources.length"
+                :label="t('workspace.templates.expression_builder.predicate_source_group.formula')"
+              >
+                <option v-for="s in predicateFormulaSources" :key="s.key" :value="s.key">
+                  {{ s.label }}
+                </option>
+              </optgroup>
             </select>
+            <p v-if="!predicateSources.length" class="muted small">
+              {{ t('workspace.templates.expression_builder.predicate.no_sources') }}
+            </p>
           </section>
 
           <!-- OUTCOME -->

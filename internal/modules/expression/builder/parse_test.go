@@ -10,9 +10,9 @@ import (
 // shapes directly because rule IDs are session-scoped (Compile
 // doesn't read them; Parse re-assigns r1/r2/...) - instead we close
 // the loop with a second Compile and compare strings.
-func roundTrip(t *testing.T, name string, cfg Config, fields []FieldRef) {
+func roundTrip(t *testing.T, name string, cfg Config, fields []FieldRef, formulas []FormulaRef) {
 	t.Helper()
-	src, err := Compile(cfg, fields)
+	src, err := Compile(cfg, fields, formulas)
 	if err != nil {
 		t.Fatalf("[%s] compile #1: %v", name, err)
 	}
@@ -22,7 +22,7 @@ func roundTrip(t *testing.T, name string, cfg Config, fields []FieldRef) {
 		t.Fatalf("[%s] parse: %v\nsrc: %s", name, err, src)
 	}
 
-	round, err := Compile(parsed, fields)
+	round, err := Compile(parsed, fields, formulas)
 	if err != nil {
 		t.Fatalf("[%s] compile #2: %v", name, err)
 	}
@@ -43,7 +43,7 @@ func TestParse_EmptyString(t *testing.T) {
 
 func TestParse_DefaultOnlyOutcome(t *testing.T) {
 	cfg := Config{Default: Outcome{Color: "gray", Text: textValue("title")}}
-	roundTrip(t, "default-only", cfg, fieldsFour())
+	roundTrip(t, "default-only", cfg, fieldsFour(), nil)
 }
 
 // ── Predicate kinds ─────────────────────────────────────────────
@@ -56,7 +56,7 @@ func TestParse_BooleanTrue(t *testing.T) {
 			Outcome:    Outcome{Text: textValue("title"), Color: "green"},
 		}},
 	}
-	roundTrip(t, "boolean-true", cfg, fieldsFour())
+	roundTrip(t, "boolean-true", cfg, fieldsFour(), nil)
 }
 
 func TestParse_BooleanFalse(t *testing.T) {
@@ -67,7 +67,7 @@ func TestParse_BooleanFalse(t *testing.T) {
 			Outcome:    Outcome{Classes: []string{"expr-warn"}},
 		}},
 	}
-	roundTrip(t, "boolean-false", cfg, fieldsFour())
+	roundTrip(t, "boolean-false", cfg, fieldsFour(), nil)
 }
 
 func TestParse_EnumSingleEquals(t *testing.T) {
@@ -78,7 +78,7 @@ func TestParse_EnumSingleEquals(t *testing.T) {
 			Outcome:    Outcome{Color: "green"},
 		}},
 	}
-	roundTrip(t, "enum-single-equals", cfg, fieldsFour())
+	roundTrip(t, "enum-single-equals", cfg, fieldsFour(), nil)
 }
 
 func TestParse_EnumMultiEquals(t *testing.T) {
@@ -93,7 +93,7 @@ func TestParse_EnumMultiEquals(t *testing.T) {
 		{Key: "size", Type: "dropdown", Options: []FieldOption{
 			{Value: "S"}, {Value: "L"}, {Value: "XL"},
 		}},
-	})
+	}, nil)
 }
 
 func TestParse_EnumNotEqualsMulti(t *testing.T) {
@@ -106,7 +106,7 @@ func TestParse_EnumNotEqualsMulti(t *testing.T) {
 	}
 	roundTrip(t, "enum-not-equals-multi", cfg, []FieldRef{
 		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "S"}, {Value: "M"}}},
-	})
+	}, nil)
 }
 
 func TestParse_NumberOps(t *testing.T) {
@@ -130,7 +130,7 @@ func TestParse_NumberOps(t *testing.T) {
 				Outcome:    Outcome{Color: "orange"},
 			}},
 		}
-		roundTrip(t, "number-"+c.name, cfg, fieldsFour())
+		roundTrip(t, "number-"+c.name, cfg, fieldsFour(), nil)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestParse_DateNoArg(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	roundTrip(t, "date-no-arg", cfg, fieldsFour())
+	roundTrip(t, "date-no-arg", cfg, fieldsFour(), nil)
 }
 
 func TestParse_DateWithArg(t *testing.T) {
@@ -153,7 +153,7 @@ func TestParse_DateWithArg(t *testing.T) {
 			Outcome:    Outcome{Color: "orange"},
 		}},
 	}
-	roundTrip(t, "date-with-arg", cfg, fieldsFour())
+	roundTrip(t, "date-with-arg", cfg, fieldsFour(), nil)
 }
 
 func TestParse_DateGtAndLt(t *testing.T) {
@@ -165,7 +165,7 @@ func TestParse_DateGtAndLt(t *testing.T) {
 				Outcome:    Outcome{Color: "red"},
 			}},
 		}
-		roundTrip(t, "date-"+string(op), cfg, fieldsFour())
+		roundTrip(t, "date-"+string(op), cfg, fieldsFour(), nil)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestParse_CrossFieldAnd(t *testing.T) {
 			Outcome: Outcome{Color: "red"},
 		}},
 	}
-	roundTrip(t, "cross-field-and", cfg, fieldsFour())
+	roundTrip(t, "cross-field-and", cfg, fieldsFour(), nil)
 }
 
 func TestParse_EmptyPredicatesAlwaysMatches(t *testing.T) {
@@ -194,7 +194,7 @@ func TestParse_EmptyPredicatesAlwaysMatches(t *testing.T) {
 			Outcome:    Outcome{Color: "blue"},
 		}},
 	}
-	roundTrip(t, "empty-predicates", cfg, fieldsFour())
+	roundTrip(t, "empty-predicates", cfg, fieldsFour(), nil)
 }
 
 // ── Text source ─────────────────────────────────────────────────
@@ -207,12 +207,12 @@ func TestParse_TextLiteral(t *testing.T) {
 			Outcome:    Outcome{Text: textLiteral("DONE")},
 		}},
 	}
-	roundTrip(t, "text-literal", cfg, fieldsFour())
+	roundTrip(t, "text-literal", cfg, fieldsFour(), nil)
 }
 
 func TestParse_TextFieldValue(t *testing.T) {
 	cfg := Config{Default: Outcome{Text: textValue("title")}}
-	roundTrip(t, "text-field-value", cfg, fieldsFour())
+	roundTrip(t, "text-field-value", cfg, fieldsFour(), nil)
 }
 
 func TestParse_TextFieldLabel(t *testing.T) {
@@ -222,7 +222,7 @@ func TestParse_TextFieldLabel(t *testing.T) {
 			{Value: "S", Label: "Small"},
 			{Value: "L", Label: "Large"},
 		}},
-	})
+	}, nil)
 }
 
 // ── Cascade and the worked example ──────────────────────────────
@@ -239,7 +239,7 @@ func TestParse_MultipleRulesCascade(t *testing.T) {
 		{Key: "size", Type: "dropdown", Options: []FieldOption{
 			{Value: "L"}, {Value: "XL"},
 		}},
-	})
+	}, nil)
 }
 
 func TestParse_UserWorkedExample(t *testing.T) {
@@ -282,7 +282,7 @@ func TestParse_UserWorkedExample(t *testing.T) {
 		}},
 		{Key: "due", Type: "date"},
 		{Key: "title", Type: "text"},
-	})
+	}, nil)
 }
 
 // ── Hyphenated keys round-trip via $env ─────────────────────────
@@ -295,7 +295,7 @@ func TestParse_HyphenKeyBoolean(t *testing.T) {
 			Outcome:    Outcome{Color: "green"},
 		}},
 	}
-	roundTrip(t, "hyphen-bool-true", cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+	roundTrip(t, "hyphen-bool-true", cfg, []FieldRef{{Key: "has-license", Type: "boolean"}}, nil)
 }
 
 func TestParse_HyphenKeyBooleanNegated(t *testing.T) {
@@ -306,7 +306,7 @@ func TestParse_HyphenKeyBooleanNegated(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	roundTrip(t, "hyphen-bool-false", cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+	roundTrip(t, "hyphen-bool-false", cfg, []FieldRef{{Key: "has-license", Type: "boolean"}}, nil)
 }
 
 func TestParse_HyphenKeyEnum(t *testing.T) {
@@ -319,7 +319,7 @@ func TestParse_HyphenKeyEnum(t *testing.T) {
 	}
 	roundTrip(t, "hyphen-enum-multi", cfg, []FieldRef{
 		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{{Value: "paid"}, {Value: "due"}}},
-	})
+	}, nil)
 }
 
 func TestParse_HyphenKeyNumber(t *testing.T) {
@@ -330,7 +330,7 @@ func TestParse_HyphenKeyNumber(t *testing.T) {
 			Outcome:    Outcome{Color: "orange"},
 		}},
 	}
-	roundTrip(t, "hyphen-number", cfg, []FieldRef{{Key: "score-total", Type: "number"}})
+	roundTrip(t, "hyphen-number", cfg, []FieldRef{{Key: "score-total", Type: "number"}}, nil)
 }
 
 func TestParse_HyphenKeyDateHelper(t *testing.T) {
@@ -341,7 +341,7 @@ func TestParse_HyphenKeyDateHelper(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	roundTrip(t, "hyphen-date-helper", cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+	roundTrip(t, "hyphen-date-helper", cfg, []FieldRef{{Key: "due-date", Type: "date"}}, nil)
 }
 
 func TestParse_HyphenKeyDateGt(t *testing.T) {
@@ -352,12 +352,12 @@ func TestParse_HyphenKeyDateGt(t *testing.T) {
 			Outcome:    Outcome{Color: "red"},
 		}},
 	}
-	roundTrip(t, "hyphen-date-gt", cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+	roundTrip(t, "hyphen-date-gt", cfg, []FieldRef{{Key: "due-date", Type: "date"}}, nil)
 }
 
 func TestParse_HyphenKeyTextValue(t *testing.T) {
 	cfg := Config{Default: Outcome{Text: textValue("street-address")}}
-	roundTrip(t, "hyphen-text-value", cfg, []FieldRef{{Key: "street-address", Type: "text"}})
+	roundTrip(t, "hyphen-text-value", cfg, []FieldRef{{Key: "street-address", Type: "text"}}, nil)
 }
 
 func TestParse_HyphenKeyTextLabel(t *testing.T) {
@@ -367,7 +367,7 @@ func TestParse_HyphenKeyTextLabel(t *testing.T) {
 			{Value: "paid", Label: "Paid"},
 			{Value: "due", Label: "Outstanding"},
 		}},
-	})
+	}, nil)
 }
 
 // ── Concat parts ────────────────────────────────────────────────
@@ -380,7 +380,7 @@ func TestParse_ConcatTwoParts(t *testing.T) {
 	roundTrip(t, "concat-2", cfg, []FieldRef{
 		{Key: "unit-number", Type: "text"},
 		{Key: "street", Type: "text"},
-	})
+	}, nil)
 }
 
 func TestParse_ConcatThreeWithLiteralSeparator(t *testing.T) {
@@ -392,7 +392,7 @@ func TestParse_ConcatThreeWithLiteralSeparator(t *testing.T) {
 	roundTrip(t, "concat-3-sep", cfg, []FieldRef{
 		{Key: "unit-number", Type: "text"},
 		{Key: "street", Type: "text"},
-	})
+	}, nil)
 }
 
 func TestParse_ConcatMixedLFO(t *testing.T) {
@@ -405,7 +405,7 @@ func TestParse_ConcatMixedLFO(t *testing.T) {
 	}}}
 	roundTrip(t, "concat-mixed-lfo", cfg, []FieldRef{
 		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "L", Label: "Large"}}},
-	})
+	}, nil)
 }
 
 func TestParse_ConcatInRuleOutcome(t *testing.T) {
@@ -420,7 +420,7 @@ func TestParse_ConcatInRuleOutcome(t *testing.T) {
 			Color: "green",
 		},
 	}}}
-	roundTrip(t, "concat-rule-outcome", cfg, fieldsFour())
+	roundTrip(t, "concat-rule-outcome", cfg, fieldsFour(), nil)
 }
 
 func TestParse_ConcatRejectsOverMaxParts(t *testing.T) {

@@ -24,15 +24,15 @@ import * as $models from "./models.js";
 /**
  * BuilderCompile turns a Config into the expr-lang source; "" means "no chip", an error keeps the dialog open.
  */
-export function BuilderCompile(cfg: builder$0.Config, fields: builder$0.FieldRef[]): $CancellablePromise<string> {
-    return $Call.ByID(2747284620, cfg, fields);
+export function BuilderCompile(cfg: builder$0.Config, fields: builder$0.FieldRef[], formulas: builder$0.FormulaRef[]): $CancellablePromise<string> {
+    return $Call.ByID(2747284620, cfg, fields, formulas);
 }
 
 /**
  * BuilderConvert best-effort migrates a legacy sidebar_expression, invoked only when BuilderParse fails.
  */
-export function BuilderConvert(src: string, fields: builder$0.FieldRef[]): $CancellablePromise<string> {
-    return $Call.ByID(202017842, src, fields);
+export function BuilderConvert(src: string, fields: builder$0.FieldRef[], formulas: builder$0.FormulaRef[]): $CancellablePromise<string> {
+    return $Call.ByID(202017842, src, fields, formulas);
 }
 
 /**
@@ -63,6 +63,15 @@ export function BuilderDefaultPredicate(fieldType: string, fieldKey: string): $C
 }
 
 /**
+ * BuilderDefaultPredicateForFormula returns a fresh Predicate targeting the given formula.
+ */
+export function BuilderDefaultPredicateForFormula(formulaType: string, formulaKey: string): $CancellablePromise<builder$0.Predicate> {
+    return $Call.ByID(1070825278, formulaType, formulaKey).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * BuilderDefaultRule returns an empty Rule; the frontend assigns the ID.
  */
 export function BuilderDefaultRule(): $CancellablePromise<builder$0.Rule> {
@@ -88,13 +97,6 @@ export function BuilderIsDisplayableFieldType(fieldType: string): $CancellablePr
 }
 
 /**
- * BuilderKindForFieldType reports the rule kind for a field type, or "" when it accepts no predicates.
- */
-export function BuilderKindForFieldType(fieldType: string): $CancellablePromise<string> {
-    return $Call.ByID(639708732, fieldType);
-}
-
-/**
  * BuilderOperatorsForKind returns the operator vocabulary for the State picker (empty for boolean/date).
  */
 export function BuilderOperatorsForKind(kind: string): $CancellablePromise<builder$0.Operator[]> {
@@ -113,6 +115,18 @@ export function BuilderParse(src: string, fields: builder$0.FieldRef[]): $Cancel
 }
 
 /**
+ * BuilderPredicateSources returns everything a rule may test: the expression
+ * fields whose type carries a rule kind, followed by the formulas whose result
+ * type does. Counterpart to BuilderTextSources, and the same division of
+ * labour: the backend decides what is selectable, the editor renders the list.
+ */
+export function BuilderPredicateSources(fields: template$0.Field[], formulas: template$0.Formula[]): $CancellablePromise<builder$0.PredicateSourceOption[]> {
+    return $Call.ByID(1339728606, fields, formulas).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+/**
  * BuilderTextSources returns the field-value sources an OUTCOME text part may
  * use: the displayable fields (by type) followed by the template's formula
  * fields. The backend decides what is selectable; the editor renders the list.
@@ -121,7 +135,7 @@ export function BuilderParse(src: string, fields: builder$0.FieldRef[]): $Cancel
  */
 export function BuilderTextSources(fields: template$0.Field[], formulas: template$0.Formula[]): $CancellablePromise<builder$0.TextSourceOption[]> {
     return $Call.ByID(1611479042, fields, formulas).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -130,7 +144,7 @@ export function BuilderTextSources(fields: template$0.Field[], formulas: templat
  */
 export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.Result> {
     return $Call.ByID(3315345587, src, ctx).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -141,7 +155,7 @@ export function Evaluate(src: string, ctx: { [_ in string]?: any }): $Cancellabl
  */
 export function EvaluateList(templateName: string): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(3129605659, templateName).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -150,7 +164,7 @@ export function EvaluateList(templateName: string): $CancellablePromise<$models.
  */
 export function EvaluateListMany(templateName: string, datafiles: string[]): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(2738239460, templateName, datafiles).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -159,7 +173,7 @@ export function EvaluateListMany(templateName: string, datafiles: string[]): $Ca
  */
 export function EvaluateListOne(templateName: string, datafile: string): $CancellablePromise<$models.Result> {
     return $Call.ByID(2616284681, templateName, datafile).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -169,7 +183,7 @@ export function EvaluateListOne(templateName: string, datafile: string): $Cancel
  */
 export function Functions(): $CancellablePromise<$models.FunctionDoc[]> {
     return $Call.ByID(843830801).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
@@ -183,9 +197,11 @@ const $$createType5 = builder$0.FieldOption.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = builder$0.Operator.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = builder$0.TextSourceOption.createFrom;
+const $$createType9 = builder$0.PredicateSourceOption.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.Result.createFrom;
+const $$createType11 = builder$0.TextSourceOption.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.FunctionDoc.createFrom;
+const $$createType13 = $models.Result.createFrom;
 const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $models.FunctionDoc.createFrom;
+const $$createType16 = $Create.Array($$createType15);

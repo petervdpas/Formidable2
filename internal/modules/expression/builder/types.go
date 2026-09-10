@@ -113,3 +113,12 @@ type FieldRef struct {
 	Type    string        `json:"type"`
 	Options []FieldOption `json:"options,omitempty"`
 }
+
+// FormulaRef is the slim per-formula shape Compile needs. A formula shares the
+// F["key"] accessor with a real field, so a predicate targets it the same way;
+// Type is the formula's declared result type (number/text/date/bool), which
+// decides its RuleKind. No Options: no formula result is enumerable.
+type FormulaRef struct {
+	Key  string `json:"key"`
+	Type string `json:"type"`
+}

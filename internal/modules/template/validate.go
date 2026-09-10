@@ -260,6 +260,21 @@ func scalingsErrors(t *Template) []ValidationError {
 
 var validFormulaTypes = map[string]bool{"number": true, "text": true, "date": true, "bool": true}
 
+// DefaultFormulaType is the result type a formula with no declared type takes.
+const DefaultFormulaType = "number"
+
+// EffectiveFormulaType resolves a formula's declared result type, applying the
+// blank-means-number default. The one place that rule lives: Normalize stamps
+// it onto the stored formula, and callers that read an unnormalised catalog
+// route through here rather than repeating the default.
+func EffectiveFormulaType(formulaType string) string {
+	t := strings.TrimSpace(formulaType)
+	if t == "" {
+		return DefaultFormulaType
+	}
+	return t
+}
+
 // formulasErrors flags structural problems with the formula catalog: a bad or
 // empty key, an empty expression, a duplicate key, an unknown result type, or a
 // key that collides with a field or facet key (formulas share the F["key"]
@@ -415,10 +430,7 @@ func FormulaTargetTypes() map[string][]string {
 }
 
 func formulaTargetAccepts(formulaType, fieldType string) bool {
-	if formulaType == "" {
-		formulaType = "number"
-	}
-	return slices.Contains(formulaTargetTypes[formulaType], fieldType)
+	return slices.Contains(formulaTargetTypes[EffectiveFormulaType(formulaType)], fieldType)
 }
 
 // formulaFieldErrors flags virtual formula fields with a missing/unknown source

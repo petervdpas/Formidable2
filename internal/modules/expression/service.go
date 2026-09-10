@@ -50,14 +50,6 @@ func (s *Service) EvaluateListMany(templateName string, datafiles []string) ([]R
 // palettes reflect the engine's real capabilities.
 func (s *Service) Functions() []FunctionDoc { return Functions() }
 
-// BuilderKindForFieldType reports the rule kind for a field type, or "" when it accepts no predicates.
-func (s *Service) BuilderKindForFieldType(fieldType string) string {
-	if k, ok := builder.KindForField(fieldType); ok {
-		return string(k)
-	}
-	return ""
-}
-
 // BuilderIsDisplayableFieldType reports whether a type may appear in the display pickers; virtual types return false.
 func (s *Service) BuilderIsDisplayableFieldType(fieldType string) bool {
 	return builder.IsDisplayableFieldType(fieldType)
@@ -98,6 +90,34 @@ func (s *Service) BuilderDefaultPredicate(fieldType, fieldKey string) (builder.P
 	return builder.DefaultPredicateForField(fieldType, fieldKey)
 }
 
+// BuilderDefaultPredicateForFormula returns a fresh Predicate targeting the given formula.
+func (s *Service) BuilderDefaultPredicateForFormula(formulaType, formulaKey string) (builder.Predicate, error) {
+	return builder.DefaultPredicateForFormula(formulaType, formulaKey)
+}
+
+// BuilderPredicateSources returns everything a rule may test: the expression
+// fields whose type carries a rule kind, followed by the formulas whose result
+// type does. Counterpart to BuilderTextSources, and the same division of
+// labour: the backend decides what is selectable, the editor renders the list.
+func (s *Service) BuilderPredicateSources(fields []template.Field, formulas []template.Formula) []builder.PredicateSourceOption {
+	out := make([]builder.PredicateSourceOption, 0, len(fields)+len(formulas))
+	for _, f := range fields {
+		if _, ok := builder.KindForField(f.Type); ok {
+			out = append(out, builder.PredicateSourceOption{
+				Key: f.Key, Label: labelOr(f.Label, f.Key), Type: f.Type, Group: "field",
+			})
+		}
+	}
+	for _, fm := range formulas {
+		if _, ok := builder.KindForFormula(fm.Type); ok {
+			out = append(out, builder.PredicateSourceOption{
+				Key: fm.Key, Label: labelOr(fm.Label, fm.Key), Type: fm.Type, Group: "formula",
+			})
+		}
+	}
+	return out
+}
+
 // BuilderDefaultRule returns an empty Rule; the frontend assigns the ID.
 func (s *Service) BuilderDefaultRule() builder.Rule {
 	return builder.DefaultRule()
@@ -119,8 +139,8 @@ func (s *Service) BuilderDateOps() []builder.DateOpDescriptor {
 }
 
 // BuilderCompile turns a Config into the expr-lang source; "" means "no chip", an error keeps the dialog open.
-func (s *Service) BuilderCompile(cfg builder.Config, fields []builder.FieldRef) (string, error) {
-	return builder.Compile(cfg, fields)
+func (s *Service) BuilderCompile(cfg builder.Config, fields []builder.FieldRef, formulas []builder.FormulaRef) (string, error) {
+	return builder.Compile(cfg, fields, formulas)
 }
 
 // BuilderParse is the inverse of BuilderCompile; non-canonical sources error so the dialog can fall back.
@@ -129,6 +149,6 @@ func (s *Service) BuilderParse(src string, fields []builder.FieldRef) (builder.C
 }
 
 // BuilderConvert best-effort migrates a legacy sidebar_expression, invoked only when BuilderParse fails.
-func (s *Service) BuilderConvert(src string, fields []builder.FieldRef) (string, error) {
-	return builder.Convert(src, fields)
+func (s *Service) BuilderConvert(src string, fields []builder.FieldRef, formulas []builder.FormulaRef) (string, error) {
+	return builder.Convert(src, fields, formulas)
 }

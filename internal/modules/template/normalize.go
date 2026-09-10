@@ -233,10 +233,7 @@ func normalizeFormulas(t *Template) {
 		f.Key = key
 		f.Expression = expr
 		f.Label = strings.TrimSpace(f.Label)
-		f.Type = strings.TrimSpace(f.Type)
-		if f.Type == "" {
-			f.Type = "number"
-		}
+		f.Type = EffectiveFormulaType(f.Type)
 		kept = append(kept, f)
 	}
 	if len(kept) == 0 {

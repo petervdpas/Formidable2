@@ -11,7 +11,10 @@ import { useI18n } from "vue-i18n";
 import { TextareaField } from "./fields";
 import ExpressionBuilderModal from "./ExpressionBuilderModal.vue";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
-import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
+import type {
+  FieldRef,
+  FormulaRef,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import type {
   Field,
   Facet,
@@ -51,6 +54,12 @@ function fieldRefs(): FieldRef[] {
     }));
 }
 
+// Formula keys live in the same F["key"] namespace as fields, so Convert needs
+// them to tell a legacy bare identifier from an unknown symbol.
+function formulaRefs(): FormulaRef[] {
+  return (props.formulas ?? []).map((f) => ({ key: f.key, type: f.type || "" }));
+}
+
 async function recheck() {
   const src = (props.sidebarExpression ?? "").trim();
   if (!src) {
@@ -77,7 +86,11 @@ async function onConvert() {
   const src = (props.sidebarExpression ?? "").trim();
   if (!src) return;
   try {
-    const migrated = await ExpressionSvc.BuilderConvert(src, fieldRefs());
+    const migrated = await ExpressionSvc.BuilderConvert(
+      src,
+      fieldRefs(),
+      formulaRefs(),
+    );
     emit("update:sidebarExpression", migrated);
     toast.success("workspace.templates.expression_builder.convert_succeeded");
   } catch (err) {

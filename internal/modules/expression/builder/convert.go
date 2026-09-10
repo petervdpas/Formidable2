@@ -10,7 +10,7 @@ import (
 
 // Convert best-effort migrates legacy sidebar_expression shapes (pipe form, array-wrapped cascade, bare
 // identifiers/literals) into the canonical F/L/O form. Invoked only when Parse fails; unrecognised input errors.
-func Convert(src string, fields []FieldRef) (string, error) {
+func Convert(src string, fields []FieldRef, formulas []FormulaRef) (string, error) {
 	src = strings.TrimSpace(src)
 	if src == "" {
 		return "", nil
@@ -24,8 +24,13 @@ func Convert(src string, fields []FieldRef) (string, error) {
 		return "", fmt.Errorf("convert: parse: %w", err)
 	}
 
-	fkeys := make(map[string]bool, len(fields))
+	// Formula keys share the F["key"] namespace with fields, so a bare identifier
+	// naming a formula is just as much a context reference as a field is.
+	fkeys := make(map[string]bool, len(fields)+len(formulas))
 	for _, f := range fields {
+		fkeys[f.Key] = true
+	}
+	for _, f := range formulas {
 		fkeys[f.Key] = true
 	}
 
@@ -33,7 +38,7 @@ func Convert(src string, fields []FieldRef) (string, error) {
 	out := tree.Node.String()
 
 	if cfg, err := Parse(out, fields); err == nil {
-		if canon, err := Compile(cfg, fields); err == nil && canon != "" {
+		if canon, err := Compile(cfg, fields, formulas); err == nil && canon != "" {
 			return canon, nil
 		}
 	}

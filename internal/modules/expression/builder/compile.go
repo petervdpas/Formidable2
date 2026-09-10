@@ -8,13 +8,15 @@ import (
 )
 
 // Compile turns a Config into expr-lang source: rules top-to-bottom (first match wins) ending in the default
-// Outcome. fields validates predicate keys and bakes fieldLabel lookups. Empty Config compiles to "".
-func Compile(cfg Config, fields []FieldRef) (string, error) {
+// Outcome. fields validates predicate keys and bakes fieldLabel lookups; formulas is the same catalog for
+// formula-backed predicates, which share the F["key"] accessor. Empty Config compiles to "".
+func Compile(cfg Config, fields []FieldRef, formulas []FormulaRef) (string, error) {
 	if len(cfg.Rules) == 0 && outcomeIsEmpty(cfg.Default) {
 		return "", nil
 	}
 
 	idx := indexFields(fields)
+	fidx := indexFormulas(formulas)
 
 	tail, err := outcomeExpr(cfg.Default, idx)
 	if err != nil {
@@ -23,7 +25,7 @@ func Compile(cfg Config, fields []FieldRef) (string, error) {
 
 	for i := len(cfg.Rules) - 1; i >= 0; i-- {
 		r := cfg.Rules[i]
-		match, err := rulePredicate(r, idx)
+		match, err := rulePredicate(r, idx, fidx)
 		if err != nil {
 			return "", fmt.Errorf("builder: rule %q: %w", r.ID, err)
 		}
@@ -47,14 +49,22 @@ func indexFields(fields []FieldRef) map[string]FieldRef {
 	return m
 }
 
+func indexFormulas(formulas []FormulaRef) map[string]FormulaRef {
+	m := make(map[string]FormulaRef, len(formulas))
+	for _, f := range formulas {
+		m[f.Key] = f
+	}
+	return m
+}
+
 // rulePredicate joins the rule's Predicates with AND; empty Predicates returns "true" (always matches).
-func rulePredicate(r Rule, fields map[string]FieldRef) (string, error) {
+func rulePredicate(r Rule, fields map[string]FieldRef, formulas map[string]FormulaRef) (string, error) {
 	if len(r.Predicates) == 0 {
 		return "true", nil
 	}
 	parts := make([]string, len(r.Predicates))
 	for i, p := range r.Predicates {
-		s, err := predicateExpr(p, fields)
+		s, err := predicateExpr(p, fields, formulas)
 		if err != nil {
 			return "", err
 		}
@@ -66,22 +76,13 @@ func rulePredicate(r Rule, fields map[string]FieldRef) (string, error) {
 	return "(" + strings.Join(parts, " && ") + ")", nil
 }
 
-func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
+func predicateExpr(p Predicate, fields map[string]FieldRef, formulas map[string]FormulaRef) (string, error) {
 	key := strings.TrimSpace(p.FieldKey)
 	if key == "" {
 		return "", fmt.Errorf("predicate has no field key")
 	}
-	// FieldRef is required to validate the predicate kind against the field's declared type.
-	f, ok := fields[key]
-	if !ok {
-		return "", fmt.Errorf("predicate references unknown field %q", key)
-	}
-	wantKind, kindOK := KindForField(f.Type)
-	if !kindOK {
-		return "", fmt.Errorf("predicate field %q has type %q which does not support predicates", key, f.Type)
-	}
-	if p.Kind != wantKind {
-		return "", fmt.Errorf("predicate on field %q has kind %q but field type %q expects %q", key, p.Kind, f.Type, wantKind)
+	if err := checkPredicateKind(p.Kind, key, fields, formulas); err != nil {
+		return "", err
 	}
 
 	ref := fieldRef(key)
@@ -150,6 +151,33 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 		return fmt.Sprintf("%s(%s)", p.DateOp, ref), nil
 	}
 	return "", fmt.Errorf("unknown predicate kind %q", p.Kind)
+}
+
+// checkPredicateKind resolves the predicate's key against the field catalog first and the formula catalog
+// second (a key collision is rejected by template validation, so the order only makes malformed input
+// deterministic), then checks the declared type actually yields the predicate's kind.
+func checkPredicateKind(kind RuleKind, key string, fields map[string]FieldRef, formulas map[string]FormulaRef) error {
+	if f, ok := fields[key]; ok {
+		wantKind, kindOK := KindForField(f.Type)
+		if !kindOK {
+			return fmt.Errorf("predicate field %q has type %q which does not support predicates", key, f.Type)
+		}
+		if kind != wantKind {
+			return fmt.Errorf("predicate on field %q has kind %q but field type %q expects %q", key, kind, f.Type, wantKind)
+		}
+		return nil
+	}
+	if fm, ok := formulas[key]; ok {
+		wantKind, kindOK := KindForFormula(fm.Type)
+		if !kindOK {
+			return fmt.Errorf("predicate formula %q has type %q which does not support predicates", key, fm.Type)
+		}
+		if kind != wantKind {
+			return fmt.Errorf("predicate on formula %q has kind %q but formula type %q expects %q", key, kind, fm.Type, wantKind)
+		}
+		return nil
+	}
+	return fmt.Errorf("predicate references unknown field or formula %q", key)
 }
 
 // outcomeExpr emits a Result-shaped map literal; an empty outcome is "{}" (caller skips no-ops via outcomeIsEmpty).

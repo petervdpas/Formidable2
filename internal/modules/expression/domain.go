@@ -3,6 +3,10 @@ package expression
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // TemplateProvider is the template surface the sidebar evaluator needs.
@@ -90,10 +94,63 @@ func (m *Manager) EvaluateFormulas(specs []FormulaSpec, ctx map[string]any) map[
 		if err != nil {
 			continue
 		}
-		out[s.Key] = raw
-		ctx[s.Key] = raw
+		v, ok := coerceFormulaValue(raw, s.Type)
+		if !ok {
+			continue
+		}
+		out[s.Key] = v
+		ctx[s.Key] = v
 	}
 	return out
+}
+
+// coerceFormulaValue makes a formula's declared type true, or reports that the
+// value cannot be that type. Only number and bool are narrowed: those are the
+// two the sidebar compiles into an arithmetic comparison and a ternary
+// condition, where a wrong Go type raises at evaluate time. Date and text pass
+// through, since every date helper takes `any` with a defined answer for
+// garbage and text is only ever wrapped in str().
+//
+// A value that cannot be the declared type is dropped, never zero-filled: an
+// absent key raises where the author can see it, while 0 or false would render
+// a confident wrong chip.
+func coerceFormulaValue(raw any, typ string) (any, bool) {
+	switch template.EffectiveFormulaType(typ) {
+	case "number":
+		switch n := raw.(type) {
+		case float64:
+			return n, true
+		case float32:
+			return float64(n), true
+		case int:
+			return float64(n), true
+		case int64:
+			return float64(n), true
+		case string:
+			// The datacore path stores numbers as string cells and parses them
+			// back, so a numeric string is a number here too.
+			f, err := strconv.ParseFloat(strings.TrimSpace(n), 64)
+			if err != nil {
+				return nil, false
+			}
+			return f, true
+		}
+		return nil, false
+	case "bool":
+		switch b := raw.(type) {
+		case bool:
+			return b, true
+		case string:
+			switch strings.TrimSpace(b) {
+			case "true":
+				return true, true
+			case "false":
+				return false, true
+			}
+		}
+		return nil, false
+	}
+	return raw, true
 }
 
 // evalRecord runs the compiled expression against one record's narrowed context, returning a row Result.
