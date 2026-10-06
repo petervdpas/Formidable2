@@ -75,8 +75,9 @@ func DisplayLabel(n Node) string {
 }
 
 // Place lays the graph out in columns (one per layer, unknown layers appended in
-// first-seen order) and orders nodes and their ports by barycenter sweeps,
-// keeping the ordering with the fewest crossings. Pure and deterministic.
+// first-seen order). Entities and their ports keep table (first-seen) order;
+// pills and pass-through lanes are ordered by barycenter sweeps, keeping the
+// ordering with the fewest crossings. Pure and deterministic.
 func Place(g Graph) Layout {
 	p := newPlacer(g)
 	if len(p.boxes) == 0 {
@@ -291,8 +292,10 @@ func (p *placer) anchor(r PortRef) (x, y float64, b *NodeBox) {
 	return b.X, b.Y + headerH/2, b
 }
 
-// sweep reorders every column by the barycenter of its neighbours on one side:
-// forward looks left (inbound edges), backward looks right (outbound).
+// sweep reorders the free columns by the barycenter of their neighbours on one
+// side: forward looks left (inbound edges), backward looks right (outbound).
+// Entities and their ports keep table (first-seen) order; only columns of
+// pills and lanes move.
 func (p *placer) sweep(forward bool) {
 	idx := make([]int, len(p.cols))
 	for i := range idx {
@@ -313,9 +316,11 @@ func (p *placer) reorderColumn(ci int, forward bool) {
 	col := p.cols[ci]
 	inCol := map[string]bool{}
 	for _, b := range col {
+		if b.Node.Kind == KindEntity {
+			return
+		}
 		inCol[b.Node.ID] = true
 	}
-	portSum := map[PortRef][2]float64{}
 	nodeSum := map[string][2]float64{}
 	for _, e := range p.segs {
 		self, other := e.To, e.From
@@ -326,23 +331,11 @@ func (p *placer) reorderColumn(ci int, forward bool) {
 			continue
 		}
 		_, oy, _ := p.anchor(other)
-		if self.Port != "" {
-			s := portSum[self]
-			portSum[self] = [2]float64{s[0] + oy, s[1] + 1}
-		}
 		s := nodeSum[self.Node]
 		nodeSum[self.Node] = [2]float64{s[0] + oy, s[1] + 1}
 	}
 	keys := map[string]float64{}
 	for _, b := range col {
-		pk := make(map[string]float64, len(b.Ports))
-		for _, pb := range b.Ports {
-			pk[pb.Port.ID] = pb.Y
-			if s := portSum[PortRef{Node: b.Node.ID, Port: pb.Port.ID}]; s[1] > 0 {
-				pk[pb.Port.ID] = s[0] / s[1]
-			}
-		}
-		sort.SliceStable(b.Ports, func(i, j int) bool { return pk[b.Ports[i].Port.ID] < pk[b.Ports[j].Port.ID] })
 		keys[b.Node.ID] = b.Y + b.H/2
 		if s := nodeSum[b.Node.ID]; s[1] > 0 {
 			keys[b.Node.ID] = s[0] / s[1]

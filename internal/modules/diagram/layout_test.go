@@ -82,8 +82,8 @@ func TestLayout_PortsSitInsideTheirBoxInOrder(t *testing.T) {
 	}
 }
 
-func TestLayout_PortsReorderToUncrossEdges(t *testing.T) {
-	// Target ports first appear as a,b,c but are fed by x,y,z in reverse.
+func TestLayout_PortsKeepTableOrder(t *testing.T) {
+	// Target ports first appear as a,b,c and are fed in reverse; table order wins.
 	g := Lineage([][]string{
 		{"", "", "T", "a", ""},
 		{"", "", "T", "b", ""},
@@ -92,23 +92,46 @@ func TestLayout_PortsReorderToUncrossEdges(t *testing.T) {
 		{"A", "y", "T", "b", ""},
 		{"A", "z", "T", "a", ""},
 	}, testCols)
-	if n := Crossings(Place(g)); n != 0 {
-		t.Fatalf("crossings = %d, want 0", n)
+	l := Place(g)
+	tg, _ := boxByID(l, "target:t")
+	src, _ := boxByID(l, "source:a")
+	if !reflect.DeepEqual(boxPortLabels(tg), []string{"a", "b", "c"}) || !reflect.DeepEqual(boxPortLabels(src), []string{"x", "y", "z"}) {
+		t.Fatalf("ports = %v / %v, want table order", boxPortLabels(src), boxPortLabels(tg))
 	}
 }
 
-func TestLayout_NodesReorderToUncrossEdges(t *testing.T) {
+func TestLayout_EntitiesKeepTableOrder(t *testing.T) {
 	g := Lineage([][]string{
 		{"A", "x", "Q", "q", ""},
 		{"B", "y", "P", "p", ""},
-		{"", "", "P", "p", ""},
+		{"C", "z", "Q", "q2", ""},
 	}, testCols)
-	// First-seen target order is Q, P; sources A, B. Edges A->Q and B->P do not
-	// cross in that order, so force the bad order by declaring P first.
-	g.Nodes[1], g.Nodes[3] = g.Nodes[3], g.Nodes[1]
 	l := Place(g)
-	if n := Crossings(l); n != 0 {
-		t.Fatalf("crossings = %d, want 0", n)
+	a, _ := boxByID(l, "source:a")
+	b, _ := boxByID(l, "source:b")
+	c, _ := boxByID(l, "source:c")
+	q, _ := boxByID(l, "target:q")
+	p, _ := boxByID(l, "target:p")
+	if !(a.Y < b.Y && b.Y < c.Y) || !(q.Y < p.Y) {
+		t.Fatalf("entities moved: a=%v b=%v c=%v q=%v p=%v", a.Y, b.Y, c.Y, q.Y, p.Y)
+	}
+}
+
+func TestLayout_RulePillsArePlacedToUncrossEdges(t *testing.T) {
+	// Pills first appear as R3, R2, R1 (all feeding U.u) but then feed T's
+	// ports a, b, c in that order, so R1 belongs on top.
+	g := Lineage([][]string{
+		{"", "", "U", "u", "R3, R2, R1"},
+		{"", "", "T", "a", "R1"},
+		{"", "", "T", "b", "R2"},
+		{"", "", "T", "c", "R3"},
+	}, testCols)
+	l := Place(g)
+	r1, _ := boxByID(l, "rule:r1")
+	r2, _ := boxByID(l, "rule:r2")
+	r3, _ := boxByID(l, "rule:r3")
+	if !(r1.Y < r2.Y && r2.Y < r3.Y) {
+		t.Fatalf("pills not ordered by their targets: r1=%v r2=%v r3=%v", r1.Y, r2.Y, r3.Y)
 	}
 }
 
