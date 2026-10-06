@@ -224,6 +224,9 @@ func renderFieldValueBlock(f Field, opts GeneratorOptions) string {
 	case "facet":
 		// Value lives in meta.facets, not form.data, so {{field}} would be empty; {{virtual-field}} projects it.
 		return fmt.Sprintf(`{{virtual-field "%s"}}`, key)
+	case "diagram":
+		// Virtual: draws its bound table as an SVG block.
+		return fmt.Sprintf(`{{virtual-field "%s"}}`, key)
 	case "formula":
 		// The formula's output is written into the target data field, so render that slot.
 		if f.TargetKey == "" {
@@ -336,8 +339,8 @@ func collectLogs(logs *[]string, key, typ string) {
 		*logs = append(*logs, fmt.Sprintf("> **%s** _(facet)_: `{{virtual-field \"%s\"}}`", key, key))
 		return
 	}
-	if typ == "formula" {
-		// Virtual: the value is written into the target field, which carries its own debug line.
+	if typ == "formula" || typ == "diagram" {
+		// Virtual: formula writes into its target (own debug line); diagram has no value to dump.
 		return
 	}
 	*logs = append(*logs, fmt.Sprintf("> **%s**: `{{json (fieldRaw \"%s\")}}`", key, key))
@@ -463,6 +466,9 @@ func tableRowForField(f Field, key string, imgMode ImgMode) string {
 	switch strings.ToLower(f.Type) {
 	case "facet":
 		return fmt.Sprintf(`| %s | {{virtual-field "%s"}} |`, label, key)
+	case "diagram":
+		// An SVG block cannot sit in a table cell.
+		return fmt.Sprintf(`| %s |  |`, label)
 	case "formula":
 		if f.TargetKey == "" {
 			return fmt.Sprintf(`| %s |  |`, label)
@@ -506,8 +512,8 @@ func generateFrontmatter(fields []Field) string {
 		if depth > 0 || seen[key] {
 			continue
 		}
-		// Image and api fields don't fit a YAML metadata block, so frontmatter skips them.
-		if t == "image" || t == "api" || t == "api-client" {
+		// Image, api and diagram fields don't fit a YAML metadata block, so frontmatter skips them.
+		if t == "image" || t == "api" || t == "api-client" || t == "diagram" {
 			continue
 		}
 		seen[key] = true

@@ -1,0 +1,28 @@
+/* Diagram field: the backend SVG sits on its own white canvas (fixed colours,
+   same picture as the wiki and PDF), scaled to the row and zoomable on click. */
+
+.diagram-field-canvas {
+    overflow-x: auto;
+    cursor: zoom-in;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+}
+
+.diagram-field-canvas svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.diagram-field-hint {
+    margin: 0;
+    font-size: 0.9em;
+    color: var(--color-text-muted);
+}
+
+.diagram-field-error {
+    margin: 0;
+    font-size: 0.9em;
+    color: var(--color-error);
+}

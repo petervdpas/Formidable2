@@ -84,10 +84,13 @@ export type FixedRowConfig = {
   labelKey: string;
   defaults: OptionRow;
   /** Overrides how this row's editable (label) cell renders: "format" /
-   *  "timeblock" (a dropdown of `choices`), "color" (a picker), "number",
+   *  "timeblock" / "table-field" / "table-column" (a dropdown of `choices`),
+   *  "color" (a picker), "number",
    *  "date" (a date picker), else text. */
   input?: string;
   choices?: string[];
+  /** Display text per choice value; missing entries show the value itself. */
+  choiceLabels?: Record<string, string>;
 };
 
 const props = defineProps<{
@@ -277,10 +280,10 @@ function getCell(row: OptionRow, col: ColumnDef): string {
                 class="options-cell"
               />
               <SelectField
-                v-else-if="fixedRows[i].input === 'format' || fixedRows[i].input === 'timeblock'"
+                v-else-if="fixedRows[i].input === 'format' || fixedRows[i].input === 'timeblock' || fixedRows[i].input === 'table-field' || fixedRows[i].input === 'table-column'"
                 :model-value="getCell(row, col)"
                 @update:model-value="(v) => setCell(i, col, v)"
-                :options="(fixedRows[i].choices ?? []).map((o) => ({ value: o, label: o }))"
+                :options="(fixedRows[i].choices ?? []).map((o) => ({ value: o, label: fixedRows?.[i]?.choiceLabels?.[o] ?? o }))"
                 class="options-cell"
               />
               <TextField

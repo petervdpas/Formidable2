@@ -561,7 +561,40 @@ const defaultAsString = computed({
 const optionsSupported = computed(() => supportsOptions(draft.value?.type || ""));
 
 const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
-const optionFixedRows = computed(() => fixedRowsFor(draft.value?.type || "") ?? undefined);
+const optionFixedRows = computed(() => {
+  const rows = fixedRowsFor(draft.value?.type || "") ?? undefined;
+  if (!rows || draft.value?.type !== "diagram") return rows;
+  return rows.map((r) => {
+    if (r.input === "table-field") return { ...r, ...diagramSourceChoices.value };
+    if (r.input === "table-column") return { ...r, ...diagramColumnChoices.value };
+    return r;
+  });
+});
+
+// Diagram pickers: the source is a root table of this template; the column
+// roles pick that table's column keys (blank = unbound, optional roles).
+type Choices = { choices: string[]; choiceLabels: Record<string, string> };
+const diagramTables = computed(() =>
+  (props.availableFields ?? []).filter((f) => f.type === "table" && f.key && (f.level_scope ?? 0) === 0),
+);
+const diagramSourceChoices = computed<Choices>(() => {
+  const labels: Record<string, string> = { "": t("workspace.templates.diagram.none") };
+  for (const f of diagramTables.value) labels[f.key] = f.label ? `${f.label} (${f.key})` : f.key;
+  return { choices: ["", ...diagramTables.value.map((f) => f.key)], choiceLabels: labels };
+});
+const diagramColumnChoices = computed<Choices>(() => {
+  const src = optionRows.value.find((r) => r.value === "source")?.label ?? "";
+  const table = diagramTables.value.find((f) => f.key === src);
+  const labels: Record<string, string> = { "": t("workspace.templates.diagram.none") };
+  const keys: string[] = [];
+  for (const o of (table?.options ?? []) as Record<string, unknown>[]) {
+    const k = typeof o?.value === "string" ? o.value : "";
+    if (!k) continue;
+    keys.push(k);
+    labels[k] = typeof o.label === "string" && o.label ? `${o.label} (${k})` : k;
+  }
+  return { choices: ["", ...keys], choiceLabels: labels };
+});
 const optionLockedColumns = computed(() => lockedColumnsFor(draft.value?.type || ""));
 const optionAllowExtraRows = computed(() => allowExtraRowsFor(draft.value?.type || ""));
 const optionExtraRowsLabel = computed(() => {

@@ -965,7 +965,7 @@ func dataSchemaForTemplate(t *template.Template) map[string]any {
 func fieldToProperty(f template.Field) (string, map[string]any) {
 	schema := map[string]any{}
 	switch f.Type {
-	case "loopstart", "loopstop":
+	case "loopstart", "loopstop", "diagram":
 		return "", nil
 	case "guid":
 		schema["type"] = "string"

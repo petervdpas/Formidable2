@@ -28,6 +28,7 @@ var fieldTypePalette = map[string]FieldColor{
 	"api-client":  {Bg: "#103642", Border: "#22b8cf", Badge: "#0f7d8c", Text: "#eaf7fa"},
 	"boolean":     {Bg: "#2e7d32", Border: "#4caf50", Badge: "#43a047", Text: "#ffffff"},
 	"date":        {Bg: "#229388", Border: "#4dd0e1", Badge: "#44c5d1", Text: "#ffffff"},
+	"diagram":     {Bg: "#37474f", Border: "#90a4ae", Badge: "#607d8b", Text: "#ffffff"},
 	"dropdown":    {Bg: "#5e178b", Border: "#ba68c8", Badge: "#a05db5", Text: "#ffffff"},
 	"event":       {Bg: "#303f9c", Border: "#7986cb", Badge: "#5361c9", Text: "#ffffff"},
 	"facet":       {Bg: "#d4b73a", Border: "#b8992e", Badge: "#c9a82a", Text: "#222222"},

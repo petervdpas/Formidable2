@@ -307,6 +307,12 @@
     color: var(--field-type-formula-text);
     --field-row-badge-bg: var(--field-type-formula-badge);
 }
+.field-row[data-type="diagram"] {
+    background: var(--field-type-diagram-bg);
+    border-left-color: var(--field-type-diagram-border);
+    color: var(--field-type-diagram-text);
+    --field-row-badge-bg: var(--field-type-diagram-badge);
+}
 
 .field-row[data-type="loopstart"],
 .field-row[data-type="loopstop"],

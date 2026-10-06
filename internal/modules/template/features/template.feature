@@ -382,8 +382,9 @@ Feature: Template management
     And the registry contains "project"
     And the registry contains "formula"
     And the registry contains "api-client"
+    And the registry contains "diagram"
     And the registry first id is "text"
-    And the registry size is 30
+    And the registry size is 31
 
   # ── Project Mode (plan board: project axis + event bars) ──────────
 

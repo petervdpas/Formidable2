@@ -347,6 +347,29 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			FacetKey: false,
 		},
 	},
+	"diagram": {
+		// A drawing of the record's own data (virtual: stores nothing). Options
+		// are fixed role rows binding a root table and its columns.
+		ID: "diagram", Virtual: true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: true, Description: true,
+			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "workspace.templates.diagram.source", Input: "table-field", Defaults: map[string]any{"value": DiagramSource, "label": ""}},
+				{LabelKey: "workspace.templates.diagram.from_entity", Input: "table-column", Defaults: map[string]any{"value": DiagramFromEntity, "label": ""}},
+				{LabelKey: "workspace.templates.diagram.from_attr", Input: "table-column", Defaults: map[string]any{"value": DiagramFromAttr, "label": ""}},
+				{LabelKey: "workspace.templates.diagram.to_entity", Input: "table-column", Defaults: map[string]any{"value": DiagramToEntity, "label": ""}},
+				{LabelKey: "workspace.templates.diagram.to_attr", Input: "table-column", Defaults: map[string]any{"value": DiagramToAttr, "label": ""}},
+				{LabelKey: "workspace.templates.diagram.label", Input: "table-column", Defaults: map[string]any{"value": DiagramLabel, "label": ""}},
+			},
+			LockedColumns: []string{"value"},
+		},
+	},
 	"looper": {
 		ID: "looper", MetaOnly: true,
 		Abilities: Abilities{
@@ -385,7 +408,7 @@ var orderedTypes = []string{
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
-	"api", "api-client", "guid", "facet", "formula",
+	"api", "api-client", "guid", "facet", "formula", "diagram",
 	"looper", "loopstart", "loopstop",
 }
 
@@ -421,6 +444,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"guid":        "workspace.templates.field_type.guid",
 	"facet":       "workspace.templates.field_type.facet",
 	"formula":     "workspace.templates.field_type.formula",
+	"diagram":     "workspace.templates.field_type.diagram",
 	"looper":      "workspace.templates.field_type.looper",
 	"loopstart":   "workspace.templates.field_type.loopstart",
 	"loopstop":    "workspace.templates.field_type.loopstop",
@@ -460,6 +484,7 @@ var fieldTypeColors = map[string]string{
 	"guid":        "guid",
 	"facet":       "facet",
 	"formula":     "formula",
+	"diagram":     "diagram",
 	"looper":      "looper",
 	"loopstart":   "looper",
 	"loopstop":    "looper",

@@ -110,3 +110,28 @@ func TestGenerate_FrontmatterFacetIncluded(t *testing.T) {
 		t.Errorf("frontmatter must NOT read fieldRaw for a virtual field; got:\n%s", got)
 	}
 }
+
+// ── Diagram (virtual, draws its bound table) ─────────────────────────
+
+func diagramFieldsSample() []Field {
+	return []Field{mappingTable(), diagramField("mapping", fullCols)}
+}
+
+func TestGenerate_ReportDiagramEmitsVirtualFieldHelperWithoutDebugLog(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(), diagramFieldsSample())
+	if !strings.Contains(got, `{{virtual-field "lineage"}}`) {
+		t.Errorf("expected virtual-field helper for diagram; got:\n%s", got)
+	}
+	if strings.Contains(got, `fieldRaw "lineage"`) || strings.Contains(got, `{{field "lineage"}}`) {
+		t.Errorf("diagram has no data slot to read; got:\n%s", got)
+	}
+}
+
+func TestGenerate_TableAndFrontmatterKeepDiagramOutOfCellsAndYAML(t *testing.T) {
+	if got := GenerateMarkdownTemplate(ShapeTable, defaultOpts(), diagramFieldsSample()); strings.Contains(got, `virtual-field "lineage"`) {
+		t.Errorf("table shape must not put an SVG block in a cell; got:\n%s", got)
+	}
+	if got := GenerateMarkdownTemplate(ShapeFrontmatter, defaultOpts(), diagramFieldsSample()); strings.Contains(got, "lineage:") {
+		t.Errorf("frontmatter must skip diagram; got:\n%s", got)
+	}
+}

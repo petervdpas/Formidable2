@@ -26,6 +26,7 @@ import FormFieldLink from "./FormFieldLink.vue";
 import FormFieldAPI from "./FormFieldAPI.vue";
 import FormFieldApiClient from "./FormFieldApiClient.vue";
 import FormFieldFacet from "./FormFieldFacet.vue";
+import FormFieldDiagram from "./FormFieldDiagram.vue";
 import FormFieldUnknown from "./FormFieldUnknown.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -66,6 +67,7 @@ const DISPATCH: Record<string, Component> = {
   api: FormFieldAPI,
   "api-client": FormFieldApiClient,
   facet: FormFieldFacet,
+  diagram: FormFieldDiagram,
 };
 
 const component = computed<Component>(

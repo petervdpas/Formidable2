@@ -10,6 +10,12 @@ export type FormattedError = {
   args: (string | number)[];
 };
 
+// Required diagram column roles (backend template.diagramRequiredRoles).
+const DIAGRAM_MISSING_COLUMN_KEYS: Record<string, string> = {
+  from_entity: "error.field.diagram_missing_from_entity",
+  to_entity: "error.field.diagram_missing_to_entity",
+};
+
 // formatError maps a backend ValidationError onto an i18n key + args.
 // Mirrors `utils/templateValidation.js` from the original Formidable -
 // the backend is authoritative; this is presentation only.
@@ -231,6 +237,39 @@ export function formatError(error: ValidationError): FormattedError {
       return {
         key: "error.field.formula_bad_trigger",
         args: [String(error.detail?.trigger ?? "?")],
+      };
+
+    case "diagram-field-missing-source":
+      return { key: "error.field.diagram_missing_source", args: [] };
+
+    case "diagram-field-unknown-source":
+      return {
+        key: "error.field.diagram_unknown_source",
+        args: [String(error.detail?.source ?? "?")],
+      };
+
+    case "diagram-field-source-not-table":
+      return {
+        key: "error.field.diagram_source_not_table",
+        args: [String(error.detail?.source ?? "?")],
+      };
+
+    case "diagram-field-source-not-root":
+      return {
+        key: "error.field.diagram_source_not_root",
+        args: [String(error.detail?.source ?? "?")],
+      };
+
+    case "diagram-field-missing-column":
+      return {
+        key: DIAGRAM_MISSING_COLUMN_KEYS[String(error.detail?.role ?? "")] ?? "error.field.diagram_missing_column",
+        args: [String(error.detail?.role ?? "?")],
+      };
+
+    case "diagram-field-unknown-column":
+      return {
+        key: "error.field.diagram_unknown_column",
+        args: [String(error.detail?.column ?? "?"), String(error.detail?.source ?? "?")],
       };
 
     case "missing-field-type":

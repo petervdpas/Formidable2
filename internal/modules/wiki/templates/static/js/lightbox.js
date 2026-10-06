@@ -149,7 +149,7 @@
       openImage(img.currentSrc || img.src, img.alt);
       return;
     }
-    var svg = t.closest("pre.mermaid svg");
+    var svg = t.closest("pre.mermaid svg, .formidable-diagram svg");
     if (svg && main.contains(svg)) {
       e.preventDefault();
       openSvg(svg);

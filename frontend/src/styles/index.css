@@ -98,6 +98,7 @@
 @import "./datacore-graph.css";
 @import "./list-card.css";
 @import "./formula.css";
+@import "./diagram-field.css";
 @import "./relation.css";
 @import "./mermaid-field.css";
 @import "./api-field.css";

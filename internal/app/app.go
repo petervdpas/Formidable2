@@ -29,6 +29,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/diagram"
 	"github.com/petervdpas/formidable2/internal/modules/dialog"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/fonts"
@@ -150,6 +151,7 @@ type App struct {
 	Fonts         *fonts.Service
 	Manual        *manual.Service
 	Mermaid       *mermaid.Service
+	Diagram       *diagram.Service
 	CodeFormatter *codeformatter.Service
 	UpdateCheck   *updatecheck.Service
 	Index         *index.Service
@@ -837,6 +839,7 @@ func New(d Deps) (*App, error) {
 		Fonts:             fonts.NewService(fontsM),
 		Manual:            manual.NewService(),
 		Mermaid:           mermaid.NewService(),
+		Diagram:           diagram.NewService(tplM),
 		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
 		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
 		Index:             newIndexService(ehM, opsRegistry),

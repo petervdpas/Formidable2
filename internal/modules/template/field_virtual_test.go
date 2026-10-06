@@ -11,8 +11,8 @@ import "testing"
 // These tests pin the registry contract so storage.Sanitize (and any
 // future virtual type) can rely on a single helper.
 
-func TestIsVirtualFieldType_FacetAndFormulaAreVirtual(t *testing.T) {
-	virtual := stringSet("facet", "formula")
+func TestIsVirtualFieldType_FacetFormulaAndDiagramAreVirtual(t *testing.T) {
+	virtual := stringSet("facet", "formula", "diagram")
 	for id := range fieldDescriptors {
 		got := IsVirtualFieldType(id)
 		want := virtual[id]
@@ -25,8 +25,8 @@ func TestIsVirtualFieldType_FacetAndFormulaAreVirtual(t *testing.T) {
 	}
 }
 
-func TestAbilities_Virtual_OnlyOnFacetAndFormula(t *testing.T) {
-	allowed := stringSet("facet", "formula")
+func TestAbilities_Virtual_OnlyOnFacetFormulaAndDiagram(t *testing.T) {
+	allowed := stringSet("facet", "formula", "diagram")
 	for id, def := range fieldDescriptors {
 		got := def.Virtual
 		want := allowed[id]
