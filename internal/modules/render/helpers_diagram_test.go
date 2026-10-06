@@ -8,16 +8,12 @@ import (
 )
 
 func diagramRenderTpl(md string) *template.Template {
-	col := func(k string) map[string]any { return map[string]any{"value": k, "label": k} }
-	role := func(r, k string) map[string]any { return map[string]any{"value": r, "label": k} }
 	return &template.Template{
 		Name: "m", Filename: "m.yaml", MarkdownTemplate: md,
 		Fields: []template.Field{
-			{Key: "mapping", Type: "table", Options: []any{col("be"), col("bv"), col("de"), col("dv")}},
+			{Key: "mapping", Type: "table", Format: template.TablePatternDataLineage, Options: template.ApplyTablePattern(nil, template.TablePatternDataLineage)},
 			{Key: "lineage", Type: "diagram", Options: []any{
-				role(template.DiagramSource, "mapping"),
-				role(template.DiagramFromEntity, "be"), role(template.DiagramFromAttr, "bv"),
-				role(template.DiagramToEntity, "de"), role(template.DiagramToAttr, "dv"),
+				map[string]any{"value": template.DiagramSource, "label": "mapping"},
 			}},
 		},
 	}

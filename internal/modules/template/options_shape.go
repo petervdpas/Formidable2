@@ -23,7 +23,12 @@ type SubRow struct {
 	Entries        []SubRowEntry `json:"entries,omitempty"`
 	Scalar         bool          `json:"scalar,omitempty"`
 	Default        string        `json:"default,omitempty"`
+	// Input turns a scalar sub-row into a picker; SubRowInputLoopField offers
+	// ReferenceTargetCandidates of the template being edited.
+	Input string `json:"input,omitempty"`
 }
+
+const SubRowInputLoopField = "loop-field"
 
 // FixedOptionRow is one structurally fixed slot in a field's options array; Defaults fill cells short of the arity.
 // Input overrides how the row's editable (label) cell renders in the editor:

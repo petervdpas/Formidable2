@@ -66,3 +66,22 @@
     margin: 2px 2px;
     background: var(--color-border);
 }
+
+/* Reference cell: picked loop-item codes as chips plus an add dropdown. A chip
+   whose code matches no loop item is flagged until removed. */
+.reference-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reference-chip--unknown {
+    color: var(--color-error);
+    border: 1px dashed var(--color-error);
+}
+
+.reference-cell-hint {
+    margin: 0;
+    font-size: 0.85em;
+    color: var(--color-text-muted);
+}

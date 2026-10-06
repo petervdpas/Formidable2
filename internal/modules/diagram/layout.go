@@ -226,7 +226,7 @@ func (p *placer) anchorOK(r PortRef) bool {
 func textW(s string) float64 { return float64(utf8.RuneCountInString(s)) * charW }
 
 func size(b *NodeBox) {
-	if b.Node.Kind == KindRule {
+	if b.Node.Kind != KindEntity {
 		b.W = max(ruleMinW, textW(DisplayLabel(b.Node))+2*textPad)
 		b.H = ruleH
 		return

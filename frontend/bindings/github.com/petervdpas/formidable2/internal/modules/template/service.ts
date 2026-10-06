@@ -15,11 +15,23 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * ApplyTablePattern returns a table's options rewritten for pattern (pattern
+ * columns first, existing labels kept, other columns after). The editor calls
+ * it when the author switches pattern, passing translated captions as labels
+ * for added columns; Normalize applies the same on save with built-in labels.
+ */
+export function ApplyTablePattern(options: any[], pattern: string, labels: { [_ in string]?: string }): $CancellablePromise<any[]> {
+    return $Call.ByID(4272466626, options, pattern, labels).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * BuildFieldTree groups a flat field list into the editor tree where each loopstart/loopstop pair is one FieldUnit.
  */
 export function BuildFieldTree(fields: $models.Field[]): $CancellablePromise<$models.FieldUnit[]> {
     return $Call.ByID(1814390876, fields).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -36,7 +48,7 @@ export function EnsureTemplateDirectory(): $CancellablePromise<void> {
  */
 export function FacetMeta(): $CancellablePromise<$models.FacetMeta> {
     return $Call.ByID(4270961250).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -45,7 +57,7 @@ export function FacetMeta(): $CancellablePromise<$models.FacetMeta> {
  */
 export function FieldTypes(): $CancellablePromise<$models.FieldDescriptor[]> {
     return $Call.ByID(3365796277).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -54,7 +66,7 @@ export function FieldTypes(): $CancellablePromise<$models.FieldDescriptor[]> {
  */
 export function FlattenFieldTree(units: $models.FieldUnit[]): $CancellablePromise<$models.Field[]> {
     return $Call.ByID(1136104958, units).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -64,7 +76,7 @@ export function FlattenFieldTree(units: $models.FieldUnit[]): $CancellablePromis
  */
 export function FormulaTargetTypes(): $CancellablePromise<{ [_ in string]?: string[] }> {
     return $Call.ByID(2492578000).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -80,19 +92,19 @@ export function GenerateMarkdown(shape: string, opts: $models.GeneratorOptions, 
  */
 export function GeneratorShapes(): $CancellablePromise<$models.ShapeInfo[]> {
     return $Call.ByID(3991434615).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
 export function GetItemFields(name: string): $CancellablePromise<$models.ItemField[]> {
     return $Call.ByID(2544545530, name).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType13($result);
     });
 }
 
 export function GetTemplateDescriptor(name: string): $CancellablePromise<$models.Descriptor> {
     return $Call.ByID(3235934315, name).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType14($result);
     });
 }
 
@@ -105,13 +117,13 @@ export function HasTemplates(): $CancellablePromise<boolean> {
  */
 export function ListItemTypes(): $CancellablePromise<$models.ListItemTypeDescriptor[]> {
     return $Call.ByID(2902436948).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType16($result);
     });
 }
 
 export function ListTemplates(): $CancellablePromise<string[]> {
     return $Call.ByID(3379098355).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -120,13 +132,13 @@ export function ListTemplates(): $CancellablePromise<string[]> {
  */
 export function LoadMany(names: string[]): $CancellablePromise<$models.LoadManyResult[]> {
     return $Call.ByID(437104883, names).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType18($result);
     });
 }
 
 export function LoadTemplate(name: string): $CancellablePromise<$models.Template | null> {
     return $Call.ByID(2817786054, name).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType20($result);
     });
 }
 
@@ -137,7 +149,7 @@ export function LoadTemplate(name: string): $CancellablePromise<$models.Template
  */
 export function ProjectDateRange(templateName: string): $CancellablePromise<string[]> {
     return $Call.ByID(2198251846, templateName).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -149,7 +161,27 @@ export function ProjectDateRange(templateName: string): $CancellablePromise<stri
  */
 export function ProjectResources(templateName: string): $CancellablePromise<$models.ResourceDescriptor[]> {
     return $Call.ByID(4194641266, templateName).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType22($result);
+    });
+}
+
+/**
+ * ReferenceTargetCandidates lists the fields of a template draft a reference
+ * column may target, for the column editor's picker.
+ */
+export function ReferenceTargetCandidates(fields: $models.Field[]): $CancellablePromise<$models.ItemField[]> {
+    return $Call.ByID(3400506586, fields).then(($result: any) => {
+        return $$createType13($result);
+    });
+}
+
+/**
+ * ReferenceTargetLoops maps each valid reference-column target of a template to
+ * the loop holding it, so the table editor can offer that loop's items.
+ */
+export function ReferenceTargetLoops(templateName: string): $CancellablePromise<{ [_ in string]?: string }> {
+    return $Call.ByID(4025596247, templateName).then(($result: any) => {
+        return $$createType23($result);
     });
 }
 
@@ -167,7 +199,7 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
  */
 export function SlideBlockKinds(): $CancellablePromise<$models.SlideBlockKindDescriptor[]> {
     return $Call.ByID(3465565653).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType25($result);
     });
 }
 
@@ -177,7 +209,7 @@ export function SlideBlockKinds(): $CancellablePromise<$models.SlideBlockKindDes
  */
 export function SlideFonts(): $CancellablePromise<$models.SlideFontDescriptor[]> {
     return $Call.ByID(1056300937).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -187,7 +219,7 @@ export function SlideFonts(): $CancellablePromise<$models.SlideFontDescriptor[]>
  */
 export function SlideFormats(): $CancellablePromise<string[]> {
     return $Call.ByID(5121219).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -196,7 +228,7 @@ export function SlideFormats(): $CancellablePromise<string[]> {
  */
 export function SlideShadowDirections(): $CancellablePromise<$models.SlideShadowDirDescriptor[]> {
     return $Call.ByID(836293231).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -205,7 +237,7 @@ export function SlideShadowDirections(): $CancellablePromise<$models.SlideShadow
  */
 export function SlideShadows(): $CancellablePromise<$models.SlideShadowDescriptor[]> {
     return $Call.ByID(3194954982).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType31($result);
     });
 }
 
@@ -214,7 +246,7 @@ export function SlideShadows(): $CancellablePromise<$models.SlideShadowDescripto
  */
 export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string): $CancellablePromise<$models.SummaryFieldOption[]> {
     return $Call.ByID(2530304310, fields, loopKey).then(($result: any) => {
-        return $$createType31($result);
+        return $$createType33($result);
     });
 }
 
@@ -223,7 +255,17 @@ export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string)
  */
 export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
     return $Call.ByID(3301892111).then(($result: any) => {
-        return $$createType33($result);
+        return $$createType35($result);
+    });
+}
+
+/**
+ * TablePatterns returns the table patterns (regular first) with their locked
+ * column shapes and diagram counterparts; the frontend must not duplicate them.
+ */
+export function TablePatterns(): $CancellablePromise<$models.TablePatternDescriptor[]> {
+    return $Call.ByID(3047848223).then(($result: any) => {
+        return $$createType37($result);
     });
 }
 
@@ -241,7 +283,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function TimeBlocks(): $CancellablePromise<string[]> {
     return $Call.ByID(1484356647).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -253,7 +295,7 @@ export function TimeBlocks(): $CancellablePromise<string[]> {
  */
 export function ValidateField(t: $models.Template | null, field: $models.Field | null, originalKey: string, isNew: boolean): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1836708306, t, field, originalKey, isNew).then(($result: any) => {
-        return $$createType35($result);
+        return $$createType39($result);
     });
 }
 
@@ -263,44 +305,48 @@ export function ValidateField(t: $models.Template | null, field: $models.Field |
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType35($result);
+        return $$createType39($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.FieldUnit.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.FacetMeta.createFrom;
-const $$createType3 = $models.FieldDescriptor.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.Field.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = $Create.Map($Create.Any, $$createType7);
-const $$createType9 = $models.ShapeInfo.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.ItemField.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.Descriptor.createFrom;
-const $$createType14 = $models.ListItemTypeDescriptor.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $models.LoadManyResult.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $models.Template.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.ResourceDescriptor.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $models.SlideBlockKindDescriptor.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $models.SlideFontDescriptor.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.FieldUnit.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.FacetMeta.createFrom;
+const $$createType4 = $models.FieldDescriptor.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.Field.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = $Create.Map($Create.Any, $$createType8);
+const $$createType10 = $models.ShapeInfo.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $models.ItemField.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = $models.Descriptor.createFrom;
+const $$createType15 = $models.ListItemTypeDescriptor.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $models.LoadManyResult.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = $models.Template.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = $models.ResourceDescriptor.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = $Create.Map($Create.Any, $Create.Any);
+const $$createType24 = $models.SlideBlockKindDescriptor.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = $models.SlideShadowDirDescriptor.createFrom;
+const $$createType26 = $models.SlideFontDescriptor.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = $models.SlideShadowDescriptor.createFrom;
+const $$createType28 = $models.SlideShadowDirDescriptor.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = $models.SummaryFieldOption.createFrom;
+const $$createType30 = $models.SlideShadowDescriptor.createFrom;
 const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = $models.TableColumnTypeDescriptor.createFrom;
+const $$createType32 = $models.SummaryFieldOption.createFrom;
 const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = $models.ValidationError.createFrom;
+const $$createType34 = $models.TableColumnTypeDescriptor.createFrom;
 const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = $models.TablePatternDescriptor.createFrom;
+const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = $models.ValidationError.createFrom;
+const $$createType39 = $Create.Array($$createType38);

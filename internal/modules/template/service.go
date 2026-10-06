@@ -80,6 +80,18 @@ func (s *Service) ListItemTypes() []ListItemTypeDescriptor {
 	return out
 }
 
+// TablePatterns returns the table patterns (regular first) with their locked
+// column shapes and diagram counterparts; the frontend must not duplicate them.
+func (s *Service) TablePatterns() []TablePatternDescriptor { return TablePatterns() }
+
+// ApplyTablePattern returns a table's options rewritten for pattern (pattern
+// columns first, existing labels kept, other columns after). The editor calls
+// it when the author switches pattern, passing translated captions as labels
+// for added columns; Normalize applies the same on save with built-in labels.
+func (s *Service) ApplyTablePattern(options []any, pattern string, labels map[string]string) []any {
+	return ApplyTablePatternLabels(options, pattern, labels)
+}
+
 // SlideFormats returns the allowed slide canvas formats (aspect ratio + size)
 // for the field editor's Format dropdown; the frontend must not duplicate it.
 func (s *Service) SlideFormats() []string { return SlideFormats() }
@@ -108,6 +120,22 @@ func (s *Service) ProjectDateRange(templateName string) ([]string, error) {
 		}
 	}
 	return nil, nil
+}
+
+// ReferenceTargetCandidates lists the fields of a template draft a reference
+// column may target, for the column editor's picker.
+func (s *Service) ReferenceTargetCandidates(fields []Field) []ItemField {
+	return ReferenceTargetCandidates(fields)
+}
+
+// ReferenceTargetLoops maps each valid reference-column target of a template to
+// the loop holding it, so the table editor can offer that loop's items.
+func (s *Service) ReferenceTargetLoops(templateName string) (map[string]string, error) {
+	tpl, err := s.m.LoadTemplate(templateName)
+	if err != nil {
+		return nil, err
+	}
+	return ReferenceTargets(tpl.Fields), nil
 }
 
 // ProjectResources returns a plan-board template's author-defined resources (the

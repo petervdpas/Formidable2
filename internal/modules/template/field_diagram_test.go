@@ -2,31 +2,28 @@ package template
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
-func mappingTable() Field {
-	return Field{Key: "mapping", Type: "table", Options: []any{
-		map[string]any{"value": "bron_entiteit", "label": "Bron Entiteit", "type": "string"},
-		map[string]any{"value": "bron_veld", "label": "Bron Veld", "type": "string"},
-		map[string]any{"value": "doel_entiteit", "label": "Doel Entiteit", "type": "string"},
-		map[string]any{"value": "doel_veld", "label": "Doel Veld", "type": "string"},
-		map[string]any{"value": "tr_code", "label": "TR code", "type": "string"},
+func lineageTable(key string) Field {
+	return Field{Key: key, Type: "table", Format: TablePatternDataLineage, Options: ApplyTablePattern(nil, TablePatternDataLineage)}
+}
+
+func diagramField(source string) Field {
+	return Field{Key: "lineage", Type: "diagram", Label: "Lineage", Options: []any{
+		map[string]any{"value": DiagramSource, "label": source},
 	}}
 }
 
-func diagramField(source string, cols map[string]string) Field {
-	opts := []any{map[string]any{"value": DiagramSource, "label": source}}
-	for _, role := range []string{DiagramFromEntity, DiagramFromAttr, DiagramToEntity, DiagramToAttr, DiagramLabel} {
-		opts = append(opts, map[string]any{"value": role, "label": cols[role]})
+func diagramErrs(errs []ValidationError) []string {
+	var out []string
+	for _, e := range errs {
+		if strings.HasPrefix(e.Type, "diagram-") {
+			out = append(out, e.Type)
+		}
 	}
-	return Field{Key: "lineage", Type: "diagram", Label: "Lineage", Options: opts}
-}
-
-var fullCols = map[string]string{
-	DiagramFromEntity: "bron_entiteit", DiagramFromAttr: "bron_veld",
-	DiagramToEntity: "doel_entiteit", DiagramToAttr: "doel_veld",
-	DiagramLabel: "tr_code",
+	return out
 }
 
 func TestDiagramField_IsVirtualAndKnown(t *testing.T) {
@@ -35,74 +32,76 @@ func TestDiagramField_IsVirtualAndKnown(t *testing.T) {
 	}
 }
 
-func TestDiagramField_ValidBindingHasNoErrors(t *testing.T) {
-	tpl := &Template{Fields: []Field{mappingTable(), diagramField("mapping", fullCols)}}
-	for _, e := range Validate(tpl) {
-		if len(e.Type) > 8 && e.Type[:8] == "diagram-" {
-			t.Fatalf("unexpected %s: %s", e.Type, e.Message)
-		}
+func TestDiagramField_OnlyOptionRowIsSource(t *testing.T) {
+	rows := fieldDescriptors["diagram"].OptionsShape.Rows
+	if len(rows) != 1 || rows[0].Defaults["value"] != DiagramSource || rows[0].Input != "table-field" {
+		t.Fatalf("rows = %+v", rows)
 	}
 }
 
-func TestDiagramField_AttributeAndLabelColumnsAreOptional(t *testing.T) {
-	cols := map[string]string{DiagramFromEntity: "bron_entiteit", DiagramToEntity: "doel_entiteit"}
-	tpl := &Template{Fields: []Field{mappingTable(), diagramField("mapping", cols)}}
-	for _, e := range Validate(tpl) {
-		if len(e.Type) > 8 && e.Type[:8] == "diagram-" {
-			t.Fatalf("unexpected %s", e.Type)
-		}
+func TestDiagramField_BoundToLineageTableIsValid(t *testing.T) {
+	tpl := &Template{Fields: []Field{lineageTable("mapping"), diagramField("mapping")}}
+	if got := diagramErrs(Validate(tpl)); len(got) != 0 {
+		t.Fatalf("unexpected %v", got)
 	}
 }
 
 func TestDiagramField_Errors(t *testing.T) {
-	looped := mappingTable()
+	regular := Field{Key: "plain", Type: "table", Options: ApplyTablePattern(nil, TablePatternDataLineage)}
 	cases := []struct {
 		name   string
 		fields []Field
 		want   string
 	}{
-		{"missing source", []Field{mappingTable(), diagramField("", fullCols)}, "diagram-field-missing-source"},
-		{"unknown source", []Field{mappingTable(), diagramField("ghost", fullCols)}, "diagram-field-unknown-source"},
-		{"source not a table", []Field{{Key: "t", Type: "text"}, diagramField("t", fullCols)}, "diagram-field-source-not-table"},
-		{"source inside a loop", []Field{
-			{Key: "loop", Type: "loopstart"}, looped, {Key: "loop", Type: "loopstop"},
-			diagramField("mapping", fullCols),
+		{"no pattern table on template", []Field{regular, diagramField("plain")}, "diagram-field-no-pattern-table"},
+		{"no table at all", []Field{diagramField("")}, "diagram-field-no-pattern-table"},
+		{"pattern table only inside a loop", []Field{
+			{Key: "L", Type: "loopstart"}, lineageTable("mapping"), {Key: "L", Type: "loopstop"},
+			diagramField("mapping"),
+		}, "diagram-field-no-pattern-table"},
+		{"missing source", []Field{lineageTable("mapping"), diagramField("")}, "diagram-field-missing-source"},
+		{"unknown source", []Field{lineageTable("mapping"), diagramField("ghost")}, "diagram-field-unknown-source"},
+		{"source not a table", []Field{lineageTable("mapping"), {Key: "t", Type: "text"}, diagramField("t")}, "diagram-field-source-not-table"},
+		{"source table without pattern", []Field{lineageTable("mapping"), regular, diagramField("plain")}, "diagram-field-source-no-pattern"},
+		{"source table inside a loop", []Field{
+			lineageTable("mapping"),
+			{Key: "L", Type: "loopstart"}, lineageTable("inner"), {Key: "L", Type: "loopstop"},
+			diagramField("inner"),
 		}, "diagram-field-source-not-root"},
-		{"missing from entity", []Field{mappingTable(), diagramField("mapping", map[string]string{DiagramToEntity: "doel_entiteit"})}, "diagram-field-missing-column"},
-		{"missing to entity", []Field{mappingTable(), diagramField("mapping", map[string]string{DiagramFromEntity: "bron_entiteit"})}, "diagram-field-missing-column"},
-		{"unknown column", []Field{mappingTable(), diagramField("mapping", map[string]string{
-			DiagramFromEntity: "bron_entiteit", DiagramToEntity: "doel_entiteit", DiagramLabel: "nope",
-		})}, "diagram-field-unknown-column"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if errs := Validate(&Template{Fields: c.fields}); !hasErr(errs, c.want) {
-				t.Fatalf("want %s; got %+v", c.want, errs)
+			if got := diagramErrs(Validate(&Template{Fields: c.fields})); !reflect.DeepEqual(got, []string{c.want}) {
+				t.Fatalf("got %v, want [%s]", got, c.want)
 			}
 		})
 	}
 }
 
-func TestDiagramBindingOf_ResolvesColumnIndices(t *testing.T) {
-	tpl := &Template{Fields: []Field{mappingTable(), diagramField("mapping", map[string]string{
-		DiagramFromEntity: "bron_entiteit", DiagramToEntity: "doel_entiteit", DiagramToAttr: "doel_veld",
-	})}}
+func TestDiagramBindingOf_ColumnsComeFromThePattern(t *testing.T) {
+	tpl := &Template{Fields: []Field{lineageTable("mapping"), diagramField("mapping")}}
 	b, ok := DiagramBindingOf(tpl, "lineage")
-	if !ok {
-		t.Fatal("binding not resolved")
-	}
 	want := DiagramBinding{
 		Projection: DiagramProjectionLineage,
 		Source:     "mapping",
-		Columns:    map[string]int{DiagramFromEntity: 0, DiagramFromAttr: -1, DiagramToEntity: 2, DiagramToAttr: 3, DiagramLabel: -1},
+		Columns:    map[string]int{DiagramFromEntity: 0, DiagramFromAttr: 1, DiagramToEntity: 2, DiagramToAttr: 3, DiagramLabel: 5, DiagramExample: 4},
 	}
-	if !reflect.DeepEqual(b, want) {
-		t.Fatalf("binding = %+v, want %+v", b, want)
+	if !ok || !reflect.DeepEqual(b, want) {
+		t.Fatalf("binding = %+v ok=%v, want %+v", b, ok, want)
 	}
 }
 
-func TestDiagramBindingOf_UnknownOrMisboundFieldIsNotOK(t *testing.T) {
-	tpl := &Template{Fields: []Field{mappingTable(), diagramField("ghost", fullCols), {Key: "x", Type: "text"}}}
+func TestDiagramBindingOf_FollowsReorderedPatternColumns(t *testing.T) {
+	table := lineageTable("mapping")
+	table.Options = append([]any{map[string]any{"value": "notes", "label": "N"}}, table.Options...)
+	b, ok := DiagramBindingOf(&Template{Fields: []Field{table, diagramField("mapping")}}, "lineage")
+	if !ok || b.Columns[DiagramFromEntity] != 1 || b.Columns[DiagramLabel] != 6 {
+		t.Fatalf("binding = %+v ok=%v", b, ok)
+	}
+}
+
+func TestDiagramBindingOf_UnknownOrInvalidIsNotOK(t *testing.T) {
+	tpl := &Template{Fields: []Field{lineageTable("mapping"), diagramField("ghost"), {Key: "x", Type: "text"}}}
 	for _, key := range []string{"lineage", "x", "nope", ""} {
 		if _, ok := DiagramBindingOf(tpl, key); ok {
 			t.Fatalf("DiagramBindingOf(%q) ok, want false", key)
@@ -110,5 +109,17 @@ func TestDiagramBindingOf_UnknownOrMisboundFieldIsNotOK(t *testing.T) {
 	}
 	if _, ok := DiagramBindingOf(nil, "lineage"); ok {
 		t.Fatal("nil template must not resolve")
+	}
+}
+
+func TestDiagramTableKeys_OnlyRootPatternTables(t *testing.T) {
+	fields := []Field{
+		lineageTable("a"),
+		{Key: "plain", Type: "table"},
+		{Key: "L", Type: "loopstart"}, lineageTable("inner"), {Key: "L", Type: "loopstop"},
+		lineageTable("b"),
+	}
+	if got := DiagramTableKeys(fields); !reflect.DeepEqual(got, []string{"a", "b"}) {
+		t.Fatalf("got %v", got)
 	}
 }

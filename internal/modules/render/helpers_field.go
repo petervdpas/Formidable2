@@ -14,6 +14,12 @@ import (
 // itself.
 func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 	tpl.RegisterHelper("field", func(options *raymond.Options) any {
+		return withReferenceAnchor(options, fieldOutput(options, opts))
+	})
+}
+
+func fieldOutput(options *raymond.Options, opts *Options) any {
+	{
 		params := options.Params()
 		var key, mode string
 		modeExplicit := false
@@ -114,5 +120,5 @@ func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 			return emitImage(value, opts)
 		}
 		return emitFieldValue(value, field, opts)
-	})
+	}
 }

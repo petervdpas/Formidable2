@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"hash/fnv"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -22,28 +23,57 @@ const (
 	portText      = "#1f2937"
 	unmappedText  = "#6b7280"
 	unsourcedText = "#b91c1c"
-	ruleFill      = "#fff7e0"
-	ruleStroke    = "#d4a017"
-	ruleText      = "#6b4f00"
+	ruleFill      = "#ffffff"
+	literalFill   = "#f3f4f6"
+	literalStroke = "#6b7280"
+	literalText   = "#1f2937"
 	edgeNeutral   = "#6b7280"
+	legendH       = 28.0
 )
 
-var edgePalette = []string{
-	"#1f77b4", "#2ca02c", "#d62728", "#9467bd",
-	"#ff7f0e", "#17becf", "#8c564b", "#e377c2",
+// categoryColours pins the transaction-rule categories (Compound, Enumerate,
+// Filter, Mapping, Query, Validation) to distinct colours; any other category
+// hashes into edgePalette.
+var categoryColours = map[string]string{
+	"C": "#d62728", "E": "#9467bd", "F": "#ff7f0e",
+	"M": "#2ca02c", "Q": "#1f77b4", "V": "#8c564b",
 }
 
-// EdgeColour picks a palette colour from the label's first rule code (split on
-// comma or whitespace, case-insensitive), so a code is the same colour in every
-// diagram. An unlabelled edge is neutral grey.
-func EdgeColour(label string) string {
-	code := strings.FieldsFunc(strings.ToLower(label), func(r rune) bool { return r == ',' || r == ';' || r == ' ' || r == '\t' })
-	if len(code) == 0 {
+var edgePalette = []string{
+	"#17becf", "#e377c2", "#bcbd22", "#7f7f7f",
+	"#393b79", "#637939", "#843c39", "#7b4173",
+}
+
+// category is a rule code's leading letters, upper-cased ("q-01" -> "Q").
+func category(code string) string {
+	code = strings.TrimSpace(code)
+	i := 0
+	for i < len(code) && (code[i] >= 'a' && code[i] <= 'z' || code[i] >= 'A' && code[i] <= 'Z') {
+		i++
+	}
+	return strings.ToUpper(code[:i])
+}
+
+func categoryColour(cat string) string {
+	if cat == "" {
 		return edgeNeutral
 	}
+	if c, ok := categoryColours[cat]; ok {
+		return c
+	}
 	h := fnv.New32a()
-	h.Write([]byte(code[0]))
+	h.Write([]byte(cat))
 	return edgePalette[h.Sum32()%uint32(len(edgePalette))]
+}
+
+// EdgeColour is the category colour of the label's first listed rule code;
+// neutral grey without one.
+func EdgeColour(label string) string {
+	codes := splitCodes(label)
+	if len(codes) == 0 {
+		return edgeNeutral
+	}
+	return categoryColour(category(codes[0]))
 }
 
 func num(v float64) string {
@@ -65,8 +95,13 @@ func SVG(l Layout) string {
 	for _, n := range l.Nodes {
 		labels[n.Node.ID] = n.Node
 	}
+	cats := legendCategories(l)
+	height := l.Height
+	if len(cats) > 0 {
+		height += legendH
+	}
 	var b strings.Builder
-	w, h := num(l.Width), num(l.Height)
+	w, h := num(l.Width), num(height)
 	b.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" width="` + w + `" height="` + h + `" viewBox="0 0 ` + w + ` ` + h + `" style="max-width:100%;height:auto" font-family="` + esc(fontFamily) + `" font-size="12">`)
 	b.WriteString(`<rect width="` + w + `" height="` + h + `" fill="` + canvasBg + `"/>`)
 	b.WriteString(`<g fill="none" stroke-width="1.4">`)
@@ -76,16 +111,28 @@ func SVG(l Layout) string {
 		if e.Edge.Label != "" {
 			b.WriteString(esc(" (" + e.Edge.Label + ")"))
 		}
+		if e.Edge.Note != "" {
+			b.WriteString(esc(" = " + e.Edge.Note))
+		}
 		b.WriteString(`</title></path>`)
 	}
 	b.WriteString(`</g>`)
 	for _, n := range l.Nodes {
-		if n.Node.Kind == KindRule {
-			writeRule(&b, n)
-		} else {
+		switch n.Node.Kind {
+		case KindRule:
+			c := categoryColour(category(n.Node.Label))
+			if n.Node.Class == NodeUndefined {
+				writePill(&b, n, ruleFill, unsourcedText, unsourcedText, ` stroke-dasharray="4 3"`)
+			} else {
+				writePill(&b, n, ruleFill, c, c, "")
+			}
+		case KindLiteral:
+			writePill(&b, n, literalFill, literalStroke, literalText, ` stroke-dasharray="4 3"`)
+		default:
 			writeEntity(&b, n)
 		}
 	}
+	writeLegend(&b, cats, l.Height)
 	b.WriteString(`</svg>`)
 	return b.String()
 }
@@ -118,12 +165,56 @@ func endName(nodes map[string]Node, r PortRef) string {
 	return name
 }
 
-func writeRule(b *strings.Builder, n NodeBox) {
-	b.WriteString(`<g data-node="` + esc(n.Node.ID) + `">`)
+// writePill draws a rounded node; a fragment Link ("#id") wraps it in an
+// in-page anchor, any other link is ignored.
+func writePill(b *strings.Builder, n NodeBox, fill, stroke, text, extra string) {
+	link := strings.HasPrefix(n.Node.Link, "#") && len(n.Node.Link) > 1
+	if link {
+		b.WriteString(`<a href="` + esc(n.Node.Link) + `">`)
+	}
+	b.WriteString(`<g data-node="` + esc(n.Node.ID) + `"`)
+	if n.Node.Class != "" {
+		b.WriteString(` data-class="` + esc(n.Node.Class) + `"`)
+	}
+	b.WriteString(`>`)
 	b.WriteString(`<rect x="` + num(n.X) + `" y="` + num(n.Y) + `" width="` + num(n.W) + `" height="` + num(n.H) +
-		`" rx="` + num(n.H/2) + `" fill="` + ruleFill + `" stroke="` + ruleStroke + `"/>`)
-	b.WriteString(`<text x="` + num(n.X+n.W/2) + `" y="` + num(n.Y+n.H/2+4) + `" text-anchor="middle" fill="` + ruleText + `">` + esc(DisplayLabel(n.Node)) + `</text>`)
+		`" rx="` + num(n.H/2) + `" fill="` + fill + `" stroke="` + stroke + `" stroke-width="1.4"` + extra + `/>`)
+	b.WriteString(`<text x="` + num(n.X+n.W/2) + `" y="` + num(n.Y+n.H/2+4) + `" text-anchor="middle" fill="` + text + `">` + esc(DisplayLabel(n.Node)) + `</text>`)
 	b.WriteString(`</g>`)
+	if link {
+		b.WriteString(`</a>`)
+	}
+}
+
+// legendCategories lists the rule categories used by edges, sorted.
+func legendCategories(l Layout) []string {
+	seen := map[string]bool{}
+	for _, e := range l.Edges {
+		for _, code := range splitCodes(e.Edge.Label) {
+			if c := category(code); c != "" {
+				seen[c] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for c := range seen {
+		out = append(out, c)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// writeLegend draws one swatch per category in a strip below the diagram.
+func writeLegend(b *strings.Builder, cats []string, top float64) {
+	x, y := margin, top+legendH/2
+	for _, c := range cats {
+		col := categoryColour(c)
+		b.WriteString(`<g data-legend="` + esc(c) + `">`)
+		b.WriteString(`<line x1="` + num(x) + `" y1="` + num(y) + `" x2="` + num(x+22) + `" y2="` + num(y) + `" stroke="` + col + `" stroke-width="3"/>`)
+		b.WriteString(`<text x="` + num(x+28) + `" y="` + num(y+4) + `" fill="` + portText + `">` + esc(c) + `</text>`)
+		b.WriteString(`</g>`)
+		x += 28 + textW(c) + 24
+	}
 }
 
 func writeEntity(b *strings.Builder, n NodeBox) {

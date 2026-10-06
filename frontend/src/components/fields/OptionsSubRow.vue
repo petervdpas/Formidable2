@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import TextField from "./TextField.vue";
+import SelectField from "./SelectField.vue";
 import type { SubRowVariant } from "./OptionsEditor.vue";
 
 const { t } = useI18n();
@@ -25,6 +26,8 @@ type Pair = { value: string; label: string };
 
 const props = defineProps<{
   variant: SubRowVariant;
+  /** Picker choices for a scalar variant with an `input` kind. */
+  choices?: { value: string; label: string }[];
 }>();
 
 const model = defineModel<string>({ default: "" });
@@ -89,6 +92,17 @@ const fixedPairs = computed<Pair[]>(() => {
 });
 
 const isScalar = computed(() => !!props.variant.scalar);
+
+// Scalar picker: blank first; a stored value that is no longer a choice stays
+// selectable (flagged) so opening the editor never silently drops it.
+const scalarChoices = computed(() => {
+  const list = props.choices ?? [];
+  const out = [{ value: "", label: t("workspace.templates.options.picker_none") }, ...list];
+  if (model.value && !list.some((c) => c.value === model.value)) {
+    out.push({ value: model.value, label: t("workspace.templates.options.picker_invalid", { key: model.value }) });
+  }
+  return out;
+});
 const isFixed = computed(() => !!(props.variant.entries && props.variant.entries.length > 0));
 const max = computed(() => props.variant.maxEntries ?? 0);
 const canAdd = computed(() => max.value <= 0 || pairs.value.length < max.value);
@@ -134,7 +148,15 @@ function removePair(idx: number): void {
 
     <div class="options-subrow-pairs">
       <!-- Scalar mode: a single raw value (e.g. a number column's step). -->
-      <div v-if="isScalar" class="options-subrow-pair">
+      <div v-if="isScalar && variant.input" class="options-subrow-pair">
+        <SelectField
+          :model-value="model"
+          @update:model-value="(v) => (model = v)"
+          :options="scalarChoices"
+          class="options-subrow-input"
+        />
+      </div>
+      <div v-else-if="isScalar" class="options-subrow-pair">
         <TextField
           :model-value="model"
           @update:model-value="(v) => (model = v)"

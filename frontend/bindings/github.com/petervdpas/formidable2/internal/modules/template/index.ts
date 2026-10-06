@@ -48,6 +48,7 @@ export {
     SubRowEntry,
     SummaryFieldOption,
     TableColumnTypeDescriptor,
+    TablePatternDescriptor,
     Template,
     ValidationError
 } from "./models.js";

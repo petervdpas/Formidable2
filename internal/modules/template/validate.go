@@ -98,6 +98,7 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, facetFieldErrors(t)...)
 	errs = append(errs, formulaFieldErrors(t, canonical)...)
 	errs = append(errs, diagramFieldErrors(t.Fields, canonical)...)
+	errs = append(errs, referenceColumnErrors(t.Fields)...)
 	errs = append(errs, formulasErrors(t)...)
 	errs = append(errs, scalingsErrors(t)...)
 

@@ -262,7 +262,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
-			Readonly: false, Format: false, UseInStatistics: true,
+			Readonly: false, Format: true, UseInStatistics: true,
 			FacetKey: false,
 		},
 	},
@@ -348,8 +348,8 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"diagram": {
-		// A drawing of the record's own data (virtual: stores nothing). Options
-		// are fixed role rows binding a root table and its columns.
+		// A drawing of the record's own data (virtual: stores nothing). Its one
+		// option row names a root table whose pattern has a diagram counterpart.
 		ID: "diagram", Virtual: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
@@ -361,11 +361,6 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
 				{LabelKey: "workspace.templates.diagram.source", Input: "table-field", Defaults: map[string]any{"value": DiagramSource, "label": ""}},
-				{LabelKey: "workspace.templates.diagram.from_entity", Input: "table-column", Defaults: map[string]any{"value": DiagramFromEntity, "label": ""}},
-				{LabelKey: "workspace.templates.diagram.from_attr", Input: "table-column", Defaults: map[string]any{"value": DiagramFromAttr, "label": ""}},
-				{LabelKey: "workspace.templates.diagram.to_entity", Input: "table-column", Defaults: map[string]any{"value": DiagramToEntity, "label": ""}},
-				{LabelKey: "workspace.templates.diagram.to_attr", Input: "table-column", Defaults: map[string]any{"value": DiagramToAttr, "label": ""}},
-				{LabelKey: "workspace.templates.diagram.label", Input: "table-column", Defaults: map[string]any{"value": DiagramLabel, "label": ""}},
 			},
 			LockedColumns: []string{"value"},
 		},

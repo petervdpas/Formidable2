@@ -3,6 +3,7 @@ package diagram
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -12,7 +13,7 @@ import (
 // is ok and yields "".
 func RenderField(t *template.Template, fieldKey string, data map[string]any) (string, bool) {
 	b, ok := template.DiagramBindingOf(t, fieldKey)
-	if !ok {
+	if !ok || b.Projection != template.DiagramProjectionLineage {
 		return "", false
 	}
 	cols := LineageColumns{
@@ -21,8 +22,48 @@ func RenderField(t *template.Template, fieldKey string, data map[string]any) (st
 		ToEntity:   b.Columns[template.DiagramToEntity],
 		ToAttr:     b.Columns[template.DiagramToAttr],
 		Label:      b.Columns[template.DiagramLabel],
+		Example:    b.Columns[template.DiagramExample],
 	}
-	return SVG(Place(Lineage(tableRows(data[b.Source]), cols))), true
+	g := Lineage(tableRows(data[b.Source]), cols)
+	linkRules(&g, t, b, data)
+	return SVG(Place(g)), true
+}
+
+// linkRules points each rule pill at its rule's in-page anchor when the rule
+// column is a reference with a target; a code with no matching loop item is
+// flagged undefined instead.
+func linkRules(g *Graph, t *template.Template, b template.DiagramBinding, data map[string]any) {
+	var table template.Field
+	for _, f := range t.Fields {
+		if f.Key == b.Source {
+			table = f
+		}
+	}
+	target := template.ReferenceColumns(table)[b.Columns[template.DiagramLabel]]
+	loop, ok := template.ReferenceTargets(t.Fields)[target]
+	if !ok {
+		return
+	}
+	known := map[string]bool{}
+	items, _ := data[loop].([]any)
+	for _, it := range items {
+		if m, ok := it.(map[string]any); ok {
+			if v := strings.ToLower(strings.TrimSpace(cellText(m[target]))); v != "" {
+				known[v] = true
+			}
+		}
+	}
+	for i := range g.Nodes {
+		n := &g.Nodes[i]
+		if n.Kind != KindRule {
+			continue
+		}
+		if known[strings.ToLower(n.Label)] {
+			n.Link = "#" + template.ReferenceAnchor(target, n.Label)
+		} else {
+			n.Class = NodeUndefined
+		}
+	}
 }
 
 // tableRows reads a stored table value (rows of cells) as strings; anything

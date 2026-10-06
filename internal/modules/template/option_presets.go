@@ -13,8 +13,7 @@ type ListItemTypeDescriptor struct {
 }
 
 // builtinTableColumnTypes is the canonical column-type set; display order is significant.
-// "reference" is reserved-but-deferred: the cell stays a string, but the renderer is meant to
-// string-compare it against looper-entry codes and emit an anchor on match (the deferred anchor-emit pass).
+// "reference" cells stay strings; its sub-row names a loop field the codes link to (see reference.go).
 var builtinTableColumnTypes = []TableColumnTypeDescriptor{
 	{Name: "string"},
 	{
@@ -49,7 +48,17 @@ var builtinTableColumnTypes = []TableColumnTypeDescriptor{
 			PlaceholderKey: "workspace.templates.options.dropdown_placeholder",
 		},
 	},
-	{Name: "reference"},
+	{
+		// Cells hold plain codes; the target names a field inside a top-level
+		// loop whose values the codes link to at render time.
+		Name: "reference",
+		SubRow: &SubRow{
+			RowKey:   ReferenceTargetKey,
+			LabelKey: "workspace.templates.options.reference_subrow",
+			Scalar:   true,
+			Input:    SubRowInputLoopField,
+		},
+	},
 }
 
 // builtinListItemTypes is the canonical item-type set: "fixed" is a literal; "custom" is the

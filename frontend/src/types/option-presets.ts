@@ -11,6 +11,7 @@ import {
   type TableColumnTypeDescriptor,
   type SubRow as BackendSubRow,
   type FixedOptionsShape,
+  type TablePatternDescriptor,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 // Per-field-type column presets for the OptionsEditor. Mirrors
@@ -42,18 +43,23 @@ let _listItemTypes: string[] = ["fixed", "custom"];
 let _slideFormats: string[] = ["1280 x 720 (16:9)", "1920 x 1080 (16:9)", "1024 x 768 (4:3)"];
 let _timeBlocks: string[] = ["day", "week", "2-week", "3-week", "month"];
 let _fieldDescriptors: Record<string, FieldDescriptor> = {};
+let _tablePatterns: TablePatternDescriptor[] = [];
 
 let loadPromise: Promise<void> | null = null;
 
 async function load(): Promise<void> {
   try {
-    const [tcols, ltypes, ftypes, sfmts, tblocks] = await Promise.all([
+    const [tcols, ltypes, ftypes, sfmts, tblocks, tpatterns] = await Promise.all([
       TemplateSvc.TableColumnTypes(),
       TemplateSvc.ListItemTypes(),
       TemplateSvc.FieldTypes(),
       TemplateSvc.SlideFormats(),
       TemplateSvc.TimeBlocks(),
+      TemplateSvc.TablePatterns(),
     ]);
+    if (tpatterns && tpatterns.length > 0) {
+      _tablePatterns = tpatterns;
+    }
     if (tcols && tcols.length > 0) {
       _tableColumnTypes = tcols;
     }
@@ -123,6 +129,7 @@ function toSubRowVariant(s: BackendSubRow): SubRowVariant {
   if (s.placeholder_key) v.placeholderKey = s.placeholder_key;
   if (s.scalar) v.scalar = true;
   if (s.default) v.defaultValue = s.default;
+  if (s.input) v.input = s.input;
   if (s.max_entries && s.max_entries > 0) v.maxEntries = s.max_entries;
   if (s.entries && s.entries.length > 0) {
     v.entries = s.entries.map((e) => ({
@@ -214,7 +221,10 @@ export function columnsFor(typeId: string): ColumnDef[] | null {
 // field_abilities.go); this function is a pure shape adapter.
 export function fixedRowsFor(typeId: string): FixedRowConfig[] | null {
   const def = _fieldDescriptors[typeId];
-  const shape = def?.options_shape as FixedOptionsShape | null | undefined;
+  return shapeRows(def?.options_shape as FixedOptionsShape | null | undefined);
+}
+
+function shapeRows(shape: FixedOptionsShape | null | undefined): FixedRowConfig[] | null {
   if (!shape || !shape.rows || shape.rows.length === 0) return null;
   return shape.rows.map((r) => {
     const cfg: FixedRowConfig = {
@@ -229,6 +239,31 @@ export function fixedRowsFor(typeId: string): FixedRowConfig[] | null {
     }
     return cfg;
   });
+}
+
+// Table patterns (backend TablePatterns): regular first, then patterns whose
+// columns are locked and that may have a diagram counterpart.
+export function tablePatterns(): TablePatternDescriptor[] {
+  return [..._tablePatterns];
+}
+
+function tablePattern(id: string): TablePatternDescriptor | undefined {
+  return _tablePatterns.find((p) => p.id === id);
+}
+
+// tablePatternRows is the locked column shape of a table pattern; null for
+// regular / unknown (free-form columns).
+export function tablePatternRows(id: string): FixedRowConfig[] | null {
+  return shapeRows(tablePattern(id)?.shape ?? null);
+}
+
+export function tablePatternLockedColumns(id: string): string[] {
+  return [...(tablePattern(id)?.shape?.locked_columns ?? [])];
+}
+
+// hasDiagramPattern: a table with this pattern can be drawn by a diagram field.
+export function hasDiagramPattern(id: string): boolean {
+  return !!tablePattern(id)?.diagram;
 }
 
 // Column keys the editor renders read-only for a fixed-shape type

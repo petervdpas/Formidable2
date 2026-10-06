@@ -207,6 +207,13 @@ func normalizeField(f *Field) {
 		f.Trigger = canon
 		return
 	}
+	if f.Type == "table" {
+		f.Format = canonicalTablePattern(f.Format)
+		if f.Format != "" {
+			f.Options = ApplyTablePattern(f.Options, f.Format)
+		}
+		return
+	}
 	// Format has no meaning on other types.
 	f.Format = ""
 }

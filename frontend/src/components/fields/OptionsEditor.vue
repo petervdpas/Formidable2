@@ -34,6 +34,9 @@ export type SubRowVariant = {
   scalar?: boolean;
   /** Placeholder/fallback shown when a scalar cell is empty. */
   defaultValue?: string;
+  /** Scalar picker kind (backend SubRow.Input, e.g. "loop-field"); its
+   *  choices come from the editor's subRowChoices prop. */
+  input?: string;
   /** When set, the editor clamps the pair count to this many. */
   maxEntries?: number;
   /** When set, the widget renders one fixed row per entry. Each row
@@ -107,6 +110,11 @@ const props = defineProps<{
   /** Translated label for the extra rows + add button (project: "Lane"), so the
    *  free-form section isn't a mystery "+". */
   extraRowsLabel?: string;
+  /** Render locked cells read-only instead of hiding them, with the fixed
+   *  row's caption as a tooltip (table patterns: key + type visible). */
+  showLocked?: boolean;
+  /** Choices per scalar sub-row input kind (e.g. "loop-field"). */
+  subRowChoices?: Record<string, { value: string; label: string }[]>;
 }>();
 
 const fixedCount = computed(() => props.fixedRows?.length ?? 0);
@@ -240,14 +248,17 @@ function getCell(row: OptionRow, col: ColumnDef): string {
     >
       <template #item="{ element: row, index: i }">
       <div class="options-row-group">
-        <div class="options-row">
+        <div
+          class="options-row"
+          :title="showLocked && isFixedRow(i) && fixedRows && fixedRows[i] ? t(fixedRows[i].labelKey) : undefined"
+        >
           <span
             v-if="!isFixed"
             class="dnd-handle"
             aria-hidden="true"
           >⠿</span>
           <span
-            v-if="isFixedRow(i) && fixedRows && fixedRows[i]"
+            v-if="isFixedRow(i) && fixedRows && fixedRows[i] && !showLocked"
             class="options-row-label small"
           >{{ t(fixedRows[i].labelKey) }}</span>
           <span
@@ -257,7 +268,7 @@ function getCell(row: OptionRow, col: ColumnDef): string {
           <template v-for="col in columns" :key="col.key">
             <!-- Fixed shapes hide the locked structural cell (its snake_case value
                  key is redundant with the gutter label), leaving label + control. -->
-            <template v-if="isLocked(col.key, i)"></template>
+            <template v-if="isLocked(col.key, i) && !showLocked"></template>
             <!-- Per-row input override (fixed shapes): the editable "label" cell
                  can be a colour picker / number / preset dropdown per row. -->
             <template v-else-if="isFixedRow(i) && fixedRows && fixedRows[i] && fixedRows[i].input && col.key === 'label'">
@@ -331,6 +342,7 @@ function getCell(row: OptionRow, col: ColumnDef): string {
           <OptionsSubRow
             v-if="activeSubRow(row, col)"
             :variant="activeSubRow(row, col)!.variant"
+            :choices="subRowChoices?.[activeSubRow(row, col)!.variant.input ?? '']"
             :model-value="subValue(row, activeSubRow(row, col)!.rowKey)"
             @update:model-value="(v) => writeSubValue(i, activeSubRow(row, col)!.rowKey, v)"
           />

@@ -22,11 +22,16 @@ import {
   allowExtraRowsFor,
   extraRowsLabelKeyFor,
   supportsOptions,
+  tablePatterns,
+  tablePatternRows,
+  tablePatternLockedColumns,
+  hasDiagramPattern,
 } from "../types/option-presets";
 import { Service as TemplateSvc, Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Field, Facet, Formula, ValidationError } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
+import { backendErrMessage } from "../utils/backendError";
 import {
   isRowHidden,
   isKeyReadonly,
@@ -283,8 +288,33 @@ const textareaFormatOptions = computed(() => [
   { value: "plain", label: "Plain text" },
 ]);
 
+// Table patterns: "" stores regular; any other pattern locks its columns.
+const isTableType = computed(() => draft.value?.type === "table");
+const tablePatternId = computed(() => (isTableType.value ? draft.value?.format || "" : ""));
+const tablePatternOptions = computed(() =>
+  tablePatterns().map((p) => ({ value: p.id === "regular" ? "" : p.id, label: t(p.label_key) })),
+);
+
+async function onFormatChange(next: string) {
+  if (!draft.value) return;
+  draft.value.format = next;
+  if (!isTableType.value || !next) return;
+  try {
+    // New pattern columns take the translated caption as their label.
+    const labels: Record<string, string> = {};
+    for (const r of tablePatternRows(next) ?? []) {
+      const key = typeof r.defaults.value === "string" ? r.defaults.value : "";
+      if (key) labels[key] = t(r.labelKey);
+    }
+    draft.value.options = await TemplateSvc.ApplyTablePattern(draft.value.options ?? [], next, labels);
+  } catch (e) {
+    toast.error(backendErrMessage(e));
+  }
+}
+
 const formatOptionsForType = computed(() => {
   if (isFacetType.value) return facetFormatOptions.value;
+  if (isTableType.value) return tablePatternOptions.value;
   return textareaFormatOptions.value;
 });
 
@@ -498,6 +528,9 @@ function onTypeChange(next: string) {
   if (prev === "facet" && next !== "facet") {
     draft.value.facet_key = "";
   }
+  if (prev === "table" && next !== "table") {
+    draft.value.format = "";
+  }
   if (next === "facet") {
     if (!draft.value.facet_key) draft.value.facet_key = "";
     if (draft.value.format !== "radio" && draft.value.format !== "dropdown") {
@@ -562,41 +595,46 @@ const optionsSupported = computed(() => supportsOptions(draft.value?.type || "")
 
 const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
 const optionFixedRows = computed(() => {
-  const rows = fixedRowsFor(draft.value?.type || "") ?? undefined;
-  if (!rows || draft.value?.type !== "diagram") return rows;
-  return rows.map((r) => {
-    if (r.input === "table-field") return { ...r, ...diagramSourceChoices.value };
-    if (r.input === "table-column") return { ...r, ...diagramColumnChoices.value };
-    return r;
-  });
+  if (tablePatternId.value) return tablePatternRows(tablePatternId.value) ?? undefined;
+  return fixedRowsFor(draft.value?.type || "") ?? undefined;
 });
 
-// Diagram pickers: the source is a root table of this template; the column
-// roles pick that table's column keys (blank = unbound, optional roles).
-type Choices = { choices: string[]; choiceLabels: Record<string, string> };
-const diagramTables = computed(() =>
-  (props.availableFields ?? []).filter((f) => f.type === "table" && f.key && (f.level_scope ?? 0) === 0),
+// Diagram source picker: only top-level tables whose pattern has a diagram
+// counterpart (backend validation enforces the same rule).
+const diagramSourceChoices = computed(() => {
+  const tables = (props.availableFields ?? []).filter(
+    (f) => f.type === "table" && f.key && (f.level_scope ?? 0) === 0 && hasDiagramPattern(f.format ?? ""),
+  );
+  const labels: Record<string, string> = { "": t("workspace.templates.diagram.none") };
+  for (const f of tables) labels[f.key] = f.label ? `${f.label} (${f.key})` : f.key;
+  return { choices: ["", ...tables.map((f) => f.key)], choiceLabels: labels };
+});
+
+// Reference column targets come from the backend (data fields directly inside a
+// top-level loop of this draft), refreshed while a table is being edited.
+const loopFieldChoices = ref<{ value: string; label: string }[]>([]);
+watch(
+  [() => draft.value?.type, () => props.availableFields],
+  async ([type, fields]) => {
+    if (type !== "table") return;
+    try {
+      const list = await TemplateSvc.ReferenceTargetCandidates(fields ?? []);
+      loopFieldChoices.value = (list ?? []).map((c) => ({ value: c.key, label: `${c.label} (${c.key})` }));
+    } catch {
+      loopFieldChoices.value = [];
+    }
+  },
+  { immediate: true },
 );
-const diagramSourceChoices = computed<Choices>(() => {
-  const labels: Record<string, string> = { "": t("workspace.templates.diagram.none") };
-  for (const f of diagramTables.value) labels[f.key] = f.label ? `${f.label} (${f.key})` : f.key;
-  return { choices: ["", ...diagramTables.value.map((f) => f.key)], choiceLabels: labels };
-});
-const diagramColumnChoices = computed<Choices>(() => {
-  const src = optionRows.value.find((r) => r.value === "source")?.label ?? "";
-  const table = diagramTables.value.find((f) => f.key === src);
-  const labels: Record<string, string> = { "": t("workspace.templates.diagram.none") };
-  const keys: string[] = [];
-  for (const o of (table?.options ?? []) as Record<string, unknown>[]) {
-    const k = typeof o?.value === "string" ? o.value : "";
-    if (!k) continue;
-    keys.push(k);
-    labels[k] = typeof o.label === "string" && o.label ? `${o.label} (${k})` : k;
-  }
-  return { choices: ["", ...keys], choiceLabels: labels };
-});
-const optionLockedColumns = computed(() => lockedColumnsFor(draft.value?.type || ""));
-const optionAllowExtraRows = computed(() => allowExtraRowsFor(draft.value?.type || ""));
+const optionSubRowChoices = computed(() => ({ "loop-field": loopFieldChoices.value }));
+
+const diagramOptionFixedRows = computed(() =>
+  (optionFixedRows.value ?? []).map((r) => (r.input === "table-field" ? { ...r, ...diagramSourceChoices.value } : r)),
+);
+const optionLockedColumns = computed(() =>
+  tablePatternId.value ? tablePatternLockedColumns(tablePatternId.value) : lockedColumnsFor(draft.value?.type || ""),
+);
+const optionAllowExtraRows = computed(() => !!tablePatternId.value || allowExtraRowsFor(draft.value?.type || ""));
 const optionExtraRowsLabel = computed(() => {
   const key = extraRowsLabelKeyFor(draft.value?.type || "");
   return key ? t(key) : "";
@@ -892,11 +930,14 @@ const dialogStyle = computed<Record<string, string>>(() => {
           v-if="showRow('format')"
           :label="isFacetType
             ? t('workspace.templates.field_edit.facet.presentation_label')
-            : t('workspace.templates.field_edit.row.format')"
+            : isTableType
+              ? t('workspace.templates.field_edit.row.pattern')
+              : t('workspace.templates.field_edit.row.format')"
         >
           <SelectField
-            v-model="draft.format"
+            :model-value="draft.format ?? ''"
             :options="formatOptionsForType"
+            @update:model-value="onFormatChange"
           />
         </FormRow>
 
@@ -998,10 +1039,12 @@ const dialogStyle = computed<Record<string, string>>(() => {
             v-if="optionsSupported"
             v-model="mainOptionRows"
             :columns="optionColumns"
-            :fixed-rows="optionFixedRows"
+            :fixed-rows="draft.type === 'diagram' ? diagramOptionFixedRows : optionFixedRows"
             :locked-columns="optionLockedColumns"
             :allow-extra-rows="optionAllowExtraRows"
             :extra-rows-label="optionExtraRowsLabel"
+            :show-locked="!!tablePatternId"
+            :sub-row-choices="optionSubRowChoices"
           />
           <p v-else class="muted small options-unavailable">
             {{ t('workspace.templates.field_edit.row.options_unavailable') }}

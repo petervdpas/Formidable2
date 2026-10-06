@@ -19,8 +19,9 @@ type Layer struct {
 
 // Node kinds.
 const (
-	KindEntity = "entity"
-	KindRule   = "rule"
+	KindEntity  = "entity"
+	KindRule    = "rule"
+	KindLiteral = "literal"
 )
 
 // Node layer ids used by the lineage projection.
@@ -36,13 +37,20 @@ const (
 	PortUnsourced = "unsourced"
 )
 
+// Node Link is an in-page target ("#id") the node points at; Class marks state
+// such as NodeUndefined.
 type Node struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Kind  string `json:"kind"`
 	Layer string `json:"layer"`
 	Ports []Port `json:"ports"`
+	Link  string `json:"link,omitempty"`
+	Class string `json:"class,omitempty"`
 }
+
+// NodeUndefined marks a rule pill whose code matches no item of its target.
+const NodeUndefined = "undefined"
 
 type Port struct {
 	ID    string `json:"id"`
@@ -56,8 +64,10 @@ type PortRef struct {
 	Port string `json:"port,omitempty"`
 }
 
+// Edge Label carries the rule code(s); Note is extra tooltip text (an example value).
 type Edge struct {
 	From  PortRef `json:"from"`
 	To    PortRef `json:"to"`
 	Label string  `json:"label,omitempty"`
+	Note  string  `json:"note,omitempty"`
 }

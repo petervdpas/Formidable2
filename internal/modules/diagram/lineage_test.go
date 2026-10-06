@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// Column order used by these tests: from_entity, from_attr, to_entity, to_attr, label.
-var testCols = LineageColumns{FromEntity: 0, FromAttr: 1, ToEntity: 2, ToAttr: 3, Label: 4}
+// Column order used by these tests: from_entity, from_attr, to_entity, to_attr, label, example.
+var testCols = LineageColumns{FromEntity: 0, FromAttr: 1, ToEntity: 2, ToAttr: 3, Label: 4, Example: 5}
 
 func nodeByID(g Graph, id string) (Node, bool) {
 	for _, n := range g.Nodes {
@@ -87,22 +87,107 @@ func TestLineage_SameNameOnBothSidesStaysTwoNodes(t *testing.T) {
 	}
 }
 
-func TestLineage_TargetWithoutSourceButWithRuleFeedsFromRuleNode(t *testing.T) {
+func TestLineage_TargetWithoutSourceIsFedByOnePillPerRuleCode(t *testing.T) {
 	g := Lineage([][]string{{"", "", "AanmeldingInschrijving", "Bk", "Q-01, Q-02"}}, testCols)
-	rule, ok := nodeByID(g, "rule:q-01, q-02")
-	if !ok || rule.Kind != KindRule || rule.Layer != LayerRule || rule.Label != "Q-01, Q-02" {
-		t.Fatalf("rule node = %+v (found %v)", rule, ok)
+	for _, code := range []string{"Q-01", "Q-02"} {
+		rule, ok := nodeByID(g, "rule:"+canon(code))
+		if !ok || rule.Kind != KindRule || rule.Layer != LayerRule || rule.Label != code {
+			t.Fatalf("rule node %s = %+v (found %v)", code, rule, ok)
+		}
 	}
+	want := []Edge{
+		{From: PortRef{Node: "rule:q-01"}, To: PortRef{Node: "target:aanmeldinginschrijving", Port: "bk"}, Label: "Q-01"},
+		{From: PortRef{Node: "rule:q-02"}, To: PortRef{Node: "target:aanmeldinginschrijving", Port: "bk"}, Label: "Q-02"},
+	}
+	if !reflect.DeepEqual(g.Edges, want) {
+		t.Fatalf("edges = %+v, want %+v", g.Edges, want)
+	}
+	if got := layerIDs(g); !reflect.DeepEqual(got, []string{LayerSource, LayerRule, LayerTarget}) {
+		t.Fatalf("layers = %v", got)
+	}
+}
+
+func TestLineage_RuleCodesShareOnePillAcrossRows(t *testing.T) {
+	g := Lineage([][]string{
+		{"", "", "T", "a", "Q-01, C-01"},
+		{"", "", "T", "b", "q-01; C-02"},
+		{"S", "x", "", "", " Q-01 ,Q-01"},
+	}, testCols)
+	var rules []string
+	for _, n := range g.Nodes {
+		if n.Kind == KindRule {
+			rules = append(rules, n.Label)
+		}
+	}
+	if !reflect.DeepEqual(rules, []string{"Q-01", "C-01", "C-02"}) {
+		t.Fatalf("rule pills = %v, want one per distinct code", rules)
+	}
+	if len(g.Edges) != 5 {
+		t.Fatalf("edges = %+v, want 5 (duplicate code in a cell counted once)", g.Edges)
+	}
+}
+
+func TestLineage_DirectMappingKeepsOneEdgeWithAllCodesAndExample(t *testing.T) {
+	g := Lineage([][]string{{"A", "x", "T", "y", "Q-01, C-01", "5578035"}}, testCols)
 	want := Edge{
-		From:  PortRef{Node: "rule:q-01, q-02"},
-		To:    PortRef{Node: "target:aanmeldinginschrijving", Port: "bk"},
-		Label: "Q-01, Q-02",
+		From: PortRef{Node: "source:a", Port: "x"}, To: PortRef{Node: "target:t", Port: "y"},
+		Label: "Q-01, C-01", Note: "5578035",
 	}
 	if len(g.Edges) != 1 || g.Edges[0] != want {
 		t.Fatalf("edges = %+v, want [%+v]", g.Edges, want)
 	}
-	if got := layerIDs(g); !reflect.DeepEqual(got, []string{LayerSource, LayerRule, LayerTarget}) {
-		t.Fatalf("layers = %v", got)
+	for _, n := range g.Nodes {
+		if n.Kind == KindRule {
+			t.Fatalf("direct mapping must not add rule pills: %+v", n)
+		}
+	}
+}
+
+func TestLineage_TargetWithOnlyAnExampleIsFedByALiteral(t *testing.T) {
+	g := Lineage([][]string{
+		{"", "", "T", "kind", "", "3"},
+		{"", "", "U", "kind", "", "3"},
+	}, testCols)
+	lit, ok := nodeByID(g, "literal:target:t:kind")
+	if !ok || lit.Kind != KindLiteral || lit.Layer != LayerRule || lit.Label != "3" {
+		t.Fatalf("literal = %+v (found %v)", lit, ok)
+	}
+	if _, ok := nodeByID(g, "literal:target:u:kind"); !ok {
+		t.Fatal("each target gets its own literal, equal values are not merged")
+	}
+	tg, _ := nodeByID(g, "target:t")
+	if tg.Ports[0].Class != "" {
+		t.Fatalf("a literal-fed port is sourced; class = %q", tg.Ports[0].Class)
+	}
+}
+
+func TestLineage_ExampleIsNotALiteralWhenRulesOrSourceExist(t *testing.T) {
+	g := Lineage([][]string{
+		{"", "", "T", "a", "Q-03", "3"},
+		{"S", "x", "", "", "", "!!NULL"},
+	}, testCols)
+	for _, n := range g.Nodes {
+		if n.Kind == KindLiteral {
+			t.Fatalf("unexpected literal %+v", n)
+		}
+	}
+	if g.Edges[0].Note != "3" {
+		t.Fatalf("rule edge note = %q, want the example value", g.Edges[0].Note)
+	}
+}
+
+func TestSplitCodes(t *testing.T) {
+	cases := map[string][]string{
+		"":                  nil,
+		" , ; ":             nil,
+		"Q-01":              {"Q-01"},
+		"Q-01, Q-02,C-01":   {"Q-01", "Q-02", "C-01"},
+		"Q-01;q-01 ; E-01 ": {"Q-01", "E-01"},
+	}
+	for in, want := range cases {
+		if got := splitCodes(in); !reflect.DeepEqual(got, want) {
+			t.Errorf("splitCodes(%q) = %v, want %v", in, got, want)
+		}
 	}
 }
 
@@ -165,7 +250,7 @@ func TestLineage_AttributeWithoutEntityGoesToUnnamedNode(t *testing.T) {
 }
 
 func TestLineage_BlankRowsShortRowsAndAbsentColumnsAreTolerated(t *testing.T) {
-	cols := LineageColumns{FromEntity: 0, FromAttr: 1, ToEntity: 2, ToAttr: 3, Label: -1}
+	cols := LineageColumns{FromEntity: 0, FromAttr: 1, ToEntity: 2, ToAttr: 3, Label: -1, Example: -1}
 	g := Lineage([][]string{
 		nil,
 		{},
@@ -179,7 +264,7 @@ func TestLineage_BlankRowsShortRowsAndAbsentColumnsAreTolerated(t *testing.T) {
 }
 
 func TestLineage_OutOfRangeColumnIndexReadsAsBlank(t *testing.T) {
-	cols := LineageColumns{FromEntity: 0, FromAttr: 1, ToEntity: 2, ToAttr: 3, Label: 99}
+	cols := LineageColumns{FromEntity: 0, FromAttr: 1, ToEntity: 2, ToAttr: 3, Label: 99, Example: -1}
 	g := Lineage([][]string{{"A", "x", "B", "y"}}, cols)
 	if len(g.Edges) != 1 {
 		t.Fatalf("edges = %+v", g.Edges)

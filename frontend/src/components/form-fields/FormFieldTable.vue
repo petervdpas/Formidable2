@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField, SwitchField, DateInput, type SelectOption } from "../fields";
@@ -10,7 +10,9 @@ import {
   Service as CsvSvc,
   TableColumn,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
-import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as TemplateSvc, type Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import ReferenceCellPicker from "./ReferenceCellPicker.vue";
+import { FORM_VALUES_KEY, type FormValuesContext } from "../../composables/formValues";
 
 const { t } = useI18n();
 const { config } = useConfig();
@@ -63,13 +65,15 @@ const dndScope =
 // row is one array of cells in column order.
 //
 // Per-column type comes from field.options[i].type:
-//   "string" (default), "number", "date", "bool", "dropdown"
-// "reference" is deferred to a follow-up.
+//   "string" (default), "number", "date", "bool", "dropdown", "reference"
+// A reference cell picks from the items of its target loop field (live draft).
 
 type Col = {
   key: string;
   label: string;
-  type: "string" | "number" | "date" | "bool" | "dropdown";
+  type: "string" | "number" | "date" | "bool" | "dropdown" | "reference";
+  // reference columns only: the loop field whose item values are offered.
+  target: string;
   choices: SelectOption[];
   // number columns only: the HTML input step ("1" = integers, "any" =
   // decimals). Empty falls back to "1", matching the standalone number field.
@@ -93,16 +97,58 @@ const columns = computed<Col[]>(() => {
     .filter((o): o is Record<string, unknown> => !!o && typeof o === "object")
     .map((o) => {
       const type = String(o.type ?? "string");
-      const valid = ["string", "number", "date", "bool", "dropdown"];
+      const valid = ["string", "number", "date", "bool", "dropdown", "reference"];
       return {
         key: String(o.value ?? ""),
         label: String(o.label ?? o.value ?? ""),
         type: (valid.includes(type) ? type : "string") as Col["type"],
         choices: parseChoices(String(o.choices ?? "")),
         step: o.step != null ? String(o.step) : "",
+        target: typeof o.target === "string" ? o.target : "",
       };
     });
 });
+
+// ── Reference columns ────────────────────────────────────────────────
+// The backend says which loop holds each target field; the choices are the
+// target values present in that loop in the live draft (unsaved items count).
+const templateFilename = inject<Ref<string>>("templateFilename", ref(""));
+const formValues = inject<FormValuesContext | null>(FORM_VALUES_KEY, null);
+const targetLoops = ref<Record<string, string>>({});
+
+watch(
+  [templateFilename, () => columns.value.some((c) => c.type === "reference")],
+  async ([tpl, hasRef]) => {
+    if (!tpl || !hasRef) {
+      targetLoops.value = {};
+      return;
+    }
+    try {
+      const loops = (await TemplateSvc.ReferenceTargetLoops(tpl)) ?? {};
+      targetLoops.value = Object.fromEntries(Object.entries(loops).filter((e): e is [string, string] => !!e[1]));
+    } catch {
+      targetLoops.value = {};
+    }
+  },
+  { immediate: true },
+);
+
+function referenceChoices(col: Col): string[] {
+  const loop = targetLoops.value[col.target];
+  const items = loop ? formValues?.values.value[loop] : undefined;
+  if (!Array.isArray(items)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const it of items) {
+    const v = it && typeof it === "object" ? (it as Record<string, unknown>)[col.target] : undefined;
+    const s = v == null ? "" : String(v).trim();
+    if (s && !seen.has(s.toLowerCase())) {
+      seen.add(s.toLowerCase());
+      out.push(s);
+    }
+  }
+  return out;
+}
 
 // "key:Label | key:Label" → [{value:"key", label:"Label"}]
 function parseChoices(s: string): SelectOption[] {
@@ -274,6 +320,13 @@ function asNumber(v: unknown): number {
                 :model-value="asString(row[ci])"
                 @update:model-value="(v) => setCell(ri, ci, v)"
                 :options="col.choices"
+              />
+              <ReferenceCellPicker
+                v-else-if="col.type === 'reference'"
+                :model-value="asString(row[ci])"
+                :choices="referenceChoices(col)"
+                :readonly="field.readonly"
+                @update:model-value="(v) => setCell(ri, ci, v)"
               />
             </td>
             <td class="ff-table-col-tiny">

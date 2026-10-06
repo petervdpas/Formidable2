@@ -37,8 +37,8 @@ func TestAbilities_SummaryField_OnlyOnLoopstart(t *testing.T) {
 	assertAbilityMatchesSet(t, "SummaryField", allowed, func(a Abilities) bool { return a.SummaryField })
 }
 
-func TestAbilities_Format_OnlyOnTextareaAndFacet(t *testing.T) {
-	allowed := stringSet("textarea", "facet")
+func TestAbilities_Format_OnlyOnTextareaFacetAndTable(t *testing.T) {
+	allowed := stringSet("textarea", "facet", "table")
 	assertAbilityMatchesSet(t, "Format", allowed, func(a Abilities) bool { return a.Format })
 }
 

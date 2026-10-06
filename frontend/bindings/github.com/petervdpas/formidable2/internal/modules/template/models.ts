@@ -1469,6 +1469,12 @@ export class SubRow {
     "scalar"?: boolean;
     "default"?: string;
 
+    /**
+     * Input turns a scalar sub-row into a picker; SubRowInputLoopField offers
+     * ReferenceTargetCandidates of the template being edited.
+     */
+    "input"?: string;
+
     /** Creates a new SubRow instance. */
     constructor($$source: Partial<SubRow> = {}) {
         if (!("row_key" in $$source)) {
@@ -1575,6 +1581,41 @@ export class TableColumnTypeDescriptor {
             $$parsedSource["sub_row"] = $$createField1_0($$parsedSource["sub_row"]);
         }
         return new TableColumnTypeDescriptor($$parsedSource as Partial<TableColumnTypeDescriptor>);
+    }
+}
+
+/**
+ * TablePatternDescriptor is one entry of the pattern picker; Shape is nil for regular.
+ * Diagram names the projection a diagram field draws it with ("" = none).
+ */
+export class TablePatternDescriptor {
+    "id": string;
+    "label_key": string;
+    "shape"?: FixedOptionsShape | null;
+    "diagram"?: string;
+
+    /** Creates a new TablePatternDescriptor instance. */
+    constructor($$source: Partial<TablePatternDescriptor> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TablePatternDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TablePatternDescriptor {
+        const $$createField2_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("shape" in $$parsedSource) {
+            $$parsedSource["shape"] = $$createField2_0($$parsedSource["shape"]);
+        }
+        return new TablePatternDescriptor($$parsedSource as Partial<TablePatternDescriptor>);
     }
 }
 

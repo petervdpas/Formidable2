@@ -17,7 +17,7 @@ func (f fakeLoader) LoadTemplate(string) (*template.Template, error) { return f.
 
 func TestService_RenderDrawsLiveData(t *testing.T) {
 	s := NewService(fakeLoader{t: lineageTemplate()})
-	svg, err := s.Render("m.yaml", "lineage", map[string]any{"mapping": []any{[]any{"A", "x", "T", "y", ""}}})
+	svg, err := s.Render("m.yaml", "lineage", map[string]any{"mapping": []any{[]any{"A", "x", "T", "y", "", ""}}})
 	if err != nil || !strings.HasPrefix(svg, "<svg") {
 		t.Fatalf("svg=%.60q err=%v", svg, err)
 	}

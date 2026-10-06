@@ -114,7 +114,7 @@ func TestGenerate_FrontmatterFacetIncluded(t *testing.T) {
 // ── Diagram (virtual, draws its bound table) ─────────────────────────
 
 func diagramFieldsSample() []Field {
-	return []Field{mappingTable(), diagramField("mapping", fullCols)}
+	return []Field{lineageTable("mapping"), diagramField("mapping")}
 }
 
 func TestGenerate_ReportDiagramEmitsVirtualFieldHelperWithoutDebugLog(t *testing.T) {
