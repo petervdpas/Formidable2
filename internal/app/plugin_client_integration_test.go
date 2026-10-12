@@ -13,6 +13,7 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/modules/connection"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
+	"github.com/petervdpas/formidable2/internal/modules/system"
 )
 
 // clientStoreFS is an in-memory api-client store, so the test owns exactly
@@ -162,9 +163,16 @@ func shopPlugin(t *testing.T, baseURL string, secrets connection.SecretResolver)
 
 	clientM := connection.NewManager(&clientStoreFS{files: map[string]string{}}, nil)
 	adapter := pluginClientAdapter{m: clientM, inv: connection.NewInvoker(clientM, secrets)}
-	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter})
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter,
+		Editor: system.NewManager(t.TempDir(), nil)})
 	if err := pluginM.Refresh(); err != nil {
 		t.Fatal(err)
+	}
+	if clientM.Has("shop") {
+		t.Fatal("a refresh created the shipped client")
+	}
+	if _, err := pluginM.GenerateShippedClient("shopper", "shop"); err != nil {
+		t.Fatalf("GenerateShippedClient: %v", err)
 	}
 	return pluginM, clientM
 }
@@ -327,9 +335,16 @@ end`,
 
 	clientM := connection.NewManager(&clientStoreFS{files: map[string]string{}}, nil)
 	adapter := pluginClientAdapter{m: clientM, inv: connection.NewInvoker(clientM, fixedSecret{value: "s3cret"})}
-	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter})
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter,
+		Editor: system.NewManager(t.TempDir(), nil)})
 	if err := pluginM.Refresh(); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := pluginM.Run("kennel", "dogs", nil); !errors.Is(err, plugin.ErrClientMissing) {
+		t.Fatalf("Run before the client is created: err = %v, want ErrClientMissing", err)
+	}
+	if _, err := pluginM.GenerateShippedClient("kennel", "kennel-api"); err != nil {
+		t.Fatalf("GenerateShippedClient: %v", err)
 	}
 
 	notices := pluginM.TakeClientNotices()

@@ -18,8 +18,8 @@ const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
-    /** Language hint: 'markdown' (default - Handlebars/MD), 'yaml', 'lua', 'html'. */
-    lang?: "markdown" | "yaml" | "lua" | "html";
+    /** Language hint: 'markdown' (default - Handlebars/MD), 'yaml', 'lua', 'html', 'json'. */
+    lang?: "markdown" | "yaml" | "lua" | "html" | "json";
     /** Tab indentation size. Default 2. */
     tabSize?: number;
     /** Disable editing. */
@@ -54,7 +54,10 @@ const themeExtension = computed(() => (isLight.value ? [] : [oneDark]));
 // exists) wrapped via StreamLanguage. yaml/markdown have proper
 // LR parsers so we keep those on the dedicated packages.
 const langExtension = computed(() => {
-  if (props.lang === "yaml") return [yaml()];
+  // JSON is highlighted by the YAML parser: every JSON document is YAML flow
+  // style, and that saves a language package. Formatting still goes to the
+  // backend's JSON formatter, keyed on the lang prop.
+  if (props.lang === "yaml" || props.lang === "json") return [yaml()];
   if (props.lang === "lua") return [StreamLanguage.define(luaMode)];
   if (props.lang === "html") return [html()];
   return [markdown({ extensions: [handlebarsMarkdownExtensions] })];

@@ -280,7 +280,7 @@ func (m *Manager) ExportArchive(id, zipPath string) (ExportArchiveResult, error)
 	return exportPluginArchive(m.deps.Editor, m.deps.PluginsDir, id, zipPath)
 }
 
-// ImportArchive materialises a plugin-archive zip under <PluginsDir>/, refusing to overwrite unless overwrite=true, then Refreshes the registry.
+// ImportArchive materialises a plugin-archive zip under <PluginsDir>/, refusing to overwrite unless overwrite=true, then Refreshes the registry and creates the api-clients the plugin ships.
 func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveResult, error) {
 	if m.deps.Editor == nil {
 		return ImportArchiveResult{}, fmt.Errorf("plugin: editor fs not configured")
@@ -289,22 +289,13 @@ func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveRe
 	if err != nil {
 		return res, err
 	}
-	outcomes, refreshErr := m.refresh()
-	if refreshErr != nil {
+	if refreshErr := m.Refresh(); refreshErr != nil {
 		// Files already landed; return success since a refresh hiccup is recoverable via the workspace Refresh button.
 		m.log.Warn("plugin: refresh after import failed", "id", res.ID, "err", refreshErr)
 	}
-	var own, others []ClientInstall
-	for _, o := range outcomes {
-		if o.Plugin == res.ID {
-			own = append(own, o)
-		} else {
-			others = append(others, o)
-		}
-	}
-	m.queueClientNotices(others)
+	// Importing a plugin is the user asking for it, so the api-clients it ships are created here and only here.
 	if p, ok := m.Get(res.ID); ok {
-		res.Clients = m.importedClients(p, own)
+		res.Clients = m.importedClients(p, m.installClients(p))
 	}
 	return res, nil
 }

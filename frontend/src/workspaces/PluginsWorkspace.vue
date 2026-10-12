@@ -9,6 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
 import PluginI18nEditor from "../components/PluginI18nEditor.vue";
+import PluginClientsEditor from "../components/PluginClientsEditor.vue";
 import PluginResultPanel from "../components/PluginResultPanel.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import FormFieldRow from "../components/form-fields/FormFieldRow.vue";
@@ -136,7 +137,7 @@ async function stopGlobalRun() {
 // most editing happens); Commands edits the manifest's command
 // list; Form Editor is a placeholder until the visual builder
 // lands in the next slice.
-type PluginTab = "source" | "commands" | "form" | "i18n";
+type PluginTab = "source" | "commands" | "form" | "i18n" | "apiclients";
 const activeTab = ref<PluginTab>("source");
 
 // ── Refresh ──────────────────────────────────────────────────────────
@@ -949,6 +950,15 @@ setTopbarMenu(() => [
           >
             {{ t('workspace.plugins.tab.i18n') }}
           </button>
+          <button
+            type="button"
+            role="tab"
+            :class="['tab', { active: activeTab === 'apiclients' }]"
+            :aria-selected="activeTab === 'apiclients'"
+            @click="activeTab = 'apiclients'"
+          >
+            {{ t('workspace.plugins.tab.apiclients') }}
+          </button>
         </nav>
 
         <section v-show="activeTab === 'source'" class="tab-pane">
@@ -1083,6 +1093,10 @@ setTopbarMenu(() => [
 
         <section v-show="activeTab === 'i18n'" class="tab-pane">
           <PluginI18nEditor :plugin-id="selectedID" />
+        </section>
+
+        <section v-show="activeTab === 'apiclients'" class="tab-pane">
+          <PluginClientsEditor :plugin-id="selectedID" />
         </section>
       </template>
     </template>

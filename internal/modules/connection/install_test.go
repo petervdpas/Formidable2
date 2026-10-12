@@ -136,7 +136,7 @@ func TestInstall_Unhappy(t *testing.T) {
 		files map[string]string
 	}{
 		{"bad id", "../crm", bundle(t, good, specV3JSON)},
-		{"neither definition nor document", "absent", bundle(t, good, specV3JSON)},
+		{"no document", "absent", bundle(t, good, specV3JSON)},
 		{"definition is not yaml", "crm-prod", map[string]string{"crm-prod.yaml": "\t: ["}},
 		{"id differs from the file name", "other", mismatched},
 		{"missing spec", "crm-prod", noSpec},
@@ -416,5 +416,52 @@ func TestCreate_Unhappy(t *testing.T) {
 	}
 	if err := NewManager(nil, nil).Create(Connection{ID: "shop"}, []byte(derivableSpec)); err == nil {
 		t.Error("no filesystem accepted")
+	}
+}
+
+func TestInstall_PartialDefinitionKeepsItsBaseURLAndTakesTheRestFromTheDocument(t *testing.T) {
+	// The document's only server is relative, so the shipped base URL is what
+	// makes this client valid at all.
+	doc := strings.Replace(derivableSpec, `"https://shop.example.com/v1"`, `"/v1"`, 1)
+	m := NewManager(newMemFS(), nil)
+	derived, err := m.Install("shop", readerOf(map[string]string{
+		"shop.yaml":       "id: shop\nbase_url: https://acc.shop.example.com/v1\n",
+		"specs/shop.json": doc,
+	}))
+	if err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	if !derived {
+		t.Error("derived = false although the resources came from the document")
+	}
+	c, _, err := m.Get("shop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.BaseURL != "https://acc.shop.example.com/v1" || c.Name != "Shop API" || c.Auth.Kind != AuthBearer || len(c.Resources) != 1 {
+		t.Errorf("client = %+v", c)
+	}
+}
+
+func TestInstall_PartialDefinitionWithABadBaseURLIsRefused(t *testing.T) {
+	fs := newMemFS()
+	_, err := NewManager(fs, nil).Install("shop", readerOf(map[string]string{
+		"shop.yaml":       "base_url: not-a-url\n",
+		"specs/shop.json": derivableSpec,
+	}))
+	var vf *ValidationFailedError
+	if !errors.As(err, &vf) || len(fs.files) != 0 {
+		t.Fatalf("err = %v, files = %v", err, fs.files)
+	}
+}
+
+func TestValidBaseURL(t *testing.T) {
+	for in, want := range map[string]bool{
+		"https://api.example.com/v2": true, "http://localhost:8080": true,
+		"": false, "/v2": false, "api.example.com": false, "ftp://x.example.com": false, "https://": false, "::": false,
+	} {
+		if got := ValidBaseURL(in); got != want {
+			t.Errorf("ValidBaseURL(%q) = %v, want %v", in, got, want)
+		}
 	}
 }

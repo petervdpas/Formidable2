@@ -58,7 +58,7 @@ type Manifest struct {
 	Workspaces []string `json:"workspaces,omitempty"`
 	// Templates narrows a workspace attachment to exact template filenames; non-empty makes the plugin template-scoped (shows only while a listed template is selected). It only narrows, never broadens.
 	Templates []string `json:"templates,omitempty"`
-	// APIClients lists the api-client ids the plugin uses. Each one missing at Refresh is installed from the plugin's api-clients folder, create-only; Run refuses while one is absent.
+	// APIClients lists the api-client ids the plugin uses. One the plugin ships under api-clients/ is created, create-only, on zip import or from the editor; Run refuses while a shipped one is absent.
 	APIClients []string `json:"api_clients,omitempty"`
 	// Debug toggles the collapsible debug/output panel in the Run modal.
 	Debug bool `json:"debug"`

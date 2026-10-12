@@ -138,3 +138,16 @@ func TestCall_CancelledContext(t *testing.T) {
 		t.Errorf("code = %s, want canceled", got)
 	}
 }
+
+func TestCall_ReportsTheRoundTripForLogging(t *testing.T) {
+	iv, _, _ := shopFixture(t, jsonHandler(200, `{}`))
+	req := tryReq("listCustomers")
+	req.Params = map[string]string{"q": "ada", "tenant": "acme"}
+	res, err := iv.Call(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Method != "GET" || !strings.Contains(res.URL, "/customers?q=ada") || res.DurationMS < 0 {
+		t.Errorf("round trip = %s %s (%d ms)", res.Method, res.URL, res.DurationMS)
+	}
+}

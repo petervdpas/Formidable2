@@ -127,6 +127,36 @@ func (s *Service) TakeClientNotices() []ClientInstall {
 	return s.m.TakeClientNotices()
 }
 
+// ListShippedClients describes the api-clients a plugin declares, for the editor's API-clients tab.
+func (s *Service) ListShippedClients(pluginID string) ([]ShippedClient, error) {
+	return s.m.ListShippedClients(pluginID)
+}
+
+// GetShippedDocument returns the OpenAPI document a plugin ships for one client, or "" when it ships none.
+func (s *Service) GetShippedDocument(pluginID, clientID string) (string, error) {
+	return s.m.GetShippedDocument(pluginID, clientID)
+}
+
+// SaveShippedClient stores an OpenAPI document in the plugin as the source of clientID and declares it; the client is generated when it does not exist yet.
+func (s *Service) SaveShippedClient(pluginID, clientID, document string) ([]ShippedClient, error) {
+	return s.m.SaveShippedClient(pluginID, clientID, document)
+}
+
+// SetShippedSettings makes the plugin hold a display name and base URL for clientID (an empty value clears it); the client is created with them.
+func (s *Service) SetShippedSettings(pluginID, clientID, name, baseURL string) ([]ShippedClient, error) {
+	return s.m.SetShippedSettings(pluginID, clientID, name, baseURL)
+}
+
+// GenerateShippedClient creates the api-client from the document the plugin ships; an existing client is left untouched.
+func (s *Service) GenerateShippedClient(pluginID, clientID string) ([]ShippedClient, error) {
+	return s.m.GenerateShippedClient(pluginID, clientID)
+}
+
+// RemoveShippedClient stops the plugin declaring and shipping clientID; an installed client stays.
+func (s *Service) RemoveShippedClient(pluginID, clientID string) ([]ShippedClient, error) {
+	return s.m.RemoveShippedClient(pluginID, clientID)
+}
+
 // GetSource returns the plugin's main.lua content.
 func (s *Service) GetSource(id string) (string, error) {
 	return s.m.GetSource(id)

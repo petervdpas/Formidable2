@@ -14,5 +14,6 @@ export {
     ListResult,
     Manifest,
     RunResultDTO,
+    ShippedClient,
     ToastEvent
 } from "./models.js";

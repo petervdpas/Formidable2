@@ -1,0 +1,14 @@
+id: petstore-demo
+name: Whatever I name it
+base_url: https://petstore.swagger.io/v2
+spec_file: petstore-demo.json
+auth:
+    kind: none
+resources:
+    - key: inventory
+      label: Inventory
+      list:
+        operation: getInventory
+      id_path: ""
+      label_path: ""
+      items_mode: map

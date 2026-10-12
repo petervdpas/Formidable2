@@ -148,8 +148,20 @@ function reset(): void {
   draftForm.value = clone(baselineForm);
 }
 
+// The API-clients tab changes api_clients in plugin.json through the backend,
+// outside the Save button. Mirror the new list into the draft, the baseline and
+// the list entry in place, so the next manifest Save carries it and nothing
+// else in the draft (unsaved Lua, form edits) is reloaded or marked dirty.
+function syncAPIClients(ids: string[]): void {
+  const next = ids.length > 0 ? [...ids] : undefined;
+  if (draftManifest.value) draftManifest.value.api_clients = next;
+  if (baselineManifest) baselineManifest.api_clients = next ? [...next] : undefined;
+  if (selectedPlugin.value) selectedPlugin.value.manifest.api_clients = next ? [...next] : undefined;
+}
+
 export function usePluginEditor() {
   return {
+    syncAPIClients,
     draftManifest,
     draftSource,
     draftForm,

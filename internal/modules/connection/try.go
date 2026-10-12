@@ -246,7 +246,13 @@ func (iv *Invoker) Try(ctx context.Context, req TryRequest) (*TryResult, error) 
 
 // CallResult is one operation's answer for a program rather than a person:
 // Data when the body parsed as JSON, Body verbatim when it did not.
+//
+// Method, URL and DurationMS describe the round trip, so a caller can log what
+// it fetched. URL has a query-borne credential redacted, like the console's.
 type CallResult struct {
+	Method      string `json:"method"`
+	URL         string `json:"url"`
+	DurationMS  int64  `json:"duration_ms"`
 	Status      int    `json:"status"`
 	ContentType string `json:"content_type,omitempty"`
 	Data        any    `json:"data,omitempty"`
@@ -258,10 +264,11 @@ type CallResult struct {
 // status is an error carrying its code, and an oversized body is refused
 // rather than cut, since half a document parses as nothing.
 func (iv *Invoker) Call(ctx context.Context, req TryRequest) (*CallResult, error) {
-	httpReq, _, op, target, err := iv.prepare(ctx, req)
+	httpReq, conn, op, target, err := iv.prepare(ctx, req)
 	if err != nil {
 		return nil, err
 	}
+	started := time.Now()
 	resp, err := iv.client.Do(httpReq)
 	if err != nil {
 		return nil, transportErr(ctx, err)
@@ -280,7 +287,13 @@ func (iv *Invoker) Call(ctx context.Context, req TryRequest) (*CallResult, error
 		}
 	}
 
-	res := &CallResult{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type")}
+	res := &CallResult{
+		Method:      op.Method,
+		URL:         redactQuery(target, conn),
+		DurationMS:  time.Since(started).Milliseconds(),
+		Status:      resp.StatusCode,
+		ContentType: resp.Header.Get("Content-Type"),
+	}
 	dec := json.NewDecoder(bytes.NewReader(body))
 	var data any
 	if len(bytes.TrimSpace(body)) > 0 && dec.Decode(&data) == nil && !dec.More() {

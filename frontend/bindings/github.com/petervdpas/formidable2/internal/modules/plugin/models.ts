@@ -233,7 +233,7 @@ export class Manifest {
     "templates"?: string[];
 
     /**
-     * APIClients lists the api-client ids the plugin uses. Each one missing at Refresh is installed from the plugin's api-clients folder, create-only; Run refuses while one is absent.
+     * APIClients lists the api-client ids the plugin uses. One the plugin ships under api-clients/ is created, create-only, on zip import or from the editor; Run refuses while a shipped one is absent.
      */
     "api_clients"?: string[];
 
@@ -330,6 +330,51 @@ export class RunResultDTO {
             $$parsedSource["toasts"] = $$createField4_0($$parsedSource["toasts"]);
         }
         return new RunResultDTO($$parsedSource as Partial<RunResultDTO>);
+    }
+}
+
+/**
+ * ShippedClient is one api-client a plugin declares, as the editor's API-clients tab shows it.
+ * Document is the file under api-clients/specs the client is generated from ("" when the plugin ships none and a script or the user creates it).
+ * Name and BaseURL are what the plugin holds for the client; Title and Server are what the document itself declares, used when the held value is empty.
+ * HasDefinition marks a hand-written definition with bindings of its own, beyond settings.
+ */
+export class ShippedClient {
+    "id": string;
+    "document"?: string;
+    "name"?: string;
+    "base_url"?: string;
+    "server"?: string;
+    "has_definition": boolean;
+    "installed": boolean;
+    "title"?: string;
+    "operations": number;
+    "error"?: string;
+
+    /** Creates a new ShippedClient instance. */
+    constructor($$source: Partial<ShippedClient> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("has_definition" in $$source)) {
+            this["has_definition"] = false;
+        }
+        if (!("installed" in $$source)) {
+            this["installed"] = false;
+        }
+        if (!("operations" in $$source)) {
+            this["operations"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ShippedClient instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ShippedClient {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ShippedClient($$parsedSource as Partial<ShippedClient>);
     }
 }
 

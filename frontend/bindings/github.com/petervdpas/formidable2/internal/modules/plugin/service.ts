@@ -60,6 +60,15 @@ export function ExportArchive(id: string, zipPath: string): $CancellablePromise<
 }
 
 /**
+ * GenerateShippedClient creates the api-client from the document the plugin ships; an existing client is left untouched.
+ */
+export function GenerateShippedClient(pluginID: string, clientID: string): $CancellablePromise<$models.ShippedClient[]> {
+    return $Call.ByID(924293336, pluginID, clientID).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * GetForm returns the raw form.json text, or the empty-array placeholder when missing.
  */
 export function GetForm(id: string): $CancellablePromise<string> {
@@ -71,7 +80,7 @@ export function GetForm(id: string): $CancellablePromise<string> {
  */
 export function GetI18nMessages(locale: string): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(24808493, locale).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -80,8 +89,15 @@ export function GetI18nMessages(locale: string): $CancellablePromise<{ [_ in str
  */
 export function GetPluginI18n(id: string, locale: string): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(808121062, id, locale).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
+}
+
+/**
+ * GetShippedDocument returns the OpenAPI document a plugin ships for one client, or "" when it ships none.
+ */
+export function GetShippedDocument(pluginID: string, clientID: string): $CancellablePromise<string> {
+    return $Call.ByID(3818698233, pluginID, clientID);
 }
 
 /**
@@ -96,7 +112,7 @@ export function GetSource(id: string): $CancellablePromise<string> {
  */
 export function ImportArchive(zipPath: string, overwrite: boolean): $CancellablePromise<$models.ImportArchiveResult> {
     return $Call.ByID(1966327212, zipPath, overwrite).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -132,7 +148,16 @@ export function ListForWorkspace(ws: string): $CancellablePromise<$models.ListRe
  */
 export function ListPluginLocales(id: string): $CancellablePromise<string[]> {
     return $Call.ByID(111512495, id).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
+    });
+}
+
+/**
+ * ListShippedClients describes the api-clients a plugin declares, for the editor's API-clients tab.
+ */
+export function ListShippedClients(pluginID: string): $CancellablePromise<$models.ShippedClient[]> {
+    return $Call.ByID(3889756466, pluginID).then(($result: any) => {
+        return $$createType4($result);
     });
 }
 
@@ -141,7 +166,7 @@ export function ListPluginLocales(id: string): $CancellablePromise<string[]> {
  */
 export function ListWorkspaces(): $CancellablePromise<string[]> {
     return $Call.ByID(970622365).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -150,7 +175,7 @@ export function ListWorkspaces(): $CancellablePromise<string[]> {
  */
 export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(3599671491, pluginID, fieldKeys).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -165,11 +190,20 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * RemoveShippedClient stops the plugin declaring and shipping clientID; an installed client stays.
+ */
+export function RemoveShippedClient(pluginID: string, clientID: string): $CancellablePromise<$models.ShippedClient[]> {
+    return $Call.ByID(3736602729, pluginID, clientID).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * Run invokes a command; errors are classified into distinct Kinds so the frontend branches deterministically.
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -197,11 +231,29 @@ export function SavePluginI18n(id: string, locale: string, msgs: { [_ in string]
 }
 
 /**
+ * SaveShippedClient stores an OpenAPI document in the plugin as the source of clientID and declares it; the client is generated when it does not exist yet.
+ */
+export function SaveShippedClient(pluginID: string, clientID: string, document: string): $CancellablePromise<$models.ShippedClient[]> {
+    return $Call.ByID(3977009866, pluginID, clientID, document).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
+ * SetShippedSettings makes the plugin hold a display name and base URL for clientID (an empty value clears it); the client is created with them.
+ */
+export function SetShippedSettings(pluginID: string, clientID: string, name: string, baseURL: string): $CancellablePromise<$models.ShippedClient[]> {
+    return $Call.ByID(875395561, pluginID, clientID, name, baseURL).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * TakeClientNotices returns and clears the api-client install outcomes from Refreshes the frontend has not been told about, boot included.
  */
 export function TakeClientNotices(): $CancellablePromise<$models.ClientInstall[]> {
     return $Call.ByID(866055568).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -218,7 +270,7 @@ export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void
  */
 export function WidgetKinds(): $CancellablePromise<formwidget$0.Descriptor[]> {
     return $Call.ByID(743175530).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -226,12 +278,14 @@ export function WidgetKinds(): $CancellablePromise<formwidget$0.Descriptor[]> {
 const $$createType0 = $models.ListResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.ExportArchiveResult.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = $models.ImportArchiveResult.createFrom;
-const $$createType5 = $Create.Array($Create.Any);
-const $$createType6 = $Create.Map($Create.Any, $Create.Any);
-const $$createType7 = $models.RunResultDTO.createFrom;
-const $$createType8 = $models.ClientInstall.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = formwidget$0.Descriptor.createFrom;
+const $$createType3 = $models.ShippedClient.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = $models.ImportArchiveResult.createFrom;
+const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = $Create.Map($Create.Any, $Create.Any);
+const $$createType9 = $models.RunResultDTO.createFrom;
+const $$createType10 = $models.ClientInstall.createFrom;
 const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = formwidget$0.Descriptor.createFrom;
+const $$createType13 = $Create.Array($$createType12);

@@ -392,7 +392,7 @@
 
 .plugin-i18n-editor .locale-chip.active {
     background: var(--color-accent);
-    color: var(--color-on-accent);
+    color: var(--color-on-accent, #fff);
     border-color: var(--color-accent);
 }
 
@@ -448,4 +448,46 @@
     display: flex;
     gap: var(--space-2);
     flex-wrap: wrap;
+}
+
+/* API-clients tab. The chip switcher and action row come from
+   .plugin-i18n-editor, which the component's root also carries. */
+.plugin-clients-editor .client-facts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+}
+
+.plugin-clients-editor .client-facts > div {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+}
+
+.plugin-clients-editor .client-facts dt {
+    min-width: 7rem;
+}
+
+.plugin-clients-editor .client-facts dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: baseline;
+}
+
+.plugin-clients-editor .client-error {
+    margin: 0;
+    color: var(--color-danger, #c0392b);
+}
+
+.plugin-clients-editor .client-url {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.plugin-clients-editor .client-url p {
+    margin: 0;
 }

@@ -96,8 +96,7 @@ func validateBaseURL(c *Connection, cat *Catalog) []ValidationError {
 		}
 		return nil
 	}
-	u, err := url.Parse(c.BaseURL)
-	if err != nil || !u.IsAbs() || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+	if !ValidBaseURL(c.BaseURL) {
 		return []ValidationError{{
 			Type:    "invalid-base-url",
 			Message: fmt.Sprintf("Base URL %q must be an absolute http or https URL", c.BaseURL),
@@ -505,4 +504,11 @@ func FirstAbsoluteServer(cat *Catalog) string {
 		}
 	}
 	return ""
+}
+
+// ValidBaseURL reports whether s can be a connection's base URL: absolute,
+// http or https, with a host.
+func ValidBaseURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && u.IsAbs() && u.Host != "" && (u.Scheme == "http" || u.Scheme == "https")
 }

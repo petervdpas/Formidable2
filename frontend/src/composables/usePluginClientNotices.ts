@@ -1,10 +1,7 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import { Events } from "@wailsio/runtime";
-import { useI18n } from "vue-i18n";
 import { useToast } from "./useToast";
-import { useActiveWorkspace } from "./useActiveWorkspace";
-import { useInformationSection } from "./useInformationSection";
-import { confirmLeave } from "./useNavGuard";
+import { useI18nLoader } from "./useI18nLoader";
 import {
   Service as PluginSvc,
   type ClientInstall,
@@ -17,22 +14,13 @@ export const PLUGIN_CLIENTS_EVENT = "formidable:plugin-clients";
 // usePluginClientNotices is the app-shell watcher that tells the user what
 // happened to the api-clients a plugin ships. A plugin never carries a
 // credential, so a freshly created client cannot call anything yet: that toast
-// is sticky and routes to the API-clients panel. Installs also happen at boot,
-// before any window exists, so the backend queues them and this drains the
-// queue on mount and after every plugin refresh. A running script can create
+// is sticky, text only. A client is only ever created
+// on request (zip import, the editor's create button, a script); the backend
+// queues the outcome and this drains the queue. A running script can create
 // a client too (formidable.client.create); the backend signals that over the
 // "plugin:clients" Wails event so the toast lands while the run is still up.
 export function usePluginClientNotices(): void {
-  const { t } = useI18n();
   const toast = useToast();
-  const { setActive: setWorkspace } = useActiveWorkspace();
-  const { setActive: setSection } = useInformationSection();
-
-  async function openClients(): Promise<void> {
-    if (!(await confirmLeave())) return; // honor an unsaved-changes guard
-    setWorkspace("information");
-    setSection("api-clients");
-  }
 
   function notify(n: ClientInstall): void {
     const dedupeKey = `plugin-client|${n.plugin}|${n.id}|${n.status}`;
@@ -46,10 +34,6 @@ export function usePluginClientNotices(): void {
         sticky: true,
         force: true,
         dedupeKey,
-        action: {
-          label: t("workspace.plugins.client.action"),
-          run: () => void openClients(),
-        },
       });
     } else if (n.status === "exists") {
       toast.info("workspace.plugins.client.exists", [n.plugin, n.id], { dedupeKey });
@@ -61,7 +45,17 @@ export function usePluginClientNotices(): void {
     }
   }
 
+  const { ensureI18nReady } = useI18nLoader();
+
   async function drain(reported: ClientInstall[] = []): Promise<void> {
+    // A toast is translated when it is raised. The boot drain runs at mount,
+    // which can be before the first locale bundle lands, and would then show
+    // raw keys.
+    try {
+      await ensureI18nReady();
+    } catch {
+      // Raw keys beat a notice that never shows.
+    }
     let pending: ClientInstall[] = [];
     try {
       pending = (await PluginSvc.TakeClientNotices()) ?? [];

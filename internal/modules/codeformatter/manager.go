@@ -17,6 +17,7 @@ const (
 	LangMarkdown Lang = "markdown"
 	LangYAML     Lang = "yaml"
 	LangLua      Lang = "lua"
+	LangJSON     Lang = "json"
 )
 
 // ErrMalformed wraps any parser failure surfaced by a sub-formatter, letting
@@ -47,6 +48,8 @@ func (m *Manager) Format(lang, src string) (string, error) {
 		return formatYAML(src)
 	case LangLua:
 		return formatLua(src)
+	case LangJSON:
+		return formatJSON(src)
 	}
 	return tidy(src), nil
 }

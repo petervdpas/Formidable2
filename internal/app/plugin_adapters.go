@@ -612,6 +612,29 @@ func (a pluginClientAdapter) CreateClient(def map[string]any, spec []byte) (bool
 	return true, nil
 }
 
+// InspectDocument parses a document without storing it.
+func (a pluginClientAdapter) InspectDocument(spec []byte) (plugin.DocumentInfo, error) {
+	cat, err := connection.ParseSpec(spec)
+	if err != nil {
+		return plugin.DocumentInfo{}, err
+	}
+	return plugin.DocumentInfo{
+		Title:      cat.Title,
+		Operations: len(cat.Operations),
+		Ext:        connection.SpecExtension(spec),
+		Server:     connection.FirstAbsoluteServer(cat),
+	}, nil
+}
+
+func (a pluginClientAdapter) ReadSettings(def []byte) (plugin.ClientSettings, error) {
+	s, err := connection.ReadBundleSettings(def)
+	return plugin.ClientSettings{Name: s.Name, BaseURL: s.BaseURL, Custom: s.Custom}, err
+}
+
+func (a pluginClientAdapter) WithSettings(def []byte, id string, s plugin.ClientSettings) ([]byte, error) {
+	return connection.SetBundleSettings(def, id, connection.BundleSettings{Name: s.Name, BaseURL: s.BaseURL})
+}
+
 // ClientOperations lists the document's operations, so a script can find what
 // a client derived from a document alone is able to call.
 func (a pluginClientAdapter) ClientOperations(id string) ([]map[string]any, error) {

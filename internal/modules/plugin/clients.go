@@ -20,6 +20,28 @@ type ClientInstaller interface {
 	InstallClient(id string, read func(name string) ([]byte, error)) (derived bool, err error)
 	// CreateClient registers a client a script assembled: def is the JSON-shaped definition, spec the document. created is false when the id already exists, which is left untouched.
 	CreateClient(def map[string]any, spec []byte) (created bool, err error)
+	// InspectDocument parses an OpenAPI document without storing anything, so the editor can refuse a bad one before it lands in a plugin.
+	InspectDocument(spec []byte) (DocumentInfo, error)
+	// ReadSettings reads a shipped definition (empty input is none). WithSettings returns it with the display name and base URL set from s, an empty value clearing that setting;
+	// a nil result means nothing is left worth a file, so the plugin ships the document alone.
+	ReadSettings(def []byte) (ClientSettings, error)
+	WithSettings(def []byte, id string, s ClientSettings) ([]byte, error)
+}
+
+// ClientSettings is what a shipped definition says beyond the document: display name and base URL. Custom marks a hand-written definition with bindings of its own.
+type ClientSettings struct {
+	Name    string
+	BaseURL string
+	Custom  bool
+}
+
+// DocumentInfo is what an OpenAPI document says about itself. Ext is the extension its stored copy takes (".json" or ".yaml").
+// Server is the first absolute server the document declares: where calls go when no base URL is set.
+type DocumentInfo struct {
+	Title      string
+	Operations int
+	Ext        string
+	Server     string
 }
 
 // ClientAdmin is formidable.client.exists / create, bound to the running plugin.
@@ -58,7 +80,7 @@ func bundleReader(pluginDir string) func(name string) ([]byte, error) {
 }
 
 // shipsClient reports whether the plugin folder carries the client: a definition, or a document named after it.
-// A declared client the plugin does not ship is one its script creates (formidable.client.create) or the user made by hand, so Refresh does not install it and Run does not wait for it.
+// A declared client the plugin does not ship is one its script creates (formidable.client.create) or the user made by hand, so Run does not wait for it.
 func shipsClient(pluginDir, id string) bool {
 	root := filepath.Join(pluginDir, clientsDir)
 	for _, name := range []string{
@@ -74,7 +96,7 @@ func shipsClient(pluginDir, id string) bool {
 	return false
 }
 
-// installClients registers the shipped api-clients that do not exist yet. An existing client is skipped silently, so a Refresh never re-reports it.
+// installClients creates the shipped api-clients that do not exist yet; an existing client is skipped. Called on zip import only, never on Refresh.
 func (m *Manager) installClients(p Plugin) []ClientInstall {
 	if m.deps.Clients == nil {
 		return nil
@@ -112,7 +134,7 @@ func (m *Manager) queueClientNotices(outcomes []ClientInstall) {
 }
 
 // TakeClientNotices returns and clears the pending install outcomes, sorted by plugin then client.
-// Installs happen on Refresh, which also runs at boot before any window exists, so the outcomes wait here to be shown.
+// A script creating a client, or the editor's create button, queues its notice here for the frontend to show.
 func (m *Manager) TakeClientNotices() []ClientInstall {
 	m.noticeMu.Lock()
 	defer m.noticeMu.Unlock()

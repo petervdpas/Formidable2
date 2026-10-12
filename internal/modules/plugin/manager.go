@@ -85,28 +85,22 @@ func NewManager(d ManagerDeps) *Manager {
 
 // Refresh re-scans <PluginsDir> and rebuilds the registry, best-effort: a corrupt manifest is logged and skipped.
 // Skips non-directories, hidden folders, folders missing plugin.json, and folders whose plugin.json fails validation.
+// It never creates an api-client: a client a plugin ships is made only when the user asks (zip import, or the editor's create button).
 func (m *Manager) Refresh() error {
-	outcomes, err := m.refresh()
-	m.queueClientNotices(outcomes)
-	return err
-}
-
-// refresh is Refresh returning the api-client install outcomes instead of queueing them, so ImportArchive can report its own plugin's directly.
-func (m *Manager) refresh() ([]ClientInstall, error) {
 	if _, err := os.Stat(m.deps.PluginsDir); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// No plugins folder yet: empty registry, not an error.
 			m.mu.Lock()
 			m.plugins = map[string]Plugin{}
 			m.mu.Unlock()
-			return nil, nil
+			return nil
 		}
-		return nil, fmt.Errorf("plugin: stat %s: %w", m.deps.PluginsDir, err)
+		return fmt.Errorf("plugin: stat %s: %w", m.deps.PluginsDir, err)
 	}
 
 	entries, err := os.ReadDir(m.deps.PluginsDir)
 	if err != nil {
-		return nil, fmt.Errorf("plugin: readdir %s: %w", m.deps.PluginsDir, err)
+		return fmt.Errorf("plugin: readdir %s: %w", m.deps.PluginsDir, err)
 	}
 
 	next := map[string]Plugin{}
@@ -140,12 +134,7 @@ func (m *Manager) refresh() ([]ClientInstall, error) {
 	m.mu.Lock()
 	m.plugins = next
 	m.mu.Unlock()
-
-	var outcomes []ClientInstall
-	for _, p := range m.List() {
-		outcomes = append(outcomes, m.installClients(p)...)
-	}
-	return outcomes, nil
+	return nil
 }
 
 // List returns the registered plugins sorted by id.

@@ -61,6 +61,63 @@ func (f *fakeInstaller) CreateClient(def map[string]any, spec []byte) (bool, err
 	return true, nil
 }
 
+// ReadSettings and WithSettings model the settings file as "name=<name>" and "base_url=<url>" lines plus an optional "custom" marker line.
+func (f *fakeInstaller) ReadSettings(def []byte) (ClientSettings, error) {
+	s := string(def)
+	if strings.Contains(s, "UNREADABLE") {
+		return ClientSettings{}, errors.New("definition unreadable")
+	}
+	out := ClientSettings{Custom: strings.Contains(s, "custom")}
+	for _, line := range strings.Split(s, "\n") {
+		if url, ok := strings.CutPrefix(line, "base_url="); ok {
+			out.BaseURL = url
+		}
+		if name, ok := strings.CutPrefix(line, "name="); ok {
+			out.Name = name
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeInstaller) WithSettings(def []byte, id string, s ClientSettings) ([]byte, error) {
+	if s.BaseURL != "" && !strings.HasPrefix(s.BaseURL, "https://") {
+		return nil, errors.New("bad base url")
+	}
+	var lines []string
+	if strings.Contains(string(def), "custom") {
+		lines = append(lines, "custom")
+	}
+	if s.Name != "" {
+		lines = append(lines, "name="+s.Name)
+	}
+	if s.BaseURL != "" {
+		lines = append(lines, "base_url="+s.BaseURL)
+	}
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	return []byte(strings.Join(lines, "\n")), nil
+}
+
+// InspectDocument accepts anything but the literal INVALID, and reads a title out of the test documents.
+func (f *fakeInstaller) InspectDocument(spec []byte) (DocumentInfo, error) {
+	s := string(spec)
+	if strings.Contains(s, "INVALID") {
+		return DocumentInfo{}, errors.New("document says INVALID")
+	}
+	info := DocumentInfo{Operations: 3, Ext: ".yaml", Server: "https://doc.example.com"}
+	if strings.HasPrefix(strings.TrimSpace(s), "{") {
+		info.Ext = ".json"
+	}
+	switch {
+	case strings.Contains(s, "Tiny YAML"):
+		info.Title = "Tiny YAML"
+	case strings.Contains(s, "Tiny"):
+		info.Title = "Tiny"
+	}
+	return info, nil
+}
+
 func clientManifest(id string, clients string) string {
 	return `{
 		"manifest_version": 1, "id": "` + id + `", "name": "Demo",
@@ -114,27 +171,6 @@ func TestLoadManifest_APIClientsRejectsBadAndDuplicate(t *testing.T) {
 	}
 }
 
-func TestRefresh_InstallsDeclaredClient(t *testing.T) {
-	inst := newFakeInstaller()
-	m, pluginsDir := newClientManager(t, inst)
-	dir := writePlugin(t, pluginsDir, "demo", clientManifest("demo", `["northwind"]`), "function run() end")
-	writeShippedClient(t, dir, "northwind", "id: northwind\n")
-
-	if err := m.Refresh(); err != nil {
-		t.Fatal(err)
-	}
-	if inst.got["northwind"] != "id: northwind\n" {
-		t.Errorf("installer read %q", inst.got["northwind"])
-	}
-	notices := m.TakeClientNotices()
-	if len(notices) != 1 || notices[0] != (ClientInstall{Plugin: "demo", ID: "northwind", Status: ClientInstalled}) {
-		t.Fatalf("notices = %+v", notices)
-	}
-	if again := m.TakeClientNotices(); len(again) != 0 {
-		t.Errorf("notices not drained: %+v", again)
-	}
-}
-
 func TestRefresh_LeavesExistingClientAlone(t *testing.T) {
 	inst := newFakeInstaller()
 	inst.have["northwind"] = true
@@ -150,49 +186,6 @@ func TestRefresh_LeavesExistingClientAlone(t *testing.T) {
 	}
 	if notices := m.TakeClientNotices(); len(notices) != 0 {
 		t.Errorf("an untouched client must not notify: %+v", notices)
-	}
-}
-
-func TestRefresh_FailedInstallIsReportedAndPluginStillLoads(t *testing.T) {
-	inst := newFakeInstaller()
-	inst.fail["northwind"] = errors.New("binding not in the spec")
-	inst.fail["crm-prod"] = errors.New("not a document")
-	m, pluginsDir := newClientManager(t, inst)
-	dir := writePlugin(t, pluginsDir, "demo", clientManifest("demo", `["northwind", "crm-prod"]`), "function run() end")
-	writeShippedClient(t, dir, "northwind", "id: northwind\n")
-	writeShippedClient(t, dir, "crm-prod", "id: crm-prod\n")
-
-	if err := m.Refresh(); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := m.Get("demo"); !ok {
-		t.Fatal("plugin dropped because its client failed to install")
-	}
-	notices := m.TakeClientNotices()
-	if len(notices) != 2 {
-		t.Fatalf("notices = %+v", notices)
-	}
-	for _, n := range notices {
-		if n.Status != ClientFailed || n.Error == "" {
-			t.Errorf("notice = %+v, want a failure with its reason", n)
-		}
-	}
-}
-
-func TestRefresh_RepeatedFailureKeepsOneNotice(t *testing.T) {
-	inst := newFakeInstaller()
-	inst.fail["northwind"] = errors.New("boom")
-	m, pluginsDir := newClientManager(t, inst)
-	dir := writePlugin(t, pluginsDir, "demo", clientManifest("demo", `["northwind"]`), "function run() end")
-	writeShippedClient(t, dir, "northwind", "id: northwind\n")
-
-	for range 3 {
-		if err := m.Refresh(); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if notices := m.TakeClientNotices(); len(notices) != 1 {
-		t.Errorf("notices = %+v, want one", notices)
 	}
 }
 
@@ -256,30 +249,6 @@ func TestImportArchive_ReportsInstalledAndExistingClients(t *testing.T) {
 	}
 }
 
-func TestImportArchive_KeepsOtherPluginsNoticesPending(t *testing.T) {
-	inst := newFakeInstaller()
-	m, pluginsDir := newClientManager(t, inst)
-	dir := writePlugin(t, pluginsDir, "local", clientManifest("local", `["northwind"]`), "function run() end")
-	writeShippedClient(t, dir, "northwind", "id: northwind\n")
-
-	zipPath := filepath.Join(filepath.Dir(pluginsDir), "incoming.zip")
-	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
-		"plugin.json": validManifest("imported"),
-		"main.lua":    "function run(ctx) end\n",
-	})
-	res, err := m.ImportArchive(zipPath, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(res.Clients) != 0 {
-		t.Errorf("Clients = %+v, want none for a plugin that ships none", res.Clients)
-	}
-	pending := m.TakeClientNotices()
-	if len(pending) != 1 || pending[0].Plugin != "local" {
-		t.Errorf("pending = %+v, want the hand-copied plugin's install", pending)
-	}
-}
-
 func TestRun_RefusesWhenDeclaredClientIsMissing(t *testing.T) {
 	inst := newFakeInstaller()
 	inst.fail["northwind"] = errors.New("boom")
@@ -300,26 +269,6 @@ func TestRun_RefusesWhenDeclaredClientIsMissing(t *testing.T) {
 	inst.have["northwind"] = true
 	if _, err := m.Run("demo", "run", nil); err != nil {
 		t.Fatalf("Run with the client present: %v", err)
-	}
-}
-
-func TestRefresh_DocumentOnlyClientIsReportedAsDerived(t *testing.T) {
-	inst := newFakeInstaller()
-	m, pluginsDir := newClientManager(t, inst)
-	dir := writePlugin(t, pluginsDir, "demo", clientManifest("demo", `["northwind"]`), "function run() end")
-	specs := filepath.Join(dir, "api-clients", "specs")
-	if err := os.MkdirAll(specs, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	mustWrite(t, filepath.Join(specs, "northwind.json"), `{"openapi": "3.0.3"}`)
-
-	if err := m.Refresh(); err != nil {
-		t.Fatal(err)
-	}
-	notices := m.TakeClientNotices()
-	want := ClientInstall{Plugin: "demo", ID: "northwind", Status: ClientInstalled, Derived: true}
-	if len(notices) != 1 || notices[0] != want {
-		t.Fatalf("notices = %+v, want %+v", notices, want)
 	}
 }
 
@@ -438,5 +387,74 @@ func TestClientCreate_StoreErrorIsRaisedAndNothingIsNotified(t *testing.T) {
 	}
 	if *fired != 0 || len(m.TakeClientNotices()) != 0 {
 		t.Error("a failed create must not notify")
+	}
+}
+
+func TestRefresh_NeverCreatesAClient(t *testing.T) {
+	inst := newFakeInstaller()
+	m, pluginsDir := newClientManager(t, inst)
+	dir := writePlugin(t, pluginsDir, "demo", clientManifest("demo", `["northwind"]`), "function run() end")
+	writeShippedClient(t, dir, "northwind", "id: northwind\n")
+
+	for range 3 {
+		if err := m.Refresh(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if inst.calls != 0 || inst.have["northwind"] {
+		t.Errorf("a refresh created the shipped client; calls = %d", inst.calls)
+	}
+	if notices := m.TakeClientNotices(); len(notices) != 0 {
+		t.Errorf("notices = %+v", notices)
+	}
+}
+
+func TestImportArchive_CreatesOnlyTheImportedPluginsClients(t *testing.T) {
+	inst := newFakeInstaller()
+	m, pluginsDir := newClientManager(t, inst)
+	local := writePlugin(t, pluginsDir, "local", clientManifest("local", `["crm-prod"]`), "function run() end")
+	writeShippedClient(t, local, "crm-prod", "id: crm-prod\n")
+
+	zipPath := filepath.Join(filepath.Dir(pluginsDir), "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json":                      clientManifest("imported", `["northwind"]`),
+		"main.lua":                         "function run(ctx) end\n",
+		"api-clients/specs/northwind.json": `{"openapi": "3.0.3"}`,
+	})
+	res, err := m.ImportArchive(zipPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ClientInstall{Plugin: "imported", ID: "northwind", Status: ClientInstalled, Derived: true}
+	if len(res.Clients) != 1 || res.Clients[0] != want {
+		t.Errorf("Clients = %+v, want %+v", res.Clients, want)
+	}
+	if inst.have["crm-prod"] {
+		t.Error("importing one plugin created another plugin's client")
+	}
+	if pending := m.TakeClientNotices(); len(pending) != 0 {
+		t.Errorf("pending = %+v; the import result already carries its outcomes", pending)
+	}
+}
+
+func TestImportArchive_ReportsAClientThatCouldNotBeCreated(t *testing.T) {
+	inst := newFakeInstaller()
+	inst.fail["northwind"] = errors.New("no-server")
+	m, pluginsDir := newClientManager(t, inst)
+	zipPath := filepath.Join(filepath.Dir(pluginsDir), "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json":                clientManifest("imported", `["northwind"]`),
+		"main.lua":                   "function run(ctx) end\n",
+		"api-clients/northwind.yaml": "id: northwind\n",
+	})
+	res, err := m.ImportArchive(zipPath, false)
+	if err != nil {
+		t.Fatalf("the plugin itself must still import: %v", err)
+	}
+	if len(res.Clients) != 1 || res.Clients[0].Status != ClientFailed || res.Clients[0].Error != "no-server" {
+		t.Errorf("Clients = %+v", res.Clients)
+	}
+	if _, ok := m.Get("imported"); !ok {
+		t.Error("plugin not registered")
 	}
 }

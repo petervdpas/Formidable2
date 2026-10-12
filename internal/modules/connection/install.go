@@ -52,6 +52,24 @@ func Derive(id string, cat *Catalog) Connection {
 	return c
 }
 
+// fillFromDocument completes a partial definition with what the document
+// states: a name, the auth shape, and the resources. Whatever the definition
+// already says (a base URL, say) is kept.
+func fillFromDocument(c *Connection, cat *Catalog) {
+	if strings.TrimSpace(c.Name) == "" {
+		c.Name = Derive(c.ID, cat).Name
+	}
+	if c.Auth.Kind == "" {
+		c.Auth = cat.Auth
+	}
+	if c.SpecFile == "" {
+		c.SpecFile = c.ID + ".json"
+	}
+	if len(c.Resources) == 0 {
+		c.Resources = detectedResources(c, cat)
+	}
+}
+
 // detectedResources returns the drafts that validate by themselves on c.
 func detectedResources(c *Connection, cat *Catalog) []Resource {
 	var out []Resource
@@ -85,22 +103,15 @@ func (m *Manager) Create(c Connection, spec []byte) error {
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(c.Name) == "" {
-		c.Name = Derive(c.ID, cat).Name
-	}
-	if c.Auth.Kind == "" {
-		c.Auth = cat.Auth
-	}
+	fillFromDocument(&c, cat)
 	c.SpecFile = c.ID + SpecExtension(spec)
-	if len(c.Resources) == 0 {
-		c.Resources = detectedResources(&c, cat)
-	}
 	return m.store(c, spec, cat)
 }
 
 // Install registers a shipped client, create-only, and reports whether its
-// definition was derived. A bundle may ship a full definition, or only the
-// document as specs/<id>.json (or .yaml, .yml), from which one is derived.
+// resources were derived. A bundle ships the document as specs/<id>.json (or
+// .yaml, .yml) and optionally a definition <id>.yaml. The definition may be
+// partial: a base URL alone is enough, and the rest is read off the document.
 //
 // A stored secret is keyed by client id, so replacing a definition could aim
 // that secret at whatever host the shipped copy names: an existing id is
@@ -123,8 +134,7 @@ func (m *Manager) Install(id string, read BundleReader) (derived bool, err error
 		return false, fmt.Errorf("%w: %s", ErrExists, id)
 	}
 
-	var c Connection
-	var spec []byte
+	c := Connection{ID: id}
 	raw, err := read(id + defExt)
 	switch {
 	case err == nil:
@@ -137,34 +147,38 @@ func (m *Manager) Install(id string, read BundleReader) (derived bool, err error
 		if c.ID != id {
 			return false, fmt.Errorf("connection: shipped definition %q declares id %q", id, c.ID)
 		}
+	case errors.Is(err, fs.ErrNotExist):
+	default:
+		return false, fmt.Errorf("connection: cannot read shipped definition %q: %w", id, err)
+	}
+
+	// A definition that names its document is read from there; one that does
+	// not, or no definition at all, takes the document named after the client.
+	var spec []byte
+	if c.SpecFile != "" {
 		if err := checkSpecFile(c.SpecFile); err != nil {
 			return false, err
 		}
-		spec, err = read(path.Join("specs", c.SpecFile))
-		if err != nil {
+		if spec, err = read(path.Join("specs", c.SpecFile)); err != nil {
 			return false, fmt.Errorf("connection: cannot read shipped spec %q: %w", c.SpecFile, err)
 		}
-	case errors.Is(err, fs.ErrNotExist):
-		derived = true
+	} else {
 		for _, ext := range specExts {
 			if spec, err = read(path.Join("specs", id+ext)); err == nil {
 				break
 			}
 		}
 		if err != nil {
-			return false, fmt.Errorf("connection: %q ships neither a definition nor a document: %w", id, err)
+			return false, fmt.Errorf("connection: %q ships no document: %w", id, err)
 		}
-	default:
-		return false, fmt.Errorf("connection: cannot read shipped definition %q: %w", id, err)
 	}
 
 	cat, err := ParseSpec(spec)
 	if err != nil {
 		return false, err
 	}
-	if derived {
-		c = Derive(id, cat)
-	}
+	derived = len(c.Resources) == 0
+	fillFromDocument(&c, cat)
 	c.SpecFile = id + SpecExtension(spec)
 	return derived, m.store(c, spec, cat)
 }
