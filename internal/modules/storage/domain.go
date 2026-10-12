@@ -371,6 +371,10 @@ func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 	if err := m.sfr.DeleteFromBase(dir, datafile, sfr.Options{}); err != nil {
 		return err
 	}
+	if err := m.removeDiagramImages(templateFilename, datafile); err != nil {
+		m.log.Warn("storage diagram image cleanup failed",
+			"template", templateFilename, "datafile", datafile, "err", err)
+	}
 	if m.indexer != nil {
 		if err := m.indexer.OnFormDeleted(templateFilename, datafile); err != nil {
 			m.log.Warn("storage indexer delete hook failed",
@@ -440,6 +444,11 @@ func validImageName(name string) error {
 	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
 		return fmt.Errorf("storage: invalid image name %q", name)
 	}
+	// Generated diagram images own this ending; an upload using it would be
+	// hidden from the library and removed as an orphan.
+	if template.IsDiagramImageName(name) {
+		return fmt.Errorf("storage: image name %q uses the reserved .diagram.svg ending", name)
+	}
 	return nil
 }
 
@@ -476,7 +485,8 @@ func (m *Manager) ListImageFiles(templateFilename string) ([]string, error) {
 	}
 	out := make([]string, 0, len(names))
 	for _, n := range names {
-		if imageMIMEFromName(n) != "application/octet-stream" {
+		// Generated diagram files are not part of the reusable image library.
+		if imageMIMEFromName(n) != "application/octet-stream" && !template.IsDiagramImageName(n) {
 			out = append(out, n)
 		}
 	}

@@ -1,5 +1,7 @@
 package template
 
+import "strings"
+
 // A `diagram` field is virtual: it stores nothing and draws a table of the same
 // record. It can only draw a table whose pattern has a diagram counterpart (e.g.
 // data-lineage -> lineage); the pattern fixes which column plays which role, so
@@ -150,4 +152,35 @@ func diagramFieldErrorsAt(fields, canonical []Field, i int) []ValidationError {
 		return fail("diagram-field-source-no-pattern", "Diagram field source table has no diagram pattern: "+src, map[string]any{"source": src})
 	}
 	return nil
+}
+
+const diagramImageSuffix = ".diagram.svg"
+
+// DiagramImageName is the generated image file of a record's diagram field:
+// "<template>.<record>.<field>.diagram.svg". The template stem keeps names
+// apart when several templates are exported into one folder. "" when any part
+// is empty or not a plain name.
+func DiagramImageName(templateFilename, datafile, fieldKey string) string {
+	tpl := strings.TrimSuffix(templateFilename, ".yaml")
+	stem := strings.TrimSuffix(datafile, ".meta.json")
+	for _, part := range []string{tpl, stem, fieldKey} {
+		if part == "" || strings.ContainsAny(part, `/\`) || strings.Contains(part, "..") {
+			return ""
+		}
+	}
+	return tpl + "." + stem + "." + fieldKey + diagramImageSuffix
+}
+
+// IsDiagramImageName reports whether an image file is a generated diagram.
+func IsDiagramImageName(name string) bool { return strings.HasSuffix(name, diagramImageSuffix) }
+
+// DiagramFieldKeys lists the keys of fields' diagram fields.
+func DiagramFieldKeys(fields []Field) []string {
+	var out []string
+	for _, f := range fields {
+		if f.Type == "diagram" && f.Key != "" {
+			out = append(out, f.Key)
+		}
+	}
+	return out
 }

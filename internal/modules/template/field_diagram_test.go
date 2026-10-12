@@ -123,3 +123,51 @@ func TestDiagramTableKeys_OnlyRootPatternTables(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestDiagramImageName_IsReadable(t *testing.T) {
+	got := DiagramImageName("datastroom.yaml", "progress-fcdm-cursus.meta.json", "lineage")
+	if got != "datastroom.progress-fcdm-cursus.lineage.diagram.svg" {
+		t.Fatalf("name = %q", got)
+	}
+	if !IsDiagramImageName(got) || IsDiagramImageName("photo.svg") || IsDiagramImageName("x.diagram.svg.png") {
+		t.Fatal("IsDiagramImageName")
+	}
+}
+
+func TestDiagramImageName_DiffersPerTemplateRecordAndField(t *testing.T) {
+	names := map[string]string{}
+	for _, c := range [][3]string{
+		{"a.yaml", "r1.meta.json", "lineage"},
+		{"b.yaml", "r1.meta.json", "lineage"}, // other template, same record + field
+		{"a.yaml", "r2.meta.json", "lineage"}, // other record
+		{"a.yaml", "r1.meta.json", "erd"},     // other field
+	} {
+		n := DiagramImageName(c[0], c[1], c[2])
+		if n == "" {
+			t.Fatalf("%v: empty name", c)
+		}
+		if prev, dup := names[n]; dup {
+			t.Fatalf("%v collides with %s on %q", c, prev, n)
+		}
+		names[n] = c[0] + "|" + c[1] + "|" + c[2]
+	}
+}
+
+func TestDiagramImageName_RejectsUnsafeOrEmptyParts(t *testing.T) {
+	for _, c := range [][3]string{
+		{"a.yaml", "", "d"}, {"a.yaml", "x.meta.json", ""}, {"", "x.meta.json", "d"},
+		{"a.yaml", "../x.meta.json", "d"}, {"a.yaml", "x.meta.json", "a/b"}, {"a.yaml", `x\y.meta.json`, "d"},
+		{"../a.yaml", "x.meta.json", "d"},
+	} {
+		if got := DiagramImageName(c[0], c[1], c[2]); got != "" {
+			t.Errorf("%v -> %q, want empty", c, got)
+		}
+	}
+}
+
+func TestDiagramFieldKeys(t *testing.T) {
+	fields := []Field{lineageTable("mapping"), diagramField("mapping"), {Key: "t", Type: "text"}}
+	if got := DiagramFieldKeys(fields); !reflect.DeepEqual(got, []string{"lineage"}) {
+		t.Fatalf("got %v", got)
+	}
+}

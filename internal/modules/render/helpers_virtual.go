@@ -1,6 +1,8 @@
 package render
 
 import (
+	"strings"
+
 	"github.com/aymerick/raymond"
 	"github.com/petervdpas/formidable2/internal/modules/diagram"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -10,7 +12,7 @@ import (
 // render-time projection of a virtual (data-less) field. The argument is
 // the field's template key, so the call shape generalises to any future
 // virtual type. `facet` returns the selected label from opts.Facets;
-// `diagram` draws its bound root table as an inline SVG block. Unknown or
+// `diagram` references the record's generated diagram image (or inlines the SVG). Unknown or
 // non-virtual keys return empty (fail-safe; use {{field}} for non-virtual fields).
 func registerVirtualFieldHelper(tpl *raymond.Template, opts *Options, rootFields []template.Field) {
 	tpl.RegisterHelper("virtual-field", func(options *raymond.Options) any {
@@ -33,26 +35,58 @@ func registerVirtualFieldHelper(tpl *raymond.Template, opts *Options, rootFields
 			}
 			return opts.Facets[f.FacetKey]
 		case "diagram":
-			return raymond.SafeString(emitDiagram(options, rootFields, key))
+			return raymond.SafeString(emitDiagram(options, opts, rootFields, key))
 		}
 		return ""
 	})
 }
 
-// emitDiagram wraps the SVG in a div so CommonMark treats it as one HTML
-// block (no <p> wrapper) on the markdown and HTML/PDF paths alike. It reads
-// the root record, so it is meant for root context, not inside a loop.
-func emitDiagram(options *raymond.Options, rootFields []template.Field, key string) string {
+// emitDiagram renders a diagram field as its SVG, wrapped in a div so
+// CommonMark treats it as one HTML block. In "image" mode (second positional
+// arg or `mode=`) the SVG is instead handed to opts.DiagramImage to be kept as
+// an image file and, when that succeeds, referenced as a markdown image
+// resolved like any image field; without a record, a writer or a successful
+// write it stays inline, so a reference never dangles. It reads the root
+// record, so it is meant for root context, not inside a loop.
+func emitDiagram(options *raymond.Options, opts *Options, rootFields []template.Field, key string) string {
 	ctx := contextMap(options.Ctx())
 	t, _ := ctx["_template"].(*template.Template)
 	if t == nil {
 		t = &template.Template{Fields: rootFields}
 	}
 	svg, ok := diagram.RenderField(t, key, ctx)
-	if !ok || svg == "" {
+	if !ok {
 		return ""
 	}
-	return "<div class=\"formidable-diagram\">\n" + svg + "\n</div>"
+	name := ""
+	if opts != nil && opts.DiagramImage != nil && virtualFieldMode(options) == "image" {
+		name = template.DiagramImageName(opts.TemplateFilename, opts.Datafile, key)
+	}
+	stored := name != "" && opts.DiagramImage(name, svg)
+	if svg == "" {
+		return ""
+	}
+	if !stored {
+		return "<div class=\"formidable-diagram\">\n" + svg + "\n</div>"
+	}
+	alt := key
+	if f := findFieldByKey(rootFields, key); f != nil && f.Label != "" {
+		alt = strings.NewReplacer("[", "", "]", "").Replace(f.Label)
+	}
+	return "![" + alt + "](" + emitImage(name, opts) + ")"
+}
+
+// virtualFieldMode reads {{virtual-field "key" "mode"}}; the hash form
+// `mode=` wins, as on {{field}}.
+func virtualFieldMode(options *raymond.Options) string {
+	mode := ""
+	if p := options.Params(); len(p) > 1 {
+		mode, _ = p[1].(string)
+	}
+	if h := options.HashStr("mode"); h != "" {
+		mode = h
+	}
+	return strings.ToLower(strings.TrimSpace(mode))
 }
 
 // findFieldByKey scans the root field list only; virtual fields never

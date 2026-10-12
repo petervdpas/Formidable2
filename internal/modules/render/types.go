@@ -50,6 +50,12 @@ type Options struct {
 	// {{virtual-field}} helper. Plain string map (not storage.FacetState) to
 	// keep render decoupled from storage; the Manager flattens it.
 	Facets map[string]string
+
+	// DiagramImage stores a diagram field's freshly drawn SVG as the named
+	// image file (empty svg removes it) and reports success. The helper only
+	// references the file when this returns true, so a rendered reference
+	// never dangles; nil (no storage behind this target) renders inline SVG.
+	DiagramImage func(name, svg string) bool
 }
 
 // Result is the dual-stage output of RenderForm.

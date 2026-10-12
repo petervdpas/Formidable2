@@ -19,6 +19,12 @@ type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
+// diagramImageStore is the optional storage capability of keeping generated
+// diagram images; a form store without it renders diagrams inline.
+type diagramImageStore interface {
+	WriteDiagramImage(templateFilename, name, svg string) error
+}
+
 // ImageURLFunc resolves an image filename to a URL; nil falls back to a
 // relative images/<file> path so static export still works.
 type ImageURLFunc func(templateFilename, name string) string
@@ -201,6 +207,16 @@ func (m *Manager) optionsFor(templateName, datafile string) *Options {
 	if m.imageBase64URL != nil {
 		opts.ImageBase64URL = func(name string) string {
 			return m.imageBase64URL(templateName, name)
+		}
+	}
+	if store, ok := m.storage.(diagramImageStore); ok && datafile != "" {
+		opts.DiagramImage = func(name, svg string) bool {
+			if err := store.WriteDiagramImage(templateName, name, svg); err != nil {
+				m.log.Warn("render: diagram image not stored, rendering inline",
+					"template", templateName, "datafile", datafile, "image", name, "err", err)
+				return false
+			}
+			return true
 		}
 	}
 	if m.formidableLinkURL != nil {
