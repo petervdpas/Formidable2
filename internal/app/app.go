@@ -687,6 +687,22 @@ func New(d Deps) (*App, error) {
 	// Lua-scripted on-demand commands at <AppRoot>/plugins/<id>/, per-plugin
 	// K/V at <AppRoot>/plugins/.kv/<id>.json. Boot-time discovery;
 	// Refresh re-scans at runtime.
+	// Encrypted secrets vault at <AppRoot>/vault. Machine scoped and outside
+	// the context folder, so it never rides along with a git or gigot sync.
+	// The on-disk format is SecretBlast's, so the same directory opens in the
+	// other tools that read it.
+	vaultSvc := vault.NewService(d.AppRoot, d.Logger, emitter)
+
+	// API Clients: uploaded Swagger/OpenAPI documents under
+	// <AppRoot>/api-clients/, interpreted at runtime rather than generated.
+	// Credentials resolve lazily from the vault, so a client configured before
+	// the vault exists starts working the moment it is created and unlocked.
+	// Built before the plugin manager: a plugin may ship clients that its
+	// first Refresh installs, and formidable.client calls through the invoker.
+	clientM := connection.NewManager(sysM, d.Logger)
+	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretCategory)
+	clientInv := connection.NewInvoker(clientM, clientKeys, connection.WithLogger(d.Logger))
+
 	pluginsDir := filepath.Join(d.AppRoot, "plugins")
 	pluginKV := plugin.NewKV(sysM, filepath.Join(pluginsDir, ".kv"))
 	pluginM := plugin.NewManager(plugin.ManagerDeps{
@@ -731,6 +747,11 @@ func New(d Deps) (*App, error) {
 		// rank-N grid for plugins.
 		StatObject: pluginStatObjectAdapter{svc: statSvc},
 		Locale:     pluginLocaleAdapter{cfg: cfgM},
+		Client:     pluginClientAdapter{m: clientM, inv: clientInv},
+		Clients:    pluginClientAdapter{m: clientM, inv: clientInv},
+		ClientNoticeOut: func() {
+			emitter.Emit("plugin:clients", nil)
+		},
 	})
 	// Materialize the embedded plugin library to <pluginsDir>. Ships the
 	// seed inside the binary so every distribution gets the same starter
@@ -791,20 +812,6 @@ func New(d Deps) (*App, error) {
 	renderM.SetFontFaceProvider(fontsM.FontFaceCSS)
 	// The standalone deck export inlines user fonts too (@font-face data URIs).
 	standaloneRender.SetFontFaceProvider(fontsM.FontFaceCSS)
-
-	// Encrypted secrets vault at <AppRoot>/vault. Machine scoped and outside
-	// the context folder, so it never rides along with a git or gigot sync.
-	// The on-disk format is SecretBlast's, so the same directory opens in the
-	// other tools that read it.
-	vaultSvc := vault.NewService(d.AppRoot, d.Logger, emitter)
-
-	// API Clients: uploaded Swagger/OpenAPI documents under
-	// <AppRoot>/api-clients/, interpreted at runtime rather than generated.
-	// Credentials resolve lazily from the vault, so a client configured before
-	// the vault exists starts working the moment it is created and unlocked.
-	clientM := connection.NewManager(sysM, d.Logger)
-	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretCategory)
-	clientInv := connection.NewInvoker(clientM, clientKeys, connection.WithLogger(d.Logger))
 
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 

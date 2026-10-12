@@ -1,10 +1,12 @@
 import { computed, ref } from "vue";
 import {
   Service as PluginSvc,
+  type ClientInstall,
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import { backendErrMessage } from "../utils/backendError";
 import { refreshPluginI18n } from "./useI18nLoader";
+import { PLUGIN_CLIENTS_EVENT } from "./usePluginClientNotices";
 
 // Module-scope singleton - at most one plugin selected across the
 // app, mirroring the useTemplates pattern. Sidebar list, currently
@@ -24,10 +26,18 @@ async function refreshWorkspaces(): Promise<void> {
   workspacesLoaded = true;
 }
 
+// A refresh may have installed api-clients a plugin ships; the app shell
+// collects the outcomes and tells the user. `reported` are outcomes the
+// caller already holds (an import returns its own).
+function announceClients(reported: ClientInstall[] = []): void {
+  window.dispatchEvent(new CustomEvent(PLUGIN_CLIENTS_EVENT, { detail: reported }));
+}
+
 async function refresh(): Promise<void> {
   plugins.value = await PluginSvc.Refresh();
   loaded = true;
   await refreshPluginI18n();
+  announceClients();
 }
 
 // See useTemplates: pull/clone/reclone fires this event after writing
@@ -124,6 +134,7 @@ async function importArchive(zipPath: string, overwrite: boolean): Promise<Impor
   try {
     const res = await PluginSvc.ImportArchive(zipPath, overwrite);
     await refresh();
+    announceClients(res?.clients ?? []);
     return {
       ok: true,
       id: res?.id ?? "",

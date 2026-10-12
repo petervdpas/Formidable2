@@ -1,0 +1,455 @@
+package app
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/petervdpas/formidable2/internal/modules/connection"
+	"github.com/petervdpas/formidable2/internal/modules/plugin"
+)
+
+// clientStoreFS is an in-memory api-client store, so the test owns exactly
+// what is "already installed".
+type clientStoreFS struct {
+	mu    sync.Mutex
+	files map[string]string
+}
+
+func (f *clientStoreFS) FileExists(p string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.files[p]
+	return ok
+}
+
+func (f *clientStoreFS) LoadFile(p string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	v, ok := f.files[p]
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return v, nil
+}
+
+func (f *clientStoreFS) SaveFile(p, content string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.files[p] = content
+	return nil
+}
+
+func (f *clientStoreFS) DeleteFile(p string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.files, p)
+	return nil
+}
+
+func (f *clientStoreFS) ListDir(dir string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	prefix := strings.TrimSuffix(dir, "/") + "/"
+	var out []string
+	for p := range f.files {
+		if rest, ok := strings.CutPrefix(p, prefix); ok && !strings.Contains(rest, "/") {
+			out = append(out, rest)
+		}
+	}
+	return out, nil
+}
+
+type fixedSecret struct {
+	value string
+	err   error
+}
+
+func (s fixedSecret) Secret(string) (string, error) { return s.value, s.err }
+
+const shopSpec = `{
+  "openapi": "3.0.3",
+  "info": {"title": "Shop", "version": "1.0.0"},
+  "paths": {
+    "/products": {"get": {"operationId": "listProducts",
+      "parameters": [{"name": "q", "in": "query", "schema": {"type": "string"}}]}},
+    "/products/{id}": {"get": {"operationId": "getProduct",
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}]}}
+  }
+}`
+
+func shopDefinition(baseURL string) string {
+	return `id: shop
+name: Shop
+base_url: ` + baseURL + `
+spec_file: shop.json
+auth:
+  kind: bearer
+resources:
+  - key: products
+    label: Products
+    list:
+      operation: listProducts
+    get:
+      operation: getProduct
+    items_path: /data
+    id_path: /sku
+    label_path: /name
+    search_param: q
+    fields:
+      - key: price
+        label: Price
+        pointer: /price
+`
+}
+
+const shopPluginLua = `
+function listing(ctx)
+  local res = formidable.client.resources("shop")[1]
+  local page = formidable.client.items("shop", "products", { search = "tea", select = { "price" } })
+  local one = formidable.client.fetch("shop", "products", page.items[1].id)
+  return {
+    clients = #formidable.client.list(),
+    resource = res.key, can_fetch = res.can_fetch, can_search = res.can_search, field = res.fields[1].key,
+    count = #page.items, first = page.items[1].label, price = page.items[1].fields.price,
+    fetched = one.label,
+  }
+end
+
+function snap(ctx)
+  local page = formidable.client.items("shop", "products")
+  local all = formidable.client.snapshot(page.items[1])
+  local none = formidable.client.snapshot(page.items[1], {})
+  local ok, err = pcall(formidable.client.snapshot, { label = "nameless" })
+  return {
+    id = all.id, label = all.label, price = all.fields.price, stamped = all.fetched ~= "",
+    none = next(none.fields) == nil, refused = not ok, why = tostring(err),
+  }
+end
+
+function empty(ctx)
+  return #formidable.client.items("shop", "products", { search = "none" }).items
+end
+`
+
+// shopPlugin writes a plugin that ships the shop client and returns the wired managers.
+func shopPlugin(t *testing.T, baseURL string, secrets connection.SecretResolver) (*plugin.Manager, *connection.Manager) {
+	t.Helper()
+	pluginsDir := filepath.Join(t.TempDir(), "plugins")
+	dir := filepath.Join(pluginsDir, "shopper")
+	for name, body := range map[string]string{
+		"plugin.json": `{"manifest_version": 1, "id": "shopper", "name": "Shopper", "version": "0.1.0",
+			"api_clients": ["shop"],
+			"commands": [{"id": "listing", "label": "Listing"}, {"id": "empty", "label": "Empty"}, {"id": "snap", "label": "Snap"}]}`,
+		"main.lua":                    shopPluginLua,
+		"api-clients/shop.yaml":       shopDefinition(baseURL),
+		"api-clients/specs/shop.json": shopSpec,
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	clientM := connection.NewManager(&clientStoreFS{files: map[string]string{}}, nil)
+	adapter := pluginClientAdapter{m: clientM, inv: connection.NewInvoker(clientM, secrets)}
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter})
+	if err := pluginM.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	return pluginM, clientM
+}
+
+func TestPluginClient_ShippedClientIsInstalledThenCalled(t *testing.T) {
+	var gotAuth, gotSearch string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/products" && r.URL.Query().Get("q") == "none":
+			_, _ = w.Write([]byte(`{"data": []}`))
+		case r.URL.Path == "/products":
+			gotSearch = r.URL.Query().Get("q")
+			_, _ = w.Write([]byte(`{"data": [{"sku": "T1", "name": "Green tea", "price": "4.50"}]}`))
+		case r.URL.Path == "/products/T1":
+			_, _ = w.Write([]byte(`{"sku": "T1", "name": "Green tea", "price": "4.50"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	pluginM, clientM := shopPlugin(t, srv.URL, fixedSecret{value: "s3cret"})
+	if !clientM.Has("shop") {
+		t.Fatalf("shipped client not installed; notices = %+v", pluginM.TakeClientNotices())
+	}
+
+	res, err := pluginM.Run("shopper", "listing", nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	want := map[string]any{
+		"clients": float64(1), "resource": "products", "can_fetch": true, "can_search": true, "field": "price",
+		"count": float64(1), "first": "Green tea", "price": "4.50", "fetched": "Green tea",
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+	if gotAuth != "Bearer s3cret" || gotSearch != "tea" {
+		t.Errorf("remote saw auth %q and search %q", gotAuth, gotSearch)
+	}
+
+	res, err = pluginM.Run("shopper", "empty", nil)
+	if err != nil {
+		t.Fatalf("Run empty: %v", err)
+	}
+	if res.Value != float64(0) {
+		t.Errorf("empty page length = %v, want 0", res.Value)
+	}
+}
+
+func TestPluginClient_MissingCredentialReadsAsConfiguration(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("a call went out without a credential")
+	}))
+	defer srv.Close()
+
+	pluginM, _ := shopPlugin(t, srv.URL, fixedSecret{err: errors.New("vault is locked")})
+	_, err := pluginM.Run("shopper", "listing", nil)
+	if err == nil || !strings.Contains(err.Error(), "client.items: not_configured: ") {
+		t.Fatalf("err = %v, want a flat not_configured error", err)
+	}
+	if strings.Contains(err.Error(), `{"code"`) {
+		t.Errorf("error still JSON shaped: %v", err)
+	}
+}
+
+func TestPluginClient_RemoteFailureCarriesItsCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	pluginM, _ := shopPlugin(t, srv.URL, fixedSecret{value: "wrong"})
+	_, err := pluginM.Run("shopper", "listing", nil)
+	if err == nil || !strings.Contains(err.Error(), "client.items: unauthorized: ") {
+		t.Fatalf("err = %v, want an unauthorized error", err)
+	}
+}
+
+func TestPluginClient_SnapshotMatchesTheStoredFieldShape(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data": [{"sku": "T1", "name": "Green tea", "price": "4.50"}]}`))
+	}))
+	defer srv.Close()
+
+	pluginM, _ := shopPlugin(t, srv.URL, fixedSecret{value: "s3cret"})
+	res, err := pluginM.Run("shopper", "snap", nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	for k, v := range map[string]any{
+		"id": "T1", "label": "Green tea", "price": "4.50", "stamped": true, "none": true, "refused": true,
+	} {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+	if !strings.Contains(got["why"].(string), "client.snapshot: item has no id") {
+		t.Errorf("why = %v", got["why"])
+	}
+}
+
+// docOnlySpec is everything the plugin below ships: no definition, only the
+// document. It declares its server, so the derived client has a host, but the
+// test server's address is not known when the constant is written, hence %s.
+const docOnlySpec = `{
+  "openapi": "3.0.3",
+  "info": {"title": "Kennel", "version": "1.0.0"},
+  "servers": [{"url": "%s"}],
+  "security": [{"token": []}],
+  "components": {"securitySchemes": {"token": {"type": "http", "scheme": "bearer"}}},
+  "paths": {
+    "/dogs": {"get": {"operationId": "findDogs",
+      "parameters": [{"name": "status", "in": "query", "required": true, "schema": {"type": "string"}}]},
+      "post": {"operationId": "addDog"}}
+  }
+}`
+
+func TestPluginClient_DocumentOnlyPluginDerivesAClientAndCallsIt(t *testing.T) {
+	var gotAuth, gotStatus string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotStatus = r.Header.Get("Authorization"), r.URL.Query().Get("status")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"id": 1, "name": "Rex"}, {"id": 2, "name": "Fido"}]`))
+	}))
+	defer srv.Close()
+
+	pluginsDir := filepath.Join(t.TempDir(), "plugins")
+	dir := filepath.Join(pluginsDir, "kennel")
+	for name, body := range map[string]string{
+		"plugin.json": `{"manifest_version": 1, "id": "kennel", "name": "Kennel", "version": "0.1.0",
+			"api_clients": ["kennel-api"],
+			"commands": [{"id": "dogs", "label": "Dogs"}, {"id": "write", "label": "Write"}]}`,
+		"main.lua": `
+function dogs(ctx)
+  local ops = formidable.client.operations("kennel-api")
+  local r = formidable.client.call("kennel-api", "findDogs", { status = "available" })
+  return { ops = #ops, status = r.status, count = #r.data, second = r.data[2].name, id = r.data[1].id }
+end
+function write(ctx)
+  return formidable.client.call("kennel-api", "addDog")
+end`,
+		"api-clients/specs/kennel-api.json": fmt.Sprintf(docOnlySpec, srv.URL),
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	clientM := connection.NewManager(&clientStoreFS{files: map[string]string{}}, nil)
+	adapter := pluginClientAdapter{m: clientM, inv: connection.NewInvoker(clientM, fixedSecret{value: "s3cret"})}
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter})
+	if err := pluginM.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+
+	notices := pluginM.TakeClientNotices()
+	want := plugin.ClientInstall{Plugin: "kennel", ID: "kennel-api", Status: plugin.ClientInstalled, Derived: true}
+	if len(notices) != 1 || notices[0] != want {
+		t.Fatalf("notices = %+v, want %+v", notices, want)
+	}
+	c, _, err := clientM.Get("kennel-api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Name != "Kennel" || c.Auth.Kind != connection.AuthBearer || len(c.Resources) != 0 {
+		t.Errorf("derived client = %+v", c)
+	}
+
+	res, err := pluginM.Run("kennel", "dogs", nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	for k, v := range map[string]any{"ops": float64(2), "status": float64(200), "count": float64(2), "second": "Fido", "id": float64(1)} {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+	if gotAuth != "Bearer s3cret" || gotStatus != "available" {
+		t.Errorf("remote saw auth %q, status %q", gotAuth, gotStatus)
+	}
+
+	if _, err := pluginM.Run("kennel", "write", nil); err == nil || !strings.Contains(err.Error(), "client.call: method_not_allowed") {
+		t.Errorf("write err = %v, want it refused", err)
+	}
+}
+
+func TestPluginClient_ScriptCreatesAClientAndCallsItInTheSameRun(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("X-Key")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"id": 1, "name": "Rex"}]`))
+	}))
+	defer srv.Close()
+
+	pluginsDir := filepath.Join(t.TempDir(), "plugins")
+	dir := filepath.Join(pluginsDir, "kennel")
+	for name, body := range map[string]string{
+		"plugin.json": `{"manifest_version": 1, "id": "kennel", "name": "Kennel", "version": "0.1.0",
+			"api_clients": ["kennel-api"],
+			"commands": [{"id": "setup", "label": "Setup"}, {"id": "typo", "label": "Typo"}]}`,
+		"main.lua": `
+function setup(ctx)
+  local created = formidable.client.create("kennel-api", {
+    spec = "openapi/kennel.json",
+    base_url = ctx.url,
+    auth = { kind = "apikey", ["in"] = "header", name = "X-Key" },
+    resources = { {
+      key = "dogs", label = "Dogs",
+      list = { operation = "findDogs", params = { status = "available" } },
+      id_path = "/id", label_path = "/name",
+    } },
+  })
+  local again = formidable.client.create("kennel-api", { spec = "openapi/kennel.json", base_url = "https://evil.example.com" })
+  local page = formidable.client.items("kennel-api", "dogs")
+  return { created = created, again = again, first = page.items[1].label }
+end
+function typo(ctx)
+  return formidable.client.create("kennel-api", { spec = "openapi/kennel.json", base_ur = "https://x.example.com" })
+end`,
+		// A relative server: only the script's base_url makes this client valid.
+		"openapi/kennel.json": fmt.Sprintf(docOnlySpec, "/api"),
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	store := &clientStoreFS{files: map[string]string{}}
+	clientM := connection.NewManager(store, nil)
+	adapter := pluginClientAdapter{m: clientM, inv: connection.NewInvoker(clientM, fixedSecret{value: "k3y"})}
+	signals := 0
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter,
+		ClientNoticeOut: func() { signals++ }})
+	if err := pluginM.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if clientM.Has("kennel-api") || len(pluginM.TakeClientNotices()) != 0 {
+		t.Fatal("a client the plugin does not ship under api-clients was installed at refresh")
+	}
+
+	if _, err := pluginM.Run("kennel", "typo", nil); err == nil || !strings.Contains(err.Error(), "client.create: bad option") {
+		t.Fatalf("typo err = %v, want the misspelt option refused", err)
+	}
+	if len(store.files) != 0 {
+		t.Fatalf("a refused create wrote %v", store.files)
+	}
+
+	res, err := pluginM.Run("kennel", "setup", map[string]any{"url": srv.URL})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	if got["created"] != true || got["again"] != false || got["first"] != "Rex" {
+		t.Errorf("result = %v", got)
+	}
+	if gotAuth != "k3y" {
+		t.Errorf("remote saw key %q", gotAuth)
+	}
+	c, _, err := clientM.Get("kennel-api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.BaseURL != srv.URL || c.Name != "Kennel" || c.SpecFile != "kennel-api.json" {
+		t.Errorf("client = %+v; the second create must not have re-pointed it", c)
+	}
+	notices := pluginM.TakeClientNotices()
+	if len(notices) != 1 || notices[0].ID != "kennel-api" || notices[0].Status != plugin.ClientInstalled || signals != 1 {
+		t.Errorf("notices = %+v, signals = %d", notices, signals)
+	}
+}

@@ -45,6 +45,12 @@ export class Catalog {
     "servers"?: string[];
     "operations": Operation[];
 
+    /**
+     * Auth is the shape the document's own security requirement asks for, when
+     * it is one this interpreter speaks. A derived client starts from it.
+     */
+    "auth"?: Auth;
+
     /** Creates a new Catalog instance. */
     constructor($$source: Partial<Catalog> = {}) {
         if (!("title" in $$source)) {
@@ -69,12 +75,16 @@ export class Catalog {
     static createFrom($$source: any = {}): Catalog {
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType2;
+        const $$createField5_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("servers" in $$parsedSource) {
             $$parsedSource["servers"] = $$createField3_0($$parsedSource["servers"]);
         }
         if ("operations" in $$parsedSource) {
             $$parsedSource["operations"] = $$createField4_0($$parsedSource["operations"]);
+        }
+        if ("auth" in $$parsedSource) {
+            $$parsedSource["auth"] = $$createField5_0($$parsedSource["auth"]);
         }
         return new Catalog($$parsedSource as Partial<Catalog>);
     }
@@ -108,8 +118,8 @@ export class ClientDetail {
      * Creates a new ClientDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): ClientDetail {
-        const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType5;
+        const $$createField0_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("client" in $$parsedSource) {
             $$parsedSource["client"] = $$createField0_0($$parsedSource["client"]);
@@ -164,7 +174,7 @@ export class Connection {
      * Creates a new Connection instance from a string or object.
      */
     static createFrom($$source: any = {}): Connection {
-        const $$createField6_0 = $$createType6;
+        const $$createField6_0 = $$createType3;
         const $$createField7_0 = $$createType7;
         const $$createField8_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -968,7 +978,7 @@ export class SpecInfo {
      * Creates a new SpecInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): SpecInfo {
-        const $$createField1_0 = $$createType5;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("catalog" in $$parsedSource) {
             $$parsedSource["catalog"] = $$createField1_0($$parsedSource["catalog"]);
@@ -1279,10 +1289,10 @@ export class ValidationError {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = Operation.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = Connection.createFrom;
-const $$createType4 = Catalog.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = Auth.createFrom;
+const $$createType3 = Auth.createFrom;
+const $$createType4 = Connection.createFrom;
+const $$createType5 = Catalog.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = $Create.Map($Create.Any, $Create.Any);
 const $$createType8 = Resource.createFrom;
 const $$createType9 = $Create.Array($$createType8);

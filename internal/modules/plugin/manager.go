@@ -40,6 +40,12 @@ type ManagerDeps struct {
 	RunOptionsOut RunOptionsEmitter
 	// Locale supplies the active locale id at Run time; nil falls back to "en".
 	Locale LocaleProvider
+	// Client is the read side of the api-client store behind formidable.client; a script reaches only the clients its manifest declares.
+	Client ClientAccess
+	// Clients installs the api-clients plugins ship; nil leaves Manifest.APIClients inert.
+	Clients ClientInstaller
+	// ClientNoticeOut fires when a running script created a client, so the frontend collects the notice without waiting for a Refresh.
+	ClientNoticeOut func()
 }
 
 // LocaleProvider returns the active locale id, re-read per Run so a mid-session switch lands on the next Run.
@@ -63,6 +69,10 @@ type Manager struct {
 	// cancelMu protects cancelFn (set on Run start, called by Cancel, nilled on Run exit); never held around Run itself.
 	cancelMu sync.Mutex
 	cancelFn context.CancelFunc
+
+	// noticeMu protects notices, the api-client install outcomes not yet collected, keyed by {plugin, client}.
+	noticeMu sync.Mutex
+	notices  map[[2]string]ClientInstall
 }
 
 // NewManager constructs a Manager; discovery runs on the first Refresh, not here.
@@ -76,20 +86,27 @@ func NewManager(d ManagerDeps) *Manager {
 // Refresh re-scans <PluginsDir> and rebuilds the registry, best-effort: a corrupt manifest is logged and skipped.
 // Skips non-directories, hidden folders, folders missing plugin.json, and folders whose plugin.json fails validation.
 func (m *Manager) Refresh() error {
+	outcomes, err := m.refresh()
+	m.queueClientNotices(outcomes)
+	return err
+}
+
+// refresh is Refresh returning the api-client install outcomes instead of queueing them, so ImportArchive can report its own plugin's directly.
+func (m *Manager) refresh() ([]ClientInstall, error) {
 	if _, err := os.Stat(m.deps.PluginsDir); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// No plugins folder yet: empty registry, not an error.
 			m.mu.Lock()
 			m.plugins = map[string]Plugin{}
 			m.mu.Unlock()
-			return nil
+			return nil, nil
 		}
-		return fmt.Errorf("plugin: stat %s: %w", m.deps.PluginsDir, err)
+		return nil, fmt.Errorf("plugin: stat %s: %w", m.deps.PluginsDir, err)
 	}
 
 	entries, err := os.ReadDir(m.deps.PluginsDir)
 	if err != nil {
-		return fmt.Errorf("plugin: readdir %s: %w", m.deps.PluginsDir, err)
+		return nil, fmt.Errorf("plugin: readdir %s: %w", m.deps.PluginsDir, err)
 	}
 
 	next := map[string]Plugin{}
@@ -123,7 +140,12 @@ func (m *Manager) Refresh() error {
 	m.mu.Lock()
 	m.plugins = next
 	m.mu.Unlock()
-	return nil
+
+	var outcomes []ClientInstall
+	for _, p := range m.List() {
+		outcomes = append(outcomes, m.installClients(p)...)
+	}
+	return outcomes, nil
 }
 
 // List returns the registered plugins sorted by id.
@@ -243,6 +265,9 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 			return RunResult{}, ErrServerNotRunning
 		}
 	}
+	if id := m.missingClient(p); id != "" {
+		return RunResult{}, fmt.Errorf("%w: %s", ErrClientMissing, id)
+	}
 	src, err := os.ReadFile(filepath.Join(p.Dir, "main.lua"))
 	if err != nil {
 		return RunResult{}, fmt.Errorf("plugin: read main.lua: %w", err)
@@ -284,6 +309,9 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Storage:       m.deps.Storage,
 		Exec:          m.deps.Exec,
 		API:           m.deps.API,
+		Client:        m.deps.Client,
+		ClientIDs:     p.Manifest.APIClients,
+		ClientAdmin:   clientAdmin{m: m, p: p},
 		Stats:         m.deps.Stats,
 		Facets:        m.deps.Facets,
 		StatObject:    m.deps.StatObject,

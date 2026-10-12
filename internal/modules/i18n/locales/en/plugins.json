@@ -119,5 +119,11 @@
   "workspace.plugins.i18n.save": "Save translations",
   "workspace.plugins.i18n.save_success": "Translations saved for '{0}'.",
   "workspace.plugins.i18n.value": "Value",
-  "workspace.plugins.i18n.value_placeholder": "Translated text"
+  "workspace.plugins.i18n.value_placeholder": "Translated text",
+  "workspace.plugins.client.action": "Open API clients",
+  "workspace.plugins.client.exists": "Plugin '{0}' uses API client '{1}', which already exists and was left unchanged.",
+  "workspace.plugins.client.failed": "Plugin '{0}' could not create API client '{1}': {2}",
+  "workspace.plugins.client.installed": "Plugin '{0}' created API client '{1}'. No credentials came with it: check the client and enter them before use.",
+  "workspace.plugins.error_client_missing": "Plugin requires an API client that is not installed. {0}",
+  "workspace.plugins.client.installed_derived": "Plugin '{0}' created API client '{1}' from its OpenAPI document. Check the base URL, authentication and resources, and enter credentials before use."
 }

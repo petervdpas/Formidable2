@@ -130,6 +130,8 @@ func buildCatalog(doc *openapi3.T, format string) (*Catalog, error) {
 		}
 	}
 
+	cat.Auth = authOf(doc)
+
 	if doc.Paths == nil {
 		return cat, nil
 	}
@@ -241,4 +243,33 @@ func SpecExtension(data []byte) string {
 		return ".json"
 	}
 	return ".yaml"
+}
+
+// authOf reads the document's top-level security requirement: the first
+// alternative, its schemes in name order, the first one this interpreter can
+// send. A document that only secures individual operations, or asks for OAuth
+// or basic (which needs a user name no document carries), yields nothing.
+func authOf(doc *openapi3.T) Auth {
+	if doc == nil || len(doc.Security) == 0 || doc.Components == nil {
+		return Auth{}
+	}
+	names := make([]string, 0, len(doc.Security[0]))
+	for name := range doc.Security[0] {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		ref := doc.Components.SecuritySchemes[name]
+		if ref == nil || ref.Value == nil {
+			continue
+		}
+		s := ref.Value
+		switch {
+		case s.Type == "http" && strings.EqualFold(s.Scheme, "bearer"):
+			return Auth{Kind: AuthBearer}
+		case s.Type == "apiKey" && (s.In == InHeader || s.In == InQuery) && s.Name != "":
+			return Auth{Kind: AuthAPIKey, In: s.In, Name: s.Name}
+		}
+	}
+	return Auth{}
 }

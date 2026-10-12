@@ -1,12 +1,16 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/petervdpas/formidable2/internal/modules/config"
+	"github.com/petervdpas/formidable2/internal/modules/connection"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
@@ -563,4 +567,183 @@ func (a pluginHTTPAdapter) Fetch(method, path, body string, headers map[string]s
 		Body:    res.Body,
 		Headers: res.Headers,
 	}, nil
+}
+
+// pluginClientAdapter is the api-client store as plugins see it: create-only
+// install of the clients a plugin ships, and the read-only calls behind
+// formidable.client. No write, no definition edit, no credential surface.
+type pluginClientAdapter struct {
+	m   *connection.Manager
+	inv *connection.Invoker
+}
+
+func (a pluginClientAdapter) HasClient(id string) bool { return a.m.Has(id) }
+
+func (a pluginClientAdapter) InstallClient(id string, read func(name string) ([]byte, error)) (bool, error) {
+	return a.m.Install(id, read)
+}
+
+// CreateClient decodes a script's definition strictly, so a misspelt option is
+// an error instead of a silently ignored one. An id that already exists is
+// reported as not created, never as a failure and never as an update.
+func (a pluginClientAdapter) CreateClient(def map[string]any, spec []byte) (bool, error) {
+	raw, err := json.Marshal(def)
+	if err != nil {
+		return false, err
+	}
+	var c connection.Connection
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&c); err != nil {
+		return false, fmt.Errorf("bad option: %w", err)
+	}
+	if c.SpecFile != "" || c.SpecURL != "" {
+		return false, errors.New("bad option: the document is named by spec, not spec_file or spec_url")
+	}
+	if a.m.Has(c.ID) {
+		return false, nil
+	}
+	if err := a.m.Create(c, spec); err != nil {
+		if errors.Is(err, connection.ErrExists) && a.m.Has(c.ID) {
+			return false, nil
+		}
+		return false, clientErr(err)
+	}
+	return true, nil
+}
+
+// ClientOperations lists the document's operations, so a script can find what
+// a client derived from a document alone is able to call.
+func (a pluginClientAdapter) ClientOperations(id string) ([]map[string]any, error) {
+	cat, err := a.m.Catalog(id)
+	if err != nil {
+		return nil, clientErr(err)
+	}
+	out := make([]map[string]any, 0, len(cat.Operations))
+	for _, op := range cat.Operations {
+		params := make([]any, 0, len(op.Params))
+		for _, p := range op.Params {
+			params = append(params, map[string]any{"name": p.Name, "in": p.In, "required": p.Required, "type": p.Type})
+		}
+		out = append(out, map[string]any{
+			"id": op.ID, "method": op.Method, "path": op.Path, "summary": op.Summary, "params": params,
+		})
+	}
+	return out, nil
+}
+
+func (a pluginClientAdapter) ClientCall(ctx context.Context, client, operation string, params map[string]string) (map[string]any, error) {
+	res, err := a.inv.Call(ctx, connection.TryRequest{Connection: client, Operation: operation, Params: params})
+	if err != nil {
+		return nil, clientErr(err)
+	}
+	return toJSONMap(res)
+}
+
+func (a pluginClientAdapter) ListClients() ([]map[string]any, error) {
+	rows, err := a.m.List()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		row, err := toJSONMap(r)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+// ClientResources describes what a client offers: each resource, whether it
+// can search and resolve an id, and the fields a caller may select.
+func (a pluginClientAdapter) ClientResources(id string) ([]map[string]any, error) {
+	c, _, err := a.m.Get(id)
+	if err != nil {
+		return nil, clientErr(err)
+	}
+	out := make([]map[string]any, 0, len(c.Resources))
+	for _, r := range c.Resources {
+		fields := make([]any, 0, len(r.Fields))
+		for _, f := range r.Fields {
+			fields = append(fields, map[string]any{"key": f.Key, "label": f.Label, "type": f.Type})
+		}
+		out = append(out, map[string]any{
+			"key":        r.Key,
+			"label":      r.Label,
+			"can_search": r.SearchParam != "",
+			"can_fetch":  strings.TrimSpace(r.Get.Operation) != "",
+			"fields":     fields,
+		})
+	}
+	return out, nil
+}
+
+func (a pluginClientAdapter) ClientItems(ctx context.Context, client, resource string, q plugin.ClientQuery) (map[string]any, error) {
+	page, err := a.inv.List(ctx, connection.ListRequest{
+		Connection: client,
+		Resource:   resource,
+		Search:     q.Search,
+		Limit:      q.Limit,
+		Offset:     q.Offset,
+		Cursor:     q.Cursor,
+		Select:     q.Select,
+		Params:     q.Params,
+	})
+	if err != nil {
+		return nil, clientErr(err)
+	}
+	// A nil slice would reach Lua as nil; a script iterating an empty page must get a table.
+	if page.Items == nil {
+		page.Items = []connection.Item{}
+	}
+	return toJSONMap(page)
+}
+
+func (a pluginClientAdapter) ClientFetch(ctx context.Context, client, resource, id string, q plugin.ClientQuery) (map[string]any, error) {
+	item, err := a.inv.Fetch(ctx, connection.FetchRequest{
+		Connection: client,
+		Resource:   resource,
+		ID:         id,
+		Select:     q.Select,
+		Params:     q.Params,
+	})
+	if err != nil {
+		return nil, clientErr(err)
+	}
+	return toJSONMap(item)
+}
+
+// ClientSnapshot shapes an item through connection.Snapshot, so a record a
+// plugin writes holds exactly what the api-client field's own picker stores.
+func (a pluginClientAdapter) ClientSnapshot(item map[string]any, keys []string) (map[string]any, error) {
+	raw, err := json.Marshal(item)
+	if err != nil {
+		return nil, err
+	}
+	var it connection.Item
+	if err := json.Unmarshal(raw, &it); err != nil {
+		return nil, fmt.Errorf("not an item from client.items or client.fetch: %w", err)
+	}
+	if keys == nil {
+		for k := range it.Fields {
+			keys = append(keys, k)
+		}
+	}
+	snap := connection.Snapshot(it, keys, time.Now())
+	if snap == nil {
+		return nil, errors.New("item has no id")
+	}
+	return snap, nil
+}
+
+// clientErr flattens an InvokeError to "code: message". Its Error() is JSON
+// for the Wails boundary, which reads as noise in a Lua error string.
+func clientErr(err error) error {
+	var ie *connection.InvokeError
+	if errors.As(err, &ie) {
+		return fmt.Errorf("%s: %s", ie.Code, ie.Message)
+	}
+	return err
 }

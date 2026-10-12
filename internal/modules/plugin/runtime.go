@@ -66,9 +66,13 @@ type runtimeDeps struct {
 	Storage       StorageAccess
 	Exec          ExecRunner
 	API           HTTPClient
-	Stats         StatsAccess
-	Facets        FacetStatsAccess
-	StatObject    StatObjectAccess
+	Client        ClientAccess
+	// ClientIDs are the api-clients the manifest declares; formidable.client refuses any other.
+	ClientIDs   []string
+	ClientAdmin ClientAdmin
+	Stats       StatsAccess
+	Facets      FacetStatsAccess
+	StatObject  StatObjectAccess
 	// I18nMessages is the plugin's active-locale translations with the `plugin.<id>.` prefix stripped; nil/empty makes t() return the key verbatim.
 	I18nMessages map[string]string
 }
@@ -83,6 +87,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("path", buildPathTable(L))
 	f.RawSetString("url", buildURLTable(L))
 	f.RawSetString("api", buildAPITable(L, deps.API))
+	f.RawSetString("client", buildClientTable(L, deps.Ctx, deps.Client, deps.ClientAdmin, deps.ClientIDs))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
 	f.RawSetString("plugin", buildPluginTable(L, deps.Plugin))
 	f.RawSetString("template", buildTemplateTable(L, deps.Template))
@@ -192,18 +197,22 @@ type scriptOpts struct {
 	Ctx    context.Context
 
 	// Access deps: nil disables a namespace (calls raise "<namespace>: not configured").
-	PluginID      string
-	Plugin        PluginInfo
-	KV            *KV
-	Template      TemplateAccess
-	Collection    CollectionAccess
-	Form          FormAccess
-	Render        RenderAccess
-	FM            FMAccess
-	FS            FSAccess
-	Storage       StorageAccess
-	Exec          ExecRunner
-	API           HTTPClient
+	PluginID   string
+	Plugin     PluginInfo
+	KV         *KV
+	Template   TemplateAccess
+	Collection CollectionAccess
+	Form       FormAccess
+	Render     RenderAccess
+	FM         FMAccess
+	FS         FSAccess
+	Storage    StorageAccess
+	Exec       ExecRunner
+	API        HTTPClient
+	Client     ClientAccess
+	// ClientIDs are the api-clients the manifest declares; formidable.client refuses any other.
+	ClientIDs     []string
+	ClientAdmin   ClientAdmin
 	Stats         StatsAccess
 	Facets        FacetStatsAccess
 	StatObject    StatObjectAccess
@@ -246,6 +255,9 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		Storage:       opts.Storage,
 		Exec:          opts.Exec,
 		API:           opts.API,
+		Client:        opts.Client,
+		ClientIDs:     opts.ClientIDs,
+		ClientAdmin:   opts.ClientAdmin,
 		Stats:         opts.Stats,
 		Facets:        opts.Facets,
 		StatObject:    opts.StatObject,

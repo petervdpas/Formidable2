@@ -197,6 +197,15 @@ export function SavePluginI18n(id: string, locale: string, msgs: { [_ in string]
 }
 
 /**
+ * TakeClientNotices returns and clears the api-client install outcomes from Refreshes the frontend has not been told about, boot included.
+ */
+export function TakeClientNotices(): $CancellablePromise<$models.ClientInstall[]> {
+    return $Call.ByID(866055568).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
+/**
  * ValidateWidget runs formwidget rules against one widget; also pins the formwidget types into the Wails bindings so the frontend can import Widget/Kind.
  */
 export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void> {
@@ -209,7 +218,7 @@ export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void
  */
 export function WidgetKinds(): $CancellablePromise<formwidget$0.Descriptor[]> {
     return $Call.ByID(743175530).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -222,5 +231,7 @@ const $$createType4 = $models.ImportArchiveResult.createFrom;
 const $$createType5 = $Create.Array($Create.Any);
 const $$createType6 = $Create.Map($Create.Any, $Create.Any);
 const $$createType7 = $models.RunResultDTO.createFrom;
-const $$createType8 = formwidget$0.Descriptor.createFrom;
+const $$createType8 = $models.ClientInstall.createFrom;
 const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = formwidget$0.Descriptor.createFrom;
+const $$createType11 = $Create.Array($$createType10);

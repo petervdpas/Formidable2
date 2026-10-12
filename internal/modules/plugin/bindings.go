@@ -3,8 +3,11 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -81,6 +84,30 @@ type StatObjectAccess interface {
 	ListObjects(template string) ([]map[string]any, error)
 	EvaluateObject(template, name string) (map[string]any, error)
 	EvaluateComposite(template, name string) (map[string]any, error)
+}
+
+// ClientQuery is the options table of formidable.client.items / fetch. Select names declared fields to project (empty = all); Params overlay the resource binding's.
+type ClientQuery struct {
+	Search string
+	Limit  int
+	Offset int
+	Cursor string
+	Select []string
+	Params map[string]string
+}
+
+// ClientAccess is the read side of the api-client store exposed as formidable.client. Results are JSON-shaped; ctx is the Run's, so Stop cancels a remote call.
+// Read-only by construction: no write, no definition edit, no credential.
+type ClientAccess interface {
+	ListClients() ([]map[string]any, error)
+	ClientResources(id string) ([]map[string]any, error)
+	ClientItems(ctx context.Context, client, resource string, q ClientQuery) (map[string]any, error)
+	ClientFetch(ctx context.Context, client, resource, id string, q ClientQuery) (map[string]any, error)
+	// ClientOperations lists every operation in the client's document; ClientCall runs one read operation by id and returns {status, content_type, data | body}.
+	ClientOperations(id string) ([]map[string]any, error)
+	ClientCall(ctx context.Context, client, operation string, params map[string]string) (map[string]any, error)
+	// ClientSnapshot turns an item into the value an api-client field stores; nil keys keeps every field the item carries.
+	ClientSnapshot(item map[string]any, keys []string) (map[string]any, error)
 }
 
 // ExecOptions narrows what `formidable.exec(cmd, args, opts)` accepts; a Go struct (not a free-form map) keeps the contract from drifting.
@@ -878,4 +905,305 @@ func buildPluginTable(L *lua.LState, info PluginInfo) *lua.LTable {
 		t.RawSetString("form", goToLua(L, info.Form))
 	}
 	return t
+}
+
+// buildClientTable mounts formidable.client.{list, resources, operations, items, fetch, call, snapshot} over the api-client store, plus exists / create when admin is wired.
+// declared is Manifest.APIClients: a script reaches only those, so the manifest stays the complete list of what a plugin calls or creates.
+func buildClientTable(L *lua.LState, ctx context.Context, c ClientAccess, admin ClientAdmin, declared []string) *lua.LTable {
+	t := L.NewTable()
+	defer mountClientAdmin(L, t, admin, declared)
+	if c == nil {
+		for _, name := range []string{"list", "resources", "operations", "items", "fetch", "call", "snapshot"} {
+			t.RawSetString(name, L.NewFunction(nilGuard("client")))
+		}
+		return t
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// checkClient reads the client id at arg 1 and raises unless the manifest declares it.
+	checkClient := func(L *lua.LState, fn string) string {
+		id := L.CheckString(1)
+		if !slices.Contains(declared, id) {
+			L.RaiseError("client.%s: api-client %q is not listed under api_clients in plugin.json", fn, id)
+		}
+		return id
+	}
+	t.RawSetString("list", L.NewFunction(func(L *lua.LState) int {
+		all, err := c.ListClients()
+		if err != nil {
+			L.RaiseError("client.list: %v", err)
+			return 0
+		}
+		out := L.NewTable()
+		for _, row := range all {
+			if id, _ := row["id"].(string); slices.Contains(declared, id) {
+				out.Append(goToLua(L, row))
+			}
+		}
+		L.Push(out)
+		return 1
+	}))
+	t.RawSetString("resources", L.NewFunction(func(L *lua.LState) int {
+		id := checkClient(L, "resources")
+		rows, err := c.ClientResources(id)
+		if err != nil {
+			L.RaiseError("client.resources: %v", err)
+			return 0
+		}
+		out := L.NewTable()
+		for _, row := range rows {
+			out.Append(goToLua(L, row))
+		}
+		L.Push(out)
+		return 1
+	}))
+	t.RawSetString("items", L.NewFunction(func(L *lua.LState) int {
+		id := checkClient(L, "items")
+		resource := L.CheckString(2)
+		q, err := clientQueryArg(L.Get(3))
+		if err != nil {
+			L.RaiseError("client.items: %v", err)
+			return 0
+		}
+		page, err := c.ClientItems(ctx, id, resource, q)
+		if err != nil {
+			L.RaiseError("client.items: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, page))
+		return 1
+	}))
+	t.RawSetString("fetch", L.NewFunction(func(L *lua.LState) int {
+		id := checkClient(L, "fetch")
+		resource := L.CheckString(2)
+		itemID := L.CheckString(3)
+		if strings.TrimSpace(itemID) == "" {
+			L.RaiseError("client.fetch: no id to resolve")
+			return 0
+		}
+		q, err := clientQueryArg(L.Get(4))
+		if err != nil {
+			L.RaiseError("client.fetch: %v", err)
+			return 0
+		}
+		item, err := c.ClientFetch(ctx, id, resource, itemID, q)
+		if err != nil {
+			L.RaiseError("client.fetch: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, item))
+		return 1
+	}))
+	t.RawSetString("operations", L.NewFunction(func(L *lua.LState) int {
+		id := checkClient(L, "operations")
+		rows, err := c.ClientOperations(id)
+		if err != nil {
+			L.RaiseError("client.operations: %v", err)
+			return 0
+		}
+		out := L.NewTable()
+		for _, row := range rows {
+			out.Append(goToLua(L, row))
+		}
+		L.Push(out)
+		return 1
+	}))
+	// call reaches an operation straight from the document, so a client derived from a document alone is usable without any resource binding.
+	t.RawSetString("call", L.NewFunction(func(L *lua.LState) int {
+		id := checkClient(L, "call")
+		operation := L.CheckString(2)
+		var params map[string]string
+		if v := L.Get(3); v != lua.LNil {
+			tbl, ok := v.(*lua.LTable)
+			if !ok {
+				L.RaiseError("client.call: params must be a table of name = value")
+				return 0
+			}
+			var err error
+			if params, err = clientParams(tbl); err != nil {
+				L.RaiseError("client.call: %v", err)
+				return 0
+			}
+		}
+		res, err := c.ClientCall(ctx, id, operation, params)
+		if err != nil {
+			L.RaiseError("client.call: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, res))
+		return 1
+	}))
+	// snapshot makes no remote call, so it names no client: it only shapes an item the script already holds.
+	t.RawSetString("snapshot", L.NewFunction(func(L *lua.LState) int {
+		tbl, ok := L.Get(1).(*lua.LTable)
+		if !ok {
+			L.RaiseError("client.snapshot: item must be a table from client.items or client.fetch")
+			return 0
+		}
+		item, ok := tableToGo(tbl).(map[string]any)
+		if !ok {
+			L.RaiseError("client.snapshot: item must be a table from client.items or client.fetch")
+			return 0
+		}
+		var keys []string
+		if v := L.Get(2); v != lua.LNil {
+			list, ok := v.(*lua.LTable)
+			if !ok {
+				L.RaiseError("client.snapshot: keys must be a list of field keys")
+				return 0
+			}
+			keys = []string{}
+			for i := 1; i <= list.Len(); i++ {
+				name, ok := list.RawGetInt(i).(lua.LString)
+				if !ok {
+					L.RaiseError("client.snapshot: keys must be a list of field keys")
+					return 0
+				}
+				keys = append(keys, string(name))
+			}
+		}
+		snap, err := c.ClientSnapshot(item, keys)
+		if err != nil {
+			L.RaiseError("client.snapshot: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, snap))
+		return 1
+	}))
+	return t
+}
+
+// clientQueryArg reads the optional options table. An unknown key is an error, since a misspelt option would otherwise silently fetch something else.
+func clientQueryArg(v lua.LValue) (ClientQuery, error) {
+	var q ClientQuery
+	if v == lua.LNil {
+		return q, nil
+	}
+	opts, ok := v.(*lua.LTable)
+	if !ok {
+		return q, errors.New("options must be a table")
+	}
+	var err error
+	fail := func(format string, args ...any) {
+		if err == nil {
+			err = fmt.Errorf(format, args...)
+		}
+	}
+	count := func(name string, v lua.LValue) int {
+		n, ok := v.(lua.LNumber)
+		if !ok || float64(n) < 0 || float64(n) != float64(int(n)) {
+			fail("option %q must be a whole number, zero or more", name)
+			return 0
+		}
+		return int(n)
+	}
+	text := func(name string, v lua.LValue) string {
+		s, ok := v.(lua.LString)
+		if !ok {
+			fail("option %q must be a string", name)
+		}
+		return string(s)
+	}
+	opts.ForEach(func(k, v lua.LValue) {
+		switch key := lua.LVAsString(k); key {
+		case "search":
+			q.Search = text(key, v)
+		case "cursor":
+			q.Cursor = text(key, v)
+		case "limit":
+			q.Limit = count(key, v)
+		case "offset":
+			q.Offset = count(key, v)
+		case "select":
+			list, ok := v.(*lua.LTable)
+			if !ok {
+				fail(`option "select" must be a list of field keys`)
+				return
+			}
+			for i := 1; i <= list.Len(); i++ {
+				name, ok := list.RawGetInt(i).(lua.LString)
+				if !ok {
+					fail(`option "select" must be a list of field keys`)
+					return
+				}
+				q.Select = append(q.Select, string(name))
+			}
+		case "params":
+			params, ok := v.(*lua.LTable)
+			if !ok {
+				fail(`option "params" must be a table of name = value`)
+				return
+			}
+			got, perr := clientParams(params)
+			if perr != nil {
+				fail("%v", perr)
+				return
+			}
+			q.Params = got
+		default:
+			fail("unknown option %q", key)
+		}
+	})
+	return q, err
+}
+
+// clientParams reads operation parameters: scalar values only, each sent as its string form.
+func clientParams(t *lua.LTable) (map[string]string, error) {
+	out := map[string]string{}
+	var err error
+	t.ForEach(func(k, v lua.LValue) {
+		switch v.Type() {
+		case lua.LTString, lua.LTNumber, lua.LTBool:
+			out[lua.LVAsString(k)] = v.String()
+		default:
+			if err == nil {
+				err = fmt.Errorf("param %q must be a string, number or boolean", lua.LVAsString(k))
+			}
+		}
+	})
+	return out, err
+}
+
+// mountClientAdmin adds formidable.client.exists(id) and create(id, opts). create is create-only and carries no credential:
+// opts.spec names the OpenAPI document inside the plugin folder; name, base_url, auth, dialect, headers and resources are optional, and what is left out is read off the document.
+// It returns true when the client was created and false when it already existed and was left untouched.
+func mountClientAdmin(L *lua.LState, t *lua.LTable, admin ClientAdmin, declared []string) {
+	if admin == nil {
+		for _, name := range []string{"exists", "create"} {
+			t.RawSetString(name, L.NewFunction(nilGuard("client")))
+		}
+		return
+	}
+	check := func(L *lua.LState, fn string) string {
+		id := L.CheckString(1)
+		if !slices.Contains(declared, id) {
+			L.RaiseError("client.%s: api-client %q is not listed under api_clients in plugin.json", fn, id)
+		}
+		return id
+	}
+	t.RawSetString("exists", L.NewFunction(func(L *lua.LState) int {
+		L.Push(lua.LBool(admin.Exists(check(L, "exists"))))
+		return 1
+	}))
+	t.RawSetString("create", L.NewFunction(func(L *lua.LState) int {
+		id := check(L, "create")
+		tbl, ok := L.Get(2).(*lua.LTable)
+		if !ok {
+			L.RaiseError("client.create: options must be a table with at least spec")
+			return 0
+		}
+		opts, ok := tableToGo(tbl).(map[string]any)
+		if !ok {
+			L.RaiseError("client.create: options must be a table with at least spec")
+			return 0
+		}
+		created, err := admin.Create(id, opts)
+		if err != nil {
+			L.RaiseError("client.create: %v", err)
+			return 0
+		}
+		L.Push(lua.LBool(created))
+		return 1
+	}))
 }

@@ -65,6 +65,9 @@ function errorLabel(kind: string, message: string): string {
   if (kind === "command_not_found") {
     return t("workspace.plugins.error_command_not_found", [message]);
   }
+  if (kind === "client_missing") {
+    return t("workspace.plugins.error_client_missing", [message]);
+  }
   if (kind === "server_not_running") {
     return t("workspace.plugins.error_server_not_running");
   }

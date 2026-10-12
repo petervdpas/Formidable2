@@ -224,6 +224,10 @@ type Catalog struct {
 	SpecFormat string      `json:"spec_format"`
 	Servers    []string    `json:"servers,omitempty"`
 	Operations []Operation `json:"operations"`
+
+	// Auth is the shape the document's own security requirement asks for, when
+	// it is one this interpreter speaks. A derived client starts from it.
+	Auth Auth `json:"auth,omitzero"`
 }
 
 // Op returns the operation with the given ID.

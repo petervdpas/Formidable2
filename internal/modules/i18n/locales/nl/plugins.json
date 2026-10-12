@@ -119,5 +119,11 @@
   "workspace.plugins.i18n.save": "Vertalingen opslaan",
   "workspace.plugins.i18n.save_success": "Vertalingen opgeslagen voor '{0}'.",
   "workspace.plugins.i18n.value": "Waarde",
-  "workspace.plugins.i18n.value_placeholder": "Vertaalde tekst"
+  "workspace.plugins.i18n.value_placeholder": "Vertaalde tekst",
+  "workspace.plugins.client.action": "API-clients openen",
+  "workspace.plugins.client.exists": "Plugin '{0}' gebruikt API-client '{1}', die al bestaat en ongewijzigd is gelaten.",
+  "workspace.plugins.client.failed": "Plugin '{0}' kon API-client '{1}' niet aanmaken: {2}",
+  "workspace.plugins.client.installed": "Plugin '{0}' heeft API-client '{1}' aangemaakt. Er zijn geen inloggegevens meegekomen: controleer de client en vul ze in voor gebruik.",
+  "workspace.plugins.error_client_missing": "Plugin vereist een API-client die niet is geïnstalleerd. {0}",
+  "workspace.plugins.client.installed_derived": "Plugin '{0}' heeft API-client '{1}' aangemaakt op basis van het OpenAPI-document. Controleer de basis-URL, authenticatie en resources, en vul de inloggegevens in voor gebruik."
 }

@@ -42,6 +42,8 @@ type ImportArchiveResult struct {
 	ID          string   `json:"id"`
 	Overwritten bool     `json:"overwritten"`
 	Files       []string `json:"files"`
+	// Clients reports each api-client the plugin declares: installed now, already present and left alone, or failed.
+	Clients []ClientInstall `json:"clients,omitempty"`
 }
 
 // exportPluginArchive bundles <pluginsDir>/<id>/** into a zip at zipPath. id is validated up front; hidden entries
@@ -287,9 +289,22 @@ func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveRe
 	if err != nil {
 		return res, err
 	}
-	if refreshErr := m.Refresh(); refreshErr != nil {
+	outcomes, refreshErr := m.refresh()
+	if refreshErr != nil {
 		// Files already landed; return success since a refresh hiccup is recoverable via the workspace Refresh button.
 		m.log.Warn("plugin: refresh after import failed", "id", res.ID, "err", refreshErr)
+	}
+	var own, others []ClientInstall
+	for _, o := range outcomes {
+		if o.Plugin == res.ID {
+			own = append(own, o)
+		} else {
+			others = append(others, o)
+		}
+	}
+	m.queueClientNotices(others)
+	if p, ok := m.Get(res.ID); ok {
+		res.Clients = m.importedClients(p, own)
 	}
 	return res, nil
 }

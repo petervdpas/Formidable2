@@ -58,6 +58,8 @@ type Manifest struct {
 	Workspaces []string `json:"workspaces,omitempty"`
 	// Templates narrows a workspace attachment to exact template filenames; non-empty makes the plugin template-scoped (shows only while a listed template is selected). It only narrows, never broadens.
 	Templates []string `json:"templates,omitempty"`
+	// APIClients lists the api-client ids the plugin uses. Each one missing at Refresh is installed from the plugin's api-clients folder, create-only; Run refuses while one is absent.
+	APIClients []string `json:"api_clients,omitempty"`
 	// Debug toggles the collapsible debug/output panel in the Run modal.
 	Debug bool `json:"debug"`
 	// Maximizable adds the expand/restore button to the run window.
@@ -151,6 +153,7 @@ var (
 	ErrCommandNotFound  = errors.New("plugin: command not found")
 	ErrPluginExists     = errors.New("plugin: already exists")
 	ErrServerNotRunning = errors.New("plugin: requires the internal server, but it's stopped")
+	ErrClientMissing    = errors.New("plugin: requires an api-client that is not installed")
 	// ErrPluginBusy: plugins run one at a time. VMs are per-call but their bound services (KV/render/fs) aren't safe to interleave.
 	ErrPluginBusy = errors.New("plugin: another command is currently running")
 	// ErrPluginCancelled: the runtime maps gopher-lua's "context canceled" to this so the Service can branch on Kind="cancelled".

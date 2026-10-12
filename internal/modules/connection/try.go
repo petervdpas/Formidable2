@@ -149,45 +149,45 @@ func fixedParamsFor(c *Connection, opID string) map[string]string {
 	return out
 }
 
-// Try runs one operation and reports what came back, whatever came back.
-func (iv *Invoker) Try(ctx context.Context, req TryRequest) (*TryResult, error) {
+// prepare assembles the request for one catalog operation: no resource in
+// between, only the connection and the dialect defaults shaping the URL.
+func (iv *Invoker) prepare(ctx context.Context, req TryRequest) (*http.Request, *Connection, Operation, string, error) {
+	var op Operation
 	if iv == nil || iv.mgr == nil {
-		return nil, invokeErr(CodeConnectionNotFound, "no connection store", nil)
+		return nil, nil, op, "", invokeErr(CodeConnectionNotFound, "no connection store", nil)
 	}
 	conn, cat, err := iv.mgr.Get(req.Connection)
 	if err != nil {
-		return nil, invokeErr(CodeConnectionNotFound,
+		return nil, nil, op, "", invokeErr(CodeConnectionNotFound,
 			fmt.Sprintf("connection %q is not available", req.Connection), err)
 	}
 	op, ok := cat.Op(req.Operation)
 	if !ok {
-		return nil, invokeErr(CodeOperationNotFound,
+		return nil, nil, op, "", invokeErr(CodeOperationNotFound,
 			fmt.Sprintf("operation %q is not in the document", req.Operation), nil)
 	}
 	if !safeMethods[op.Method] {
-		return nil, invokeErr(CodeMethodNotAllowed,
-			fmt.Sprintf("%s is not a safe method; the console only reads", op.Method), nil)
+		return nil, nil, op, "", invokeErr(CodeMethodNotAllowed,
+			fmt.Sprintf("%s is not a safe method; only reads are sent", op.Method), nil)
 	}
 
 	params, err := overlayParams(op, fixedParamsFor(conn, op.ID), req.Params, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, op, "", err
 	}
 	if err := checkRequiredParams(op, params); err != nil {
-		return nil, err
+		return nil, nil, op, "", err
 	}
 
-	// A bare binding: no resource, so only the connection and the dialect
-	// defaults shape the URL.
 	b := &binding{conn: conn, catalog: cat, strat: strategyFor(conn, Resource{})}
 	target, err := iv.buildURL(b, op, params, "", url.Values{})
 	if err != nil {
-		return nil, err
+		return nil, nil, op, "", err
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, op.Method, target, nil)
 	if err != nil {
-		return nil, invokeErr(CodeBindingInvalid, "cannot build the request", err)
+		return nil, nil, op, "", invokeErr(CodeBindingInvalid, "cannot build the request", err)
 	}
 	httpReq.Header.Set("Accept", "application/json")
 	for k, v := range conn.Headers {
@@ -206,6 +206,15 @@ func (iv *Invoker) Try(ctx context.Context, req TryRequest) (*TryResult, error) 
 		}
 	}
 	if err := iv.applyAuth(httpReq, conn); err != nil {
+		return nil, nil, op, "", err
+	}
+	return httpReq, conn, op, target, nil
+}
+
+// Try runs one operation and reports what came back, whatever came back.
+func (iv *Invoker) Try(ctx context.Context, req TryRequest) (*TryResult, error) {
+	httpReq, conn, op, target, err := iv.prepare(ctx, req)
+	if err != nil {
 		return nil, err
 	}
 
@@ -232,6 +241,53 @@ func (iv *Invoker) Try(ctx context.Context, req TryRequest) (*TryResult, error) 
 		DurationMS:  time.Since(started).Milliseconds(),
 	}
 	res.Body, res.JSON = renderBody(raw, truncated)
+	return res, nil
+}
+
+// CallResult is one operation's answer for a program rather than a person:
+// Data when the body parsed as JSON, Body verbatim when it did not.
+type CallResult struct {
+	Status      int    `json:"status"`
+	ContentType string `json:"content_type,omitempty"`
+	Data        any    `json:"data,omitempty"`
+	Body        string `json:"body,omitempty"`
+}
+
+// Call runs one operation by id and returns what it answered, for a caller
+// that consumes the payload. It is Try with the consumer's rules: a failing
+// status is an error carrying its code, and an oversized body is refused
+// rather than cut, since half a document parses as nothing.
+func (iv *Invoker) Call(ctx context.Context, req TryRequest) (*CallResult, error) {
+	httpReq, _, op, target, err := iv.prepare(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := iv.client.Do(httpReq)
+	if err != nil {
+		return nil, transportErr(ctx, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := iv.readBody(resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, &InvokeError{
+			Code:    statusCode(resp.StatusCode),
+			Message: fmt.Sprintf("%s %s returned %s", op.Method, requestPath(target, op.Path), resp.Status),
+			Status:  resp.StatusCode,
+		}
+	}
+
+	res := &CallResult{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type")}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	var data any
+	if len(bytes.TrimSpace(body)) > 0 && dec.Decode(&data) == nil && !dec.More() {
+		res.Data = data
+	} else {
+		res.Body = string(body)
+	}
 	return res, nil
 }
 

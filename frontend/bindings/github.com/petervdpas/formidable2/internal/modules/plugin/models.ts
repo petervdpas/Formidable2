@@ -6,6 +6,41 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * ClientInstall is the outcome for one api-client a plugin declares. Error is set only on ClientFailed.
+ * Derived marks an installed client whose definition was drafted from the document alone, so the user knows to review more than the credential.
+ */
+export class ClientInstall {
+    "plugin": string;
+    "id": string;
+    "status": string;
+    "derived"?: boolean;
+    "error"?: string;
+
+    /** Creates a new ClientInstall instance. */
+    constructor($$source: Partial<ClientInstall> = {}) {
+        if (!("plugin" in $$source)) {
+            this["plugin"] = "";
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ClientInstall instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ClientInstall {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ClientInstall($$parsedSource as Partial<ClientInstall>);
+    }
+}
+
+/**
  * Command is one user-runnable entry. Fn is the Lua function name; empty Fn uses ID (id="export" calls global `export(ctx)`).
  * HideOutput/HideLog hide the Run-dialog panels; LogAsToast mirrors log lines as live toasts; FormButton renders it in the form's action bar.
  * The boolean flags are written explicitly (no omitempty) so diffs read "true → false", not "added field".
@@ -104,6 +139,11 @@ export class ImportArchiveResult {
     "overwritten": boolean;
     "files": string[];
 
+    /**
+     * Clients reports each api-client the plugin declares: installed now, already present and left alone, or failed.
+     */
+    "clients"?: ClientInstall[];
+
     /** Creates a new ImportArchiveResult instance. */
     constructor($$source: Partial<ImportArchiveResult> = {}) {
         if (!("id" in $$source)) {
@@ -124,9 +164,13 @@ export class ImportArchiveResult {
      */
     static createFrom($$source: any = {}): ImportArchiveResult {
         const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
+        }
+        if ("clients" in $$parsedSource) {
+            $$parsedSource["clients"] = $$createField3_0($$parsedSource["clients"]);
         }
         return new ImportArchiveResult($$parsedSource as Partial<ImportArchiveResult>);
     }
@@ -155,7 +199,7 @@ export class ListResult {
      * Creates a new ListResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ListResult {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("manifest" in $$parsedSource) {
             $$parsedSource["manifest"] = $$createField1_0($$parsedSource["manifest"]);
@@ -187,6 +231,11 @@ export class Manifest {
      * Templates narrows a workspace attachment to exact template filenames; non-empty makes the plugin template-scoped (shows only while a listed template is selected). It only narrows, never broadens.
      */
     "templates"?: string[];
+
+    /**
+     * APIClients lists the api-client ids the plugin uses. Each one missing at Refresh is installed from the plugin's api-clients folder, create-only; Run refuses while one is absent.
+     */
+    "api_clients"?: string[];
 
     /**
      * Debug toggles the collapsible debug/output panel in the Run modal.
@@ -229,7 +278,8 @@ export class Manifest {
     static createFrom($$source: any = {}): Manifest {
         const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField12_0 = $$createType3;
+        const $$createField10_0 = $$createType0;
+        const $$createField13_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
             $$parsedSource["workspaces"] = $$createField8_0($$parsedSource["workspaces"]);
@@ -237,8 +287,11 @@ export class Manifest {
         if ("templates" in $$parsedSource) {
             $$parsedSource["templates"] = $$createField9_0($$parsedSource["templates"]);
         }
+        if ("api_clients" in $$parsedSource) {
+            $$parsedSource["api_clients"] = $$createField10_0($$parsedSource["api_clients"]);
+        }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField12_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField13_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }
@@ -268,7 +321,7 @@ export class RunResultDTO {
      */
     static createFrom($$source: any = {}): RunResultDTO {
         const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType5;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("logLines" in $$parsedSource) {
             $$parsedSource["logLines"] = $$createField3_0($$parsedSource["logLines"]);
@@ -310,8 +363,10 @@ export class ToastEvent {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = Manifest.createFrom;
-const $$createType2 = Command.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = ToastEvent.createFrom;
+const $$createType1 = ClientInstall.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = Manifest.createFrom;
+const $$createType4 = Command.createFrom;
 const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = ToastEvent.createFrom;
+const $$createType7 = $Create.Array($$createType6);

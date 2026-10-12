@@ -88,6 +88,17 @@ func validateManifest(m *Manifest) error {
 		}
 		seenTpl[tpl] = struct{}{}
 	}
+	seenClient := make(map[string]struct{}, len(m.APIClients))
+	for i, id := range m.APIClients {
+		// validID keeps the id a plain filename, so it cannot point outside the plugin's api-clients folder.
+		if !validID(id) {
+			return fmt.Errorf("%w: api_clients[%d] bad id %q", ErrManifestInvalid, i, id)
+		}
+		if _, dup := seenClient[id]; dup {
+			return fmt.Errorf("%w: api_clients lists %q twice", ErrManifestInvalid, id)
+		}
+		seenClient[id] = struct{}{}
+	}
 	for i, c := range m.Commands {
 		if strings.TrimSpace(c.ID) == "" {
 			return fmt.Errorf("%w: command[%d] empty id", ErrManifestInvalid, i)

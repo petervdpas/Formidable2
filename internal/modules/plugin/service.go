@@ -122,6 +122,11 @@ func (s *Service) ImportArchive(zipPath string, overwrite bool) (ImportArchiveRe
 	return s.m.ImportArchive(zipPath, overwrite)
 }
 
+// TakeClientNotices returns and clears the api-client install outcomes from Refreshes the frontend has not been told about, boot included.
+func (s *Service) TakeClientNotices() []ClientInstall {
+	return s.m.TakeClientNotices()
+}
+
 // GetSource returns the plugin's main.lua content.
 func (s *Service) GetSource(id string) (string, error) {
 	return s.m.GetSource(id)
@@ -155,6 +160,8 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrServerNotRunning):
 		return RunResultDTO{Kind: "server_not_running", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
+	case errors.Is(err, ErrClientMissing):
+		return RunResultDTO{Kind: "client_missing", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrPluginBusy):
 		return RunResultDTO{Kind: "busy", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrPluginCancelled):
