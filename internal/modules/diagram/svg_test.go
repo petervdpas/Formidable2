@@ -166,3 +166,32 @@ func TestSVG_OnlyInPageLinksAreEmitted(t *testing.T) {
 		t.Fatalf("non-fragment link emitted: %s", s)
 	}
 }
+
+func TestSVG_RuleSetDrawsOnePillPerCodeInItsCategoryColour(t *testing.T) {
+	s := SVG(Place(Lineage([][]string{{"A", "x", "T", "y", "Q-01, C-01"}}, testCols)))
+	wellFormed(t, s)
+	if !strings.Contains(s, `data-part="Q-01"`) || !strings.Contains(s, `data-part="C-01"`) {
+		t.Fatalf("parts missing: %s", s)
+	}
+	if !strings.Contains(s, `stroke="`+EdgeColour("C-01")+`"`) || !strings.Contains(s, ">C-01<") {
+		t.Fatalf("C-01 pill not tinted: %s", s)
+	}
+	if strings.Count(s, "<title>A.x -&gt; T.y (Q-01, C-01)</title>") != 2 {
+		t.Fatalf("both segments carry the mapping tooltip: %s", s)
+	}
+}
+
+func TestSVG_RuleSetPartsLinkAndFlagIndividually(t *testing.T) {
+	g := Lineage([][]string{{"A", "x", "T", "y", "Q-01, X-99"}}, testCols)
+	for i := range g.Nodes {
+		if g.Nodes[i].Kind == KindRuleSet {
+			g.Nodes[i].Parts[0].Link = "#ref-tr-q-01"
+			g.Nodes[i].Parts[1].Class = NodeUndefined
+		}
+	}
+	s := SVG(Place(g))
+	wellFormed(t, s)
+	if !strings.Contains(s, `<a href="#ref-tr-q-01"><g data-part="Q-01"`) || !strings.Contains(s, `data-part="X-99" data-class="undefined"`) {
+		t.Fatalf("got %s", s)
+	}
+}

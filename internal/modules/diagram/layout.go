@@ -20,6 +20,9 @@ const (
 	nodeMinW  = 120.0
 	ruleH     = 26.0
 	ruleMinW  = 60.0
+	partMinW  = 44.0
+	partPad   = 9.0
+	partGap   = 4.0
 	dummyH    = 4.0
 	dummyGap  = 8.0
 	sweeps    = 12
@@ -224,9 +227,23 @@ func (p *placer) anchorOK(r PortRef) bool {
 	return false
 }
 
+// PartWidth is the width of one code pill inside a rule set.
+func PartWidth(p Part) float64 { return max(partMinW, textW(p.Label)+2*partPad) }
+
 func textW(s string) float64 { return float64(utf8.RuneCountInString(s)) * charW }
 
 func size(b *NodeBox) {
+	if b.Node.Kind == KindRuleSet {
+		b.W = 0
+		for i, p := range b.Node.Parts {
+			if i > 0 {
+				b.W += partGap
+			}
+			b.W += PartWidth(p)
+		}
+		b.H = ruleH
+		return
+	}
 	if b.Node.Kind != KindEntity {
 		b.W = max(ruleMinW, textW(DisplayLabel(b.Node))+2*textPad)
 		b.H = ruleH

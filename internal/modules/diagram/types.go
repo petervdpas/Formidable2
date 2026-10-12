@@ -21,6 +21,7 @@ type Layer struct {
 const (
 	KindEntity  = "entity"
 	KindRule    = "rule"
+	KindRuleSet = "ruleset"
 	KindLiteral = "literal"
 )
 
@@ -47,6 +48,15 @@ type Node struct {
 	Ports []Port `json:"ports"`
 	Link  string `json:"link,omitempty"`
 	Class string `json:"class,omitempty"`
+	Parts []Part `json:"parts,omitempty"`
+}
+
+// Part is one code pill of a KindRuleSet node, the rule codes sitting on a
+// single mapping's line; Link and Class mean what they do on a Node.
+type Part struct {
+	Label string `json:"label"`
+	Link  string `json:"link,omitempty"`
+	Class string `json:"class,omitempty"`
 }
 
 // NodeUndefined marks a rule pill whose code matches no item of its target.
@@ -64,10 +74,13 @@ type PortRef struct {
 	Port string `json:"port,omitempty"`
 }
 
-// Edge Label carries the rule code(s); Note is extra tooltip text (an example value).
+// Edge Label carries the rule code(s); Note is extra tooltip text (an example
+// value). Title, when set, is the whole tooltip (a segment of a longer line
+// describes the mapping, not its own two ends).
 type Edge struct {
 	From  PortRef `json:"from"`
 	To    PortRef `json:"to"`
 	Label string  `json:"label,omitempty"`
 	Note  string  `json:"note,omitempty"`
+	Title string  `json:"title,omitempty"`
 }

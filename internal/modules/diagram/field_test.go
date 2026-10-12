@@ -97,3 +97,14 @@ func TestRenderField_PlainRuleColumnHasNoLinksOrFlags(t *testing.T) {
 		t.Fatalf("no reference target, no links: %s", svg)
 	}
 }
+
+func TestRenderField_RuleSetPartsLinkToDefinedRules(t *testing.T) {
+	data := map[string]any{
+		"mapping": []any{[]any{"A", "x", "T", "y", "", "Q-01, X-99"}},
+		"rules":   []any{map[string]any{"tr_code": "Q-01"}},
+	}
+	svg, _ := RenderField(referenceLineageTemplate("tr_code"), "lineage", data)
+	if !strings.Contains(svg, `<a href="#ref-tr_code-q-01"><g data-part="Q-01"`) || !strings.Contains(svg, `data-part="X-99" data-class="undefined"`) {
+		t.Fatalf("got %s", svg)
+	}
+}

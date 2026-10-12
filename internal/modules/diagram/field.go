@@ -29,7 +29,7 @@ func RenderField(t *template.Template, fieldKey string, data map[string]any) (st
 	return SVG(Place(g)), true
 }
 
-// linkRules points each rule pill at its rule's in-page anchor when the rule
+// linkRules points each rule pill (shared, or part of a rule set) at its rule's in-page anchor when the rule
 // column is a reference with a target; a code with no matching loop item is
 // flagged undefined instead.
 func linkRules(g *Graph, t *template.Template, b template.DiagramBinding, data map[string]any) {
@@ -53,15 +53,19 @@ func linkRules(g *Graph, t *template.Template, b template.DiagramBinding, data m
 			}
 		}
 	}
+	resolve := func(code string) (link, class string) {
+		if known[strings.ToLower(code)] {
+			return "#" + template.ReferenceAnchor(target, code), ""
+		}
+		return "", NodeUndefined
+	}
 	for i := range g.Nodes {
 		n := &g.Nodes[i]
-		if n.Kind != KindRule {
-			continue
+		if n.Kind == KindRule {
+			n.Link, n.Class = resolve(n.Label)
 		}
-		if known[strings.ToLower(n.Label)] {
-			n.Link = "#" + template.ReferenceAnchor(target, n.Label)
-		} else {
-			n.Class = NodeUndefined
+		for j := range n.Parts {
+			n.Parts[j].Link, n.Parts[j].Class = resolve(n.Parts[j].Label)
 		}
 	}
 }

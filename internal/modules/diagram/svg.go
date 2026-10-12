@@ -107,14 +107,7 @@ func SVG(l Layout) string {
 	b.WriteString(`<g fill="none" stroke-width="1.4">`)
 	for i, e := range l.Edges {
 		b.WriteString(`<path data-edge="` + strconv.Itoa(i) + `" d="` + curve(e) + `" stroke="` + EdgeColour(e.Edge.Label) + `">`)
-		b.WriteString(`<title>` + esc(endName(labels, e.Edge.From)+" -> "+endName(labels, e.Edge.To)))
-		if e.Edge.Label != "" {
-			b.WriteString(esc(" (" + e.Edge.Label + ")"))
-		}
-		if e.Edge.Note != "" {
-			b.WriteString(esc(" = " + e.Edge.Note))
-		}
-		b.WriteString(`</title></path>`)
+		b.WriteString(`<title>` + esc(edgeTitle(labels, e.Edge)) + `</title></path>`)
 	}
 	b.WriteString(`</g>`)
 	for _, n := range l.Nodes {
@@ -126,6 +119,8 @@ func SVG(l Layout) string {
 			} else {
 				writePill(&b, n, ruleFill, c, c, "")
 			}
+		case KindRuleSet:
+			writeRuleSet(&b, n)
 		case KindLiteral:
 			writePill(&b, n, literalFill, literalStroke, literalText, ` stroke-dasharray="4 3"`)
 		default:
@@ -135,6 +130,52 @@ func SVG(l Layout) string {
 	writeLegend(&b, cats, l.Height)
 	b.WriteString(`</svg>`)
 	return b.String()
+}
+
+func edgeTitle(nodes map[string]Node, e Edge) string {
+	if e.Title != "" {
+		return e.Title
+	}
+	t := endName(nodes, e.From) + " -> " + endName(nodes, e.To)
+	if e.Label != "" {
+		t += " (" + e.Label + ")"
+	}
+	if e.Note != "" {
+		t += " = " + e.Note
+	}
+	return t
+}
+
+// writeRuleSet draws a mapping's codes as adjacent pills on its line, each in
+// its category colour, linked or flagged on its own.
+func writeRuleSet(b *strings.Builder, n NodeBox) {
+	b.WriteString(`<g data-node="` + esc(n.Node.ID) + `">`)
+	x := n.X
+	for _, p := range n.Node.Parts {
+		w := PartWidth(p)
+		stroke, extra := categoryColour(category(p.Label)), ""
+		if p.Class == NodeUndefined {
+			stroke, extra = unsourcedText, ` stroke-dasharray="4 3"`
+		}
+		link := strings.HasPrefix(p.Link, "#") && len(p.Link) > 1
+		if link {
+			b.WriteString(`<a href="` + esc(p.Link) + `">`)
+		}
+		b.WriteString(`<g data-part="` + esc(p.Label) + `"`)
+		if p.Class != "" {
+			b.WriteString(` data-class="` + esc(p.Class) + `"`)
+		}
+		b.WriteString(`>`)
+		b.WriteString(`<rect x="` + num(x) + `" y="` + num(n.Y) + `" width="` + num(w) + `" height="` + num(n.H) +
+			`" rx="` + num(n.H/2) + `" fill="` + ruleFill + `" stroke="` + stroke + `" stroke-width="1.4"` + extra + `/>`)
+		b.WriteString(`<text x="` + num(x+w/2) + `" y="` + num(n.Y+n.H/2+4) + `" text-anchor="middle" fill="` + stroke + `">` + esc(p.Label) + `</text>`)
+		b.WriteString(`</g>`)
+		if link {
+			b.WriteString(`</a>`)
+		}
+		x += w + partGap
+	}
+	b.WriteString(`</g>`)
 }
 
 // curve chains horizontal-tangent cubics through the edge's lanes.

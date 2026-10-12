@@ -26,7 +26,7 @@ func portLabels(n Node) []string {
 }
 
 func TestLineage_DirectMappingMakesEntitiesPortsAndEdge(t *testing.T) {
-	g := Lineage([][]string{{"Basisvariant", "StudielinkVariantCode", "AanmeldingInschrijving", "OpleidingvariantBk", "Q-01"}}, testCols)
+	g := Lineage([][]string{{"Basisvariant", "StudielinkVariantCode", "AanmeldingInschrijving", "OpleidingvariantBk", "", "0000001064"}}, testCols)
 
 	src, ok := nodeByID(g, "source:basisvariant")
 	if !ok || src.Label != "Basisvariant" || src.Kind != KindEntity || src.Layer != LayerSource {
@@ -40,9 +40,9 @@ func TestLineage_DirectMappingMakesEntitiesPortsAndEdge(t *testing.T) {
 		t.Fatalf("source ports = %v", portLabels(src))
 	}
 	want := Edge{
-		From:  PortRef{Node: "source:basisvariant", Port: "studielinkvariantcode"},
-		To:    PortRef{Node: "target:aanmeldinginschrijving", Port: "opleidingvariantbk"},
-		Label: "Q-01",
+		From: PortRef{Node: "source:basisvariant", Port: "studielinkvariantcode"},
+		To:   PortRef{Node: "target:aanmeldinginschrijving", Port: "opleidingvariantbk"},
+		Note: "0000001064",
 	}
 	if len(g.Edges) != 1 || g.Edges[0] != want {
 		t.Fatalf("edges = %+v, want [%+v]", g.Edges, want)
@@ -127,19 +127,68 @@ func TestLineage_RuleCodesShareOnePillAcrossRows(t *testing.T) {
 	}
 }
 
-func TestLineage_DirectMappingKeepsOneEdgeWithAllCodesAndExample(t *testing.T) {
+func TestLineage_DirectMappingWithCodesRunsThroughItsOwnRuleSet(t *testing.T) {
 	g := Lineage([][]string{{"A", "x", "T", "y", "Q-01, C-01", "5578035"}}, testCols)
-	want := Edge{
-		From: PortRef{Node: "source:a", Port: "x"}, To: PortRef{Node: "target:t", Port: "y"},
-		Label: "Q-01, C-01", Note: "5578035",
+	from := PortRef{Node: "source:a", Port: "x"}
+	to := PortRef{Node: "target:t", Port: "y"}
+	set, ok := nodeByID(g, "ruleset:source:a:x>target:t:y")
+	if !ok || set.Kind != KindRuleSet || set.Layer != LayerRule || set.Label != "Q-01, C-01" {
+		t.Fatalf("rule set = %+v (found %v)", set, ok)
 	}
-	if len(g.Edges) != 1 || g.Edges[0] != want {
-		t.Fatalf("edges = %+v, want [%+v]", g.Edges, want)
+	if !reflect.DeepEqual(set.Parts, []Part{{Label: "Q-01"}, {Label: "C-01"}}) {
+		t.Fatalf("parts = %+v", set.Parts)
+	}
+	title := "A.x -> T.y (Q-01, C-01) = 5578035"
+	want := []Edge{
+		{From: from, To: PortRef{Node: set.ID}, Label: "Q-01, C-01", Note: "5578035", Title: title},
+		{From: PortRef{Node: set.ID}, To: to, Label: "Q-01, C-01", Note: "5578035", Title: title},
+	}
+	if !reflect.DeepEqual(g.Edges, want) {
+		t.Fatalf("edges = %+v, want %+v", g.Edges, want)
 	}
 	for _, n := range g.Nodes {
 		if n.Kind == KindRule {
-			t.Fatalf("direct mapping must not add rule pills: %+v", n)
+			t.Fatalf("a direct mapping must not use a shared rule pill: %+v", n)
 		}
+		for _, p := range n.Ports {
+			if p.Class != "" {
+				t.Fatalf("port %s.%s class = %q, want mapped and sourced", n.ID, p.ID, p.Class)
+			}
+		}
+	}
+}
+
+func TestLineage_RuleSetsAreNotSharedBetweenMappings(t *testing.T) {
+	g := Lineage([][]string{
+		{"A", "x", "T", "y", "Q-01"},
+		{"B", "z", "T", "w", "Q-01"},
+		{"", "", "T", "v", "Q-01"},
+	}, testCols)
+	sets, shared := 0, 0
+	for _, n := range g.Nodes {
+		switch n.Kind {
+		case KindRuleSet:
+			sets++
+		case KindRule:
+			shared++
+		}
+	}
+	if sets != 2 || shared != 1 {
+		t.Fatalf("sets=%d shared=%d, want one set per direct mapping plus the shared pill of the one-sided row", sets, shared)
+	}
+}
+
+func TestLineage_RepeatedMappingMergesCodesIntoOneRuleSet(t *testing.T) {
+	g := Lineage([][]string{
+		{"A", "x", "T", "y", "Q-01"},
+		{"a", "X", "t", "Y", "q-01, C-02"},
+	}, testCols)
+	set, _ := nodeByID(g, "ruleset:source:a:x>target:t:y")
+	if !reflect.DeepEqual(set.Parts, []Part{{Label: "Q-01"}, {Label: "C-02"}}) || set.Label != "Q-01, C-02" {
+		t.Fatalf("set = %+v", set)
+	}
+	if len(g.Edges) != 2 {
+		t.Fatalf("edges = %+v, want the one line (two segments)", g.Edges)
 	}
 }
 

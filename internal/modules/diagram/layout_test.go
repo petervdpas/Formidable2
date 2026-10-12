@@ -212,3 +212,22 @@ func TestLayout_NodeInUnknownLayerGoesLast(t *testing.T) {
 		t.Fatalf("unknown-layer node x=%v not right of %v", n2.X, n1.X)
 	}
 }
+
+func TestLayout_RuleSetSitsBetweenItsEndsAndGrowsWithCodes(t *testing.T) {
+	one := Place(Lineage([][]string{{"A", "x", "T", "y", "Q-01"}}, testCols))
+	two := Place(Lineage([][]string{{"A", "x", "T", "y", "Q-01, C-01"}}, testCols))
+	id := "ruleset:source:a:x>target:t:y"
+	s1, _ := boxByID(one, id)
+	s2, ok := boxByID(two, id)
+	if !ok || s2.W <= s1.W {
+		t.Fatalf("widths %v / %v, want wider with two codes", s1.W, s2.W)
+	}
+	a, _ := boxByID(two, "source:a")
+	tg, _ := boxByID(two, "target:t")
+	if !(a.X+a.W < s2.X && s2.X+s2.W < tg.X) {
+		t.Fatalf("set not between source and target: %v %v %v", a.X+a.W, s2.X, tg.X)
+	}
+	if len(two.Edges) != 2 || two.Edges[0].X2 != s2.X || two.Edges[1].X1 != s2.X+s2.W {
+		t.Fatalf("segments do not attach to the set's sides: %+v", two.Edges)
+	}
+}

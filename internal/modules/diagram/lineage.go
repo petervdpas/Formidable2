@@ -15,8 +15,10 @@ type LineageColumns struct {
 
 // Lineage projects mapping-table rows onto a source -> target port graph. Names
 // match case-insensitively (first spelling is shown). The label cell holds rule
-// codes ("Q-01, C-01"): a full row keeps one direct edge carrying them all; a
-// row missing one side routes through one rule pill per code. A target-only row
+// codes ("Q-01, C-01"): a full row runs source -> its own rule set (one pill
+// per code, never shared, so the mapping stays readable) -> target, or straight
+// across without codes; a row missing one side routes through one shared rule
+// pill per code. A target-only row
 // with no code but an example value is fed by its own literal pill. Otherwise a
 // lone port is only marked unmapped (source) or unsourced (target).
 func Lineage(rows [][]string, cols LineageColumns) Graph {
@@ -126,8 +128,11 @@ func (b *lineageBuilder) add(fe, fa, te, ta, label, example string) {
 	to, hasTo := b.end(LayerTarget, te, ta)
 	codes := splitCodes(label)
 	switch {
+	case hasFrom && hasTo && len(codes) > 0:
+		b.through(from, to, codes, example)
+		b.direct[from] = true
 	case hasFrom && hasTo:
-		b.edge(Edge{From: from, To: to, Label: strings.Join(codes, ", "), Note: example})
+		b.edge(Edge{From: from, To: to, Note: example})
 		b.direct[from] = true
 	case hasFrom:
 		for _, code := range codes {
@@ -143,6 +148,74 @@ func (b *lineageBuilder) add(fe, fa, te, ta, label, example string) {
 		lit := b.literal(to, example)
 		b.edge(Edge{From: PortRef{Node: lit.ID}, To: to})
 	}
+}
+
+// through draws one mapping as from -> rule set -> to. A repeated mapping
+// merges its codes into the same set.
+func (b *lineageBuilder) through(from, to PortRef, codes []string, example string) {
+	id := "ruleset:" + from.Node + ":" + from.Port + ">" + to.Node + ":" + to.Port
+	if n, ok := b.nodeIdx[id]; ok {
+		for _, code := range codes {
+			if !hasPart(n.Parts, code) {
+				n.Parts = append(n.Parts, Part{Label: code})
+			}
+		}
+		n.Label = partLabels(n.Parts)
+		for i := range b.edges {
+			if e := &b.edges[i]; e.From.Node == id || e.To.Node == id {
+				e.Label = n.Label
+				e.Title = b.title(from, to, n.Label, e.Note)
+			}
+		}
+		return
+	}
+	n := &Node{ID: id, Kind: KindRuleSet, Layer: LayerRule, Ports: []Port{}}
+	for _, code := range codes {
+		n.Parts = append(n.Parts, Part{Label: code})
+	}
+	n.Label = partLabels(n.Parts)
+	b.nodes = append(b.nodes, n)
+	b.nodeIdx[id] = n
+	b.hasRule = true
+	title := b.title(from, to, n.Label, example)
+	b.edge(Edge{From: from, To: PortRef{Node: id}, Label: n.Label, Note: example, Title: title})
+	b.edge(Edge{From: PortRef{Node: id}, To: to, Label: n.Label, Note: example, Title: title})
+}
+
+func hasPart(parts []Part, code string) bool {
+	for _, p := range parts {
+		if canon(p.Label) == canon(code) {
+			return true
+		}
+	}
+	return false
+}
+
+func partLabels(parts []Part) string {
+	out := make([]string, len(parts))
+	for i, p := range parts {
+		out[i] = p.Label
+	}
+	return strings.Join(out, ", ")
+}
+
+func (b *lineageBuilder) name(r PortRef) string {
+	n := b.nodeIdx[r.Node]
+	name := DisplayLabel(*n)
+	for _, p := range n.Ports {
+		if p.ID == r.Port {
+			return name + "." + p.Label
+		}
+	}
+	return name
+}
+
+func (b *lineageBuilder) title(from, to PortRef, label, note string) string {
+	t := b.name(from) + " -> " + b.name(to) + " (" + label + ")"
+	if note != "" {
+		t += " = " + note
+	}
+	return t
 }
 
 // literal is a per-target pill holding a constant; equal values on different
