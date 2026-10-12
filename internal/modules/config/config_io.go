@@ -138,52 +138,68 @@ func (m *Manager) writeJSON(path string, v any) error {
 
 // LoadUserConfig returns the active profile's config, loading from disk on
 // first access (and after cache invalidation). A file with missing fields
-// is repaired and rewritten.
+// is repaired and rewritten. The disk read runs without a lock, so its
+// result is cached only if the active profile is still the one that was
+// read and nothing newer was cached meanwhile; otherwise the newer state wins.
 func (m *Manager) LoadUserConfig() (*Config, error) {
-	m.mu.RLock()
-	cached := m.cached
-	path := m.configPath
-	m.mu.RUnlock()
+	for {
+		m.mu.RLock()
+		cached := m.cached
+		path := m.configPath
+		m.mu.RUnlock()
 
-	if cached != nil {
-		c := *cached
-		return &c, nil
-	}
-	if path == "" {
-		return nil, fmt.Errorf("LoadUserConfig: no active profile path")
-	}
-
-	raw, err := m.fs.LoadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	cfg, changed, err := parseUserConfig(raw)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-	if changed {
-		if err := m.writeJSON(path, cfg); err != nil {
-			return nil, fmt.Errorf("repair %s: %w", path, err)
+		if cached != nil {
+			c := *cached
+			return &c, nil
 		}
-	}
+		if path == "" {
+			return nil, fmt.Errorf("LoadUserConfig: no active profile path")
+		}
 
-	m.mu.Lock()
-	m.cached = &cfg
-	prevContext := ""
-	if m.virtualStructure != nil {
-		prevContext = m.virtualStructure.Context
-	}
-	if prevContext != "" && prevContext != m.fs.ResolvePath(cfg.ContextFolder) {
-		m.virtualStructure = nil
-		m.virtualStructureBuilt = time.Time{}
-	}
-	m.mu.Unlock()
+		raw, err := m.fs.LoadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		cfg, changed, err := parseUserConfig(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
 
-	m.ensureContextFolder(&cfg)
-	m.syncJournal(&cfg)
+		m.mu.Lock()
+		if m.configPath != path {
+			m.mu.Unlock()
+			continue // the profile was switched while reading: load the new one
+		}
+		if m.cached != nil {
+			c := *m.cached
+			m.mu.Unlock()
+			return &c, nil // an update landed while reading: it is newer than this read
+		}
+		// Repair under the lock, before the config becomes visible: an update
+		// can only start from the cached value, so it cannot have written yet.
+		if changed {
+			if err := m.writeJSON(path, cfg); err != nil {
+				m.mu.Unlock()
+				return nil, fmt.Errorf("repair %s: %w", path, err)
+			}
+		}
+		m.cached = &cfg
+		prevContext := ""
+		if m.virtualStructure != nil {
+			prevContext = m.virtualStructure.Context
+		}
+		if prevContext != "" && prevContext != m.fs.ResolvePath(cfg.ContextFolder) {
+			m.virtualStructure = nil
+			m.virtualStructureBuilt = time.Time{}
+		}
+		m.mu.Unlock()
 
-	out := cfg
-	return &out, nil
+		m.ensureContextFolder(&cfg)
+		m.syncJournal(&cfg)
+
+		out := cfg
+		return &out, nil
+	}
 }
 
 // ensureContextFolder materialises the profile's context_folder on disk.
