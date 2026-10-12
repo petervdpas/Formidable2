@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -294,16 +295,31 @@ const docOnlySpec = `{
   "paths": {
     "/dogs": {"get": {"operationId": "findDogs",
       "parameters": [{"name": "status", "in": "query", "required": true, "schema": {"type": "string"}}]},
-      "post": {"operationId": "addDog"}}
+      "post": {"operationId": "addDog", "requestBody": {"required": true,
+        "content": {"application/json": {"schema": {"type": "object"}}}}}},
+    "/dogs/{id}": {"delete": {"operationId": "removeDog",
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}]}}
   }
 }`
 
 func TestPluginClient_DocumentOnlyPluginDerivesAClientAndCallsIt(t *testing.T) {
 	var gotAuth, gotStatus string
+	var writes []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAuth, gotStatus = r.Header.Get("Authorization"), r.URL.Query().Get("status")
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"id": 1, "name": "Rex"}, {"id": 2, "name": "Fido"}]`))
+		switch r.Method {
+		case http.MethodPost:
+			raw, _ := io.ReadAll(r.Body)
+			writes = append(writes, "POST "+r.URL.Path+" "+r.Header.Get("Content-Type")+" "+string(raw)+" "+r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id": 3, "name": "Bo"}`))
+		case http.MethodDelete:
+			writes = append(writes, "DELETE "+r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			gotAuth, gotStatus = r.Header.Get("Authorization"), r.URL.Query().Get("status")
+			_, _ = w.Write([]byte(`[{"id": 1, "name": "Rex"}, {"id": 2, "name": "Fido"}]`))
+		}
 	}))
 	defer srv.Close()
 
@@ -312,7 +328,7 @@ func TestPluginClient_DocumentOnlyPluginDerivesAClientAndCallsIt(t *testing.T) {
 	for name, body := range map[string]string{
 		"plugin.json": `{"manifest_version": 1, "id": "kennel", "name": "Kennel", "version": "0.1.0",
 			"api_clients": ["kennel-api"],
-			"commands": [{"id": "dogs", "label": "Dogs"}, {"id": "write", "label": "Write"}]}`,
+			"commands": [{"id": "dogs", "label": "Dogs"}, {"id": "write", "label": "Write"}, {"id": "nobody", "label": "Nobody"}]}`,
 		"main.lua": `
 function dogs(ctx)
   local ops = formidable.client.operations("kennel-api")
@@ -320,6 +336,18 @@ function dogs(ctx)
   return { ops = #ops, status = r.status, count = #r.data, second = r.data[2].name, id = r.data[1].id }
 end
 function write(ctx)
+  local made = formidable.client.call("kennel-api", "addDog", nil, { name = "Bo", tags = { "new" } })
+  local gone = formidable.client.call("kennel-api", "removeDog", { id = made.data.id })
+  local body
+  for _, op in ipairs(formidable.client.operations("kennel-api")) do
+    if op.id == "addDog" then body = op.body end
+  end
+  return {
+    made = made.status, id = made.data.id, gone = gone.status,
+    required = body.required, accepts = body.content_types[1],
+  }
+end
+function nobody(ctx)
   return formidable.client.call("kennel-api", "addDog")
 end`,
 		"api-clients/specs/kennel-api.json": fmt.Sprintf(docOnlySpec, srv.URL),
@@ -365,7 +393,7 @@ end`,
 		t.Fatalf("Run: %v", err)
 	}
 	got := res.Value.(map[string]any)
-	for k, v := range map[string]any{"ops": float64(2), "status": float64(200), "count": float64(2), "second": "Fido", "id": float64(1)} {
+	for k, v := range map[string]any{"ops": float64(3), "status": float64(200), "count": float64(2), "second": "Fido", "id": float64(1)} {
 		if got[k] != v {
 			t.Errorf("%s = %v, want %v", k, got[k], v)
 		}
@@ -374,8 +402,26 @@ end`,
 		t.Errorf("remote saw auth %q, status %q", gotAuth, gotStatus)
 	}
 
-	if _, err := pluginM.Run("kennel", "write", nil); err == nil || !strings.Contains(err.Error(), "client.call: method_not_allowed") {
-		t.Errorf("write err = %v, want it refused", err)
+	res, err = pluginM.Run("kennel", "write", nil)
+	if err != nil {
+		t.Fatalf("Run write: %v", err)
+	}
+	wrote := res.Value.(map[string]any)
+	for k, v := range map[string]any{"made": float64(201), "id": float64(3), "gone": float64(204), "required": true, "accepts": "application/json"} {
+		if wrote[k] != v {
+			t.Errorf("%s = %v, want %v", k, wrote[k], v)
+		}
+	}
+	want2 := []string{`POST /dogs application/json {"name":"Bo","tags":["new"]} Bearer s3cret`, "DELETE /dogs/3"}
+	if len(writes) != 2 || writes[0] != want2[0] || writes[1] != want2[1] {
+		t.Errorf("remote saw %q, want %q", writes, want2)
+	}
+
+	if _, err := pluginM.Run("kennel", "nobody", nil); err == nil || !strings.Contains(err.Error(), "client.call: missing_param") {
+		t.Errorf("a required body left out: err = %v", err)
+	}
+	if len(writes) != 2 {
+		t.Error("the call without its required body still went out")
 	}
 }
 

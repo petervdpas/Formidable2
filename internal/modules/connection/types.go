@@ -212,9 +212,19 @@ type Operation struct {
 	Params    []Param `json:"params,omitempty"`
 	Synthetic bool    `json:"synthetic,omitempty"`
 
+	// Body says what the operation takes as a request body, when it takes one.
+	Body *RequestBody `json:"body,omitempty"`
+
 	// Result is the shape of the success response, when the document describes
 	// one. Resource detection reads it; execution never does.
 	Result *Result `json:"result,omitempty"`
+}
+
+// RequestBody is an operation's declared request body: whether one is required
+// and the media types it may be sent as, sorted.
+type RequestBody struct {
+	Required     bool     `json:"required"`
+	ContentTypes []string `json:"content_types,omitempty"`
 }
 
 // Catalog is a parsed spec: the interpreter's whole view of a remote service.

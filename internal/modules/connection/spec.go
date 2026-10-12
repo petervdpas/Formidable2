@@ -159,6 +159,7 @@ func buildCatalog(doc *openapi3.T, format string) (*Catalog, error) {
 				Summary: op.Summary,
 				Params:  mergeParams(item.Parameters, op.Parameters),
 				Result:  describeResult(op),
+				Body:    describeBody(op),
 			}
 			entry.ID = op.OperationID
 			if entry.ID == "" {
@@ -272,4 +273,20 @@ func authOf(doc *openapi3.T) Auth {
 		}
 	}
 	return Auth{}
+}
+
+// describeBody distils an operation's request body. A Swagger 2 `in: body` or
+// `in: formData` parameter arrives here too: the loader has already turned it
+// into a request body.
+func describeBody(op *openapi3.Operation) *RequestBody {
+	if op == nil || op.RequestBody == nil || op.RequestBody.Value == nil {
+		return nil
+	}
+	rb := op.RequestBody.Value
+	out := &RequestBody{Required: rb.Required}
+	for ct := range rb.Content {
+		out.ContentTypes = append(out.ContentTypes, ct)
+	}
+	sort.Strings(out.ContentTypes)
+	return out
 }

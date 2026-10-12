@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -151,7 +152,9 @@ func fixedParamsFor(c *Connection, opID string) map[string]string {
 
 // prepare assembles the request for one catalog operation: no resource in
 // between, only the connection and the dialect defaults shaping the URL.
-func (iv *Invoker) prepare(ctx context.Context, req TryRequest) (*http.Request, *Connection, Operation, string, error) {
+// writes says whether a method that changes the remote may be sent; body and
+// contentType are passed to encodeBody.
+func (iv *Invoker) prepare(ctx context.Context, req TryRequest, writes bool, body any, contentType string) (*http.Request, *Connection, Operation, string, error) {
 	var op Operation
 	if iv == nil || iv.mgr == nil {
 		return nil, nil, op, "", invokeErr(CodeConnectionNotFound, "no connection store", nil)
@@ -166,7 +169,7 @@ func (iv *Invoker) prepare(ctx context.Context, req TryRequest) (*http.Request, 
 		return nil, nil, op, "", invokeErr(CodeOperationNotFound,
 			fmt.Sprintf("operation %q is not in the document", req.Operation), nil)
 	}
-	if !safeMethods[op.Method] {
+	if !writes && !safeMethods[op.Method] {
 		return nil, nil, op, "", invokeErr(CodeMethodNotAllowed,
 			fmt.Sprintf("%s is not a safe method; only reads are sent", op.Method), nil)
 	}
@@ -178,6 +181,10 @@ func (iv *Invoker) prepare(ctx context.Context, req TryRequest) (*http.Request, 
 	if err := checkRequiredParams(op, params); err != nil {
 		return nil, nil, op, "", err
 	}
+	payload, mediaType, err := encodeBody(op, body, contentType)
+	if err != nil {
+		return nil, nil, op, "", err
+	}
 
 	b := &binding{conn: conn, catalog: cat, strat: strategyFor(conn, Resource{})}
 	target, err := iv.buildURL(b, op, params, "", url.Values{})
@@ -185,11 +192,18 @@ func (iv *Invoker) prepare(ctx context.Context, req TryRequest) (*http.Request, 
 		return nil, nil, op, "", err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, op.Method, target, nil)
+	var reader io.Reader
+	if payload != nil {
+		reader = bytes.NewReader(payload)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, op.Method, target, reader)
 	if err != nil {
 		return nil, nil, op, "", invokeErr(CodeBindingInvalid, "cannot build the request", err)
 	}
 	httpReq.Header.Set("Accept", "application/json")
+	if payload != nil {
+		httpReq.Header.Set("Content-Type", mediaType)
+	}
 	for k, v := range conn.Headers {
 		httpReq.Header.Set(k, v)
 	}
@@ -211,9 +225,99 @@ func (iv *Invoker) prepare(ctx context.Context, req TryRequest) (*http.Request, 
 	return httpReq, conn, op, target, nil
 }
 
+const (
+	mediaJSON = "application/json"
+	mediaForm = "application/x-www-form-urlencoded"
+	mediaText = "text/plain"
+)
+
+// encodeBody turns a caller's body into bytes and the media type to send them
+// as. A nil body sends none, which is refused when the document requires one.
+//
+// The media type is the caller's when given. Otherwise it is read off the
+// operation: a string body takes the first declared type; structured data takes
+// a declared JSON type, else form encoding when that is all the operation
+// accepts, else JSON. Text passes through verbatim. Structured data is encoded
+// as JSON or as a form; multipart is not built here.
+func encodeBody(op Operation, body any, contentType string) ([]byte, string, error) {
+	if body == nil {
+		if op.Body != nil && op.Body.Required {
+			return nil, "", invokeErr(CodeMissingParam,
+				fmt.Sprintf("operation %q requires a request body", op.ID), nil)
+		}
+		return nil, "", nil
+	}
+	var declared []string
+	if op.Body != nil {
+		declared = op.Body.ContentTypes
+	}
+	text, isText := body.(string)
+
+	mediaType := strings.TrimSpace(contentType)
+	if mediaType == "" {
+		switch {
+		case isText && len(declared) > 0:
+			mediaType = declared[0]
+		case isText:
+			mediaType = mediaText
+		default:
+			mediaType = mediaJSON
+			hasJSON, hasForm := false, false
+			for _, ct := range declared {
+				if strings.Contains(ct, "json") {
+					if !hasJSON {
+						mediaType = ct
+					}
+					hasJSON = true
+				}
+				hasForm = hasForm || ct == mediaForm
+			}
+			if !hasJSON && hasForm {
+				mediaType = mediaForm
+			}
+		}
+	}
+	if strings.HasPrefix(mediaType, "multipart/") {
+		return nil, "", invokeErr(CodeBindingInvalid, "multipart request bodies are not supported", nil)
+	}
+	if isText {
+		return []byte(text), mediaType, nil
+	}
+	switch {
+	case strings.Contains(mediaType, "json"):
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return nil, "", invokeErr(CodeBindingInvalid, "request body cannot be encoded as JSON", err)
+		}
+		return raw, mediaType, nil
+	case mediaType == mediaForm:
+		fields, ok := body.(map[string]any)
+		if !ok {
+			return nil, "", invokeErr(CodeBindingInvalid, "a form body must be a table of name = value", nil)
+		}
+		form := url.Values{}
+		for name, v := range fields {
+			switch x := v.(type) {
+			case string:
+				form.Set(name, x)
+			case bool:
+				form.Set(name, fmt.Sprint(x))
+			case float64:
+				form.Set(name, strconv.FormatFloat(x, 'f', -1, 64))
+			default:
+				return nil, "", invokeErr(CodeBindingInvalid,
+					fmt.Sprintf("form field %q must be a string, number or boolean", name), nil)
+			}
+		}
+		return []byte(form.Encode()), mediaType, nil
+	}
+	return nil, "", invokeErr(CodeBindingInvalid,
+		fmt.Sprintf("a %s body must be passed as text", mediaType), nil)
+}
+
 // Try runs one operation and reports what came back, whatever came back.
 func (iv *Invoker) Try(ctx context.Context, req TryRequest) (*TryResult, error) {
-	httpReq, conn, op, target, err := iv.prepare(ctx, req)
+	httpReq, conn, op, target, err := iv.prepare(ctx, req, false, nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -259,12 +363,27 @@ type CallResult struct {
 	Body        string `json:"body,omitempty"`
 }
 
+// CallRequest runs one catalog operation for a program, whatever its method.
+// Body is nil for none, a string to send verbatim, or JSON-shaped data to
+// encode; ContentType overrides the media type read off the document.
+type CallRequest struct {
+	Connection  string
+	Operation   string
+	Params      map[string]string
+	Body        any
+	ContentType string
+}
+
 // Call runs one operation by id and returns what it answered, for a caller
-// that consumes the payload. It is Try with the consumer's rules: a failing
-// status is an error carrying its code, and an oversized body is refused
-// rather than cut, since half a document parses as nothing.
-func (iv *Invoker) Call(ctx context.Context, req TryRequest) (*CallResult, error) {
-	httpReq, conn, op, target, err := iv.prepare(ctx, req)
+// that consumes the payload. Unlike the console it sends every method the
+// document declares, with a request body when given: the console is a button
+// in front of a person, this is a program that asked for exactly this call.
+// A failing status is an error carrying its code, and an oversized body is
+// refused rather than cut, since half a document parses as nothing.
+func (iv *Invoker) Call(ctx context.Context, req CallRequest) (*CallResult, error) {
+	httpReq, conn, op, target, err := iv.prepare(ctx,
+		TryRequest{Connection: req.Connection, Operation: req.Operation, Params: req.Params},
+		true, req.Body, req.ContentType)
 	if err != nil {
 		return nil, err
 	}

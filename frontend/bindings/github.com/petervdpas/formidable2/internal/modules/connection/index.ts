@@ -26,6 +26,7 @@ export {
     Pagination,
     Param,
     Property,
+    RequestBody,
     Resource,
     ResourceDraft,
     Result,

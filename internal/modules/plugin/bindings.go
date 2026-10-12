@@ -103,9 +103,10 @@ type ClientAccess interface {
 	ClientResources(id string) ([]map[string]any, error)
 	ClientItems(ctx context.Context, client, resource string, q ClientQuery) (map[string]any, error)
 	ClientFetch(ctx context.Context, client, resource, id string, q ClientQuery) (map[string]any, error)
-	// ClientOperations lists every operation in the client's document; ClientCall runs one read operation by id and returns {status, content_type, data | body}.
+	// ClientOperations lists every operation in the client's document; ClientCall runs one by id, whatever its method, and returns {method, url, duration_ms, status, content_type, data | body}.
+	// body is nil for none, a string to send verbatim, or JSON-shaped data; contentType overrides the media type the document declares.
 	ClientOperations(id string) ([]map[string]any, error)
-	ClientCall(ctx context.Context, client, operation string, params map[string]string) (map[string]any, error)
+	ClientCall(ctx context.Context, client, operation string, params map[string]string, body any, contentType string) (map[string]any, error)
 	// ClientSnapshot turns an item into the value an api-client field stores; nil keys keeps every field the item carries.
 	ClientSnapshot(item map[string]any, keys []string) (map[string]any, error)
 }
@@ -1009,7 +1010,8 @@ func buildClientTable(L *lua.LState, ctx context.Context, c ClientAccess, admin 
 		L.Push(out)
 		return 1
 	}))
-	// call reaches an operation straight from the document, so a client derived from a document alone is usable without any resource binding.
+	// call(id, operation, params, body, content_type) reaches an operation straight from the document, so a client derived from a document alone is usable without any resource binding.
+	// It sends whatever method the operation declares. body is optional: a table goes out as JSON (or as a form when that is all the operation accepts), a string verbatim.
 	t.RawSetString("call", L.NewFunction(func(L *lua.LState) int {
 		id := checkClient(L, "call")
 		operation := L.CheckString(2)
@@ -1017,7 +1019,7 @@ func buildClientTable(L *lua.LState, ctx context.Context, c ClientAccess, admin 
 		if v := L.Get(3); v != lua.LNil {
 			tbl, ok := v.(*lua.LTable)
 			if !ok {
-				L.RaiseError("client.call: params must be a table of name = value")
+				L.RaiseError("client.call: params must be a table of name = value (or nil)")
 				return 0
 			}
 			var err error
@@ -1026,7 +1028,25 @@ func buildClientTable(L *lua.LState, ctx context.Context, c ClientAccess, admin 
 				return 0
 			}
 		}
-		res, err := c.ClientCall(ctx, id, operation, params)
+		var body any
+		switch v := L.Get(4); v.Type() {
+		case lua.LTNil:
+		case lua.LTTable, lua.LTString, lua.LTNumber, lua.LTBool:
+			body = luaToGo(v)
+		default:
+			L.RaiseError("client.call: body must be a table, string, number or boolean")
+			return 0
+		}
+		contentType := ""
+		if v := L.Get(5); v != lua.LNil {
+			s, ok := v.(lua.LString)
+			if !ok {
+				L.RaiseError("client.call: content type must be a string")
+				return 0
+			}
+			contentType = string(s)
+		}
+		res, err := c.ClientCall(ctx, id, operation, params, body, contentType)
 		if err != nil {
 			L.RaiseError("client.call: %v", err)
 			return 0

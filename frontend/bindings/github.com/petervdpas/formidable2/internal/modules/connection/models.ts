@@ -513,6 +513,11 @@ export class Operation {
     "synthetic"?: boolean;
 
     /**
+     * Body says what the operation takes as a request body, when it takes one.
+     */
+    "body"?: RequestBody | null;
+
+    /**
      * Result is the shape of the success response, when the document describes
      * one. Resource detection reads it; execution never does.
      */
@@ -539,12 +544,16 @@ export class Operation {
     static createFrom($$source: any = {}): Operation {
         const $$createField4_0 = $$createType14;
         const $$createField6_0 = $$createType16;
+        const $$createField7_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("params" in $$parsedSource) {
             $$parsedSource["params"] = $$createField4_0($$parsedSource["params"]);
         }
+        if ("body" in $$parsedSource) {
+            $$parsedSource["body"] = $$createField6_0($$parsedSource["body"]);
+        }
         if ("result" in $$parsedSource) {
-            $$parsedSource["result"] = $$createField6_0($$parsedSource["result"]);
+            $$parsedSource["result"] = $$createField7_0($$parsedSource["result"]);
         }
         return new Operation($$parsedSource as Partial<Operation>);
     }
@@ -614,7 +623,7 @@ export class OperationInfo {
      */
     static createFrom($$source: any = {}): OperationInfo {
         const $$createField0_0 = $$createType1;
-        const $$createField2_0 = $$createType18;
+        const $$createField2_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("operation" in $$parsedSource) {
             $$parsedSource["operation"] = $$createField0_0($$parsedSource["operation"]);
@@ -647,7 +656,7 @@ export class Page {
      * Creates a new Page instance from a string or object.
      */
     static createFrom($$source: any = {}): Page {
-        const $$createField0_0 = $$createType20;
+        const $$createField0_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField0_0($$parsedSource["items"]);
@@ -747,6 +756,36 @@ export class Property {
 }
 
 /**
+ * RequestBody is an operation's declared request body: whether one is required
+ * and the media types it may be sent as, sorted.
+ */
+export class RequestBody {
+    "required": boolean;
+    "content_types"?: string[];
+
+    /** Creates a new RequestBody instance. */
+    constructor($$source: Partial<RequestBody> = {}) {
+        if (!("required" in $$source)) {
+            this["required"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RequestBody instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RequestBody {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("content_types" in $$parsedSource) {
+            $$parsedSource["content_types"] = $$createField1_0($$parsedSource["content_types"]);
+        }
+        return new RequestBody($$parsedSource as Partial<RequestBody>);
+    }
+}
+
+/**
  * Resource is one referenceable collection inside a connection. List feeds the
  * picker; Get resolves a stored id back to a record. ItemsPath, IDPath and
  * LabelPath are JSON pointers (RFC 6901); an empty ItemsPath means the list
@@ -815,10 +854,10 @@ export class Resource {
      * Creates a new Resource instance from a string or object.
      */
     static createFrom($$source: any = {}): Resource {
-        const $$createField2_0 = $$createType21;
-        const $$createField3_0 = $$createType21;
-        const $$createField8_0 = $$createType22;
-        const $$createField9_0 = $$createType24;
+        const $$createField2_0 = $$createType23;
+        const $$createField3_0 = $$createType23;
+        const $$createField8_0 = $$createType24;
+        const $$createField9_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("list" in $$parsedSource) {
             $$parsedSource["list"] = $$createField2_0($$parsedSource["list"]);
@@ -900,7 +939,7 @@ export class Result {
      * Creates a new Result instance from a string or object.
      */
     static createFrom($$source: any = {}): Result {
-        const $$createField5_0 = $$createType26;
+        const $$createField5_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
@@ -1102,7 +1141,7 @@ export class TryForm {
      */
     static createFrom($$source: any = {}): TryForm {
         const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType28;
+        const $$createField1_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("operation" in $$parsedSource) {
             $$parsedSource["operation"] = $$createField0_0($$parsedSource["operation"]);
@@ -1276,7 +1315,7 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType29;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("detail" in $$parsedSource) {
             $$parsedSource["detail"] = $$createField3_0($$parsedSource["detail"]);
@@ -1301,18 +1340,20 @@ const $$createType11 = $Create.Array($$createType10);
 const $$createType12 = MethodColor.createFrom;
 const $$createType13 = Param.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = Result.createFrom;
+const $$createType15 = RequestBody.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = OperationBinding.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = Item.createFrom;
+const $$createType17 = Result.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = OperationBinding.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = OpRef.createFrom;
-const $$createType22 = Pagination.createFrom;
-const $$createType23 = FieldMap.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = Property.createFrom;
+const $$createType21 = Item.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = OpRef.createFrom;
+const $$createType24 = Pagination.createFrom;
+const $$createType25 = FieldMap.createFrom;
 const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = TryParam.createFrom;
+const $$createType27 = Property.createFrom;
 const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = $Create.Map($Create.Any, $Create.Any);
+const $$createType29 = TryParam.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = $Create.Map($Create.Any, $Create.Any);

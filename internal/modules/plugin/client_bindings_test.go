@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -23,6 +24,8 @@ type fakeClients struct {
 	gotKeys   []string
 	gotOp     string
 	gotParams map[string]string
+	gotBody   any
+	gotType   string
 }
 
 func (f *fakeClients) ListClients() ([]map[string]any, error) {
@@ -57,9 +60,10 @@ func (f *fakeClients) ClientOperations(id string) ([]map[string]any, error) {
 	return []map[string]any{{"id": "listPets", "method": "GET", "path": "/pets"}}, f.err
 }
 
-func (f *fakeClients) ClientCall(ctx context.Context, client, operation string, params map[string]string) (map[string]any, error) {
+func (f *fakeClients) ClientCall(ctx context.Context, client, operation string, params map[string]string, body any, contentType string) (map[string]any, error) {
 	f.calls++
 	f.gotCtx, f.gotClient, f.gotOp, f.gotParams = ctx, client, operation, params
+	f.gotBody, f.gotType = body, contentType
 	return f.item, f.err
 }
 
@@ -370,5 +374,52 @@ func TestClient_OperationsListsTheDocument(t *testing.T) {
 	}
 	if res.Value != "listPets" {
 		t.Errorf("value = %v", res.Value)
+	}
+}
+
+func TestClient_CallSendsABody(t *testing.T) {
+	cases := map[string]struct {
+		args     string
+		wantBody any
+		wantType string
+	}{
+		"table":             {`nil, { name = "Rex", tags = { "a", "b" }, age = 3 }`, map[string]any{"name": "Rex", "tags": []any{"a", "b"}, "age": float64(3)}, ""},
+		"list":              {`nil, { 1, 2 }`, []any{float64(1), float64(2)}, ""},
+		"string":            {`nil, "raw text"`, "raw text", ""},
+		"number":            {`nil, 42`, float64(42), ""},
+		"boolean":           {`nil, false`, false, ""},
+		"with content type": {`{ id = 7 }, "<pet/>", "application/xml"`, "<pet/>", "application/xml"},
+		"no body":           {`{ id = 7 }`, nil, ""},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &fakeClients{item: map[string]any{"status": float64(201)}}
+			res, err := runClientScript(t, f, []string{"petstore"},
+				`return formidable.client.call("petstore", "addPet", `+tc.args+`).status`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Value != float64(201) || f.gotOp != "addPet" || f.gotType != tc.wantType {
+				t.Errorf("value = %v, op = %q, type = %q", res.Value, f.gotOp, f.gotType)
+			}
+			if !reflect.DeepEqual(f.gotBody, tc.wantBody) {
+				t.Errorf("body = %#v, want %#v", f.gotBody, tc.wantBody)
+			}
+		})
+	}
+}
+
+func TestClient_CallRefusesBadBodyArguments(t *testing.T) {
+	for name, args := range map[string]string{
+		"function body":         `nil, function() end`,
+		"content type a number": `nil, "x", 5`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := &fakeClients{}
+			_, err := runClientScript(t, f, []string{"petstore"}, `return formidable.client.call("petstore", "addPet", `+args+`)`)
+			if err == nil || !strings.Contains(err.Error(), "client.call") || f.calls != 0 {
+				t.Fatalf("err = %v, calls = %d", err, f.calls)
+			}
+		})
 	}
 }

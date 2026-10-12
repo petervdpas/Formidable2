@@ -648,15 +648,25 @@ func (a pluginClientAdapter) ClientOperations(id string) ([]map[string]any, erro
 		for _, p := range op.Params {
 			params = append(params, map[string]any{"name": p.Name, "in": p.In, "required": p.Required, "type": p.Type})
 		}
-		out = append(out, map[string]any{
+		row := map[string]any{
 			"id": op.ID, "method": op.Method, "path": op.Path, "summary": op.Summary, "params": params,
-		})
+		}
+		if op.Body != nil {
+			types := make([]any, 0, len(op.Body.ContentTypes))
+			for _, ct := range op.Body.ContentTypes {
+				types = append(types, ct)
+			}
+			row["body"] = map[string]any{"required": op.Body.Required, "content_types": types}
+		}
+		out = append(out, row)
 	}
 	return out, nil
 }
 
-func (a pluginClientAdapter) ClientCall(ctx context.Context, client, operation string, params map[string]string) (map[string]any, error) {
-	res, err := a.inv.Call(ctx, connection.TryRequest{Connection: client, Operation: operation, Params: params})
+func (a pluginClientAdapter) ClientCall(ctx context.Context, client, operation string, params map[string]string, body any, contentType string) (map[string]any, error) {
+	res, err := a.inv.Call(ctx, connection.CallRequest{
+		Connection: client, Operation: operation, Params: params, Body: body, ContentType: contentType,
+	})
 	if err != nil {
 		return nil, clientErr(err)
 	}
