@@ -93,6 +93,7 @@
   "workspace.storage.field.remove_item.title": "Remove loop item",
   "workspace.storage.field.remove_row": "Remove row",
   "workspace.storage.field.reference_add": "Type a code - press Enter",
+  "workspace.storage.field.reference_add_button": "Add a reference",
   "workspace.storage.field.reference_not_an_item": "Not an existing loop item",
   "workspace.storage.field.reference_remove": "Remove reference",
   "workspace.storage.field.reference_unknown": "No loop item with this code (anymore)",

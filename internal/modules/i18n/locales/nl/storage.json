@@ -93,6 +93,7 @@
   "workspace.storage.field.remove_item.title": "Lus-item verwijderen",
   "workspace.storage.field.remove_row": "Rij verwijderen",
   "workspace.storage.field.reference_add": "Typ een code - druk op Enter",
+  "workspace.storage.field.reference_add_button": "Verwijzing toevoegen",
   "workspace.storage.field.reference_not_an_item": "Geen bestaand loop-item",
   "workspace.storage.field.reference_remove": "Verwijzing verwijderen",
   "workspace.storage.field.reference_unknown": "Geen loop-item (meer) met deze code",

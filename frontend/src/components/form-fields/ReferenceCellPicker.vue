@@ -2,11 +2,12 @@
 /*
  * ReferenceCellPicker: a `reference` table cell, edited like the tags field
  * (type, Enter or comma adds a chip) but accepting only existing loop items.
+ * The input stays hidden behind a + button so a table of cells stays compact.
  * The cell stores the codes as one "A, B" string, which renderers and the
  * diagram read. A stored code with no matching item stays visible, flagged,
  * until removed.
  */
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 const props = defineProps<{
@@ -42,6 +43,27 @@ const remaining = computed(() =>
 
 const draft = ref("");
 const invalid = ref(false);
+const adding = ref(false);
+const input = ref<HTMLInputElement | null>(null);
+
+async function open() {
+  adding.value = true;
+  await nextTick();
+  input.value?.focus();
+}
+
+// Leaving the input with nothing typed puts the + button back; a half-typed
+// or rejected value keeps it open so nothing is lost silently.
+function close() {
+  if (draft.value.trim()) return;
+  adding.value = false;
+  invalid.value = false;
+}
+
+function cancel() {
+  draft.value = "";
+  close();
+}
 
 function add() {
   const typed = draft.value.replace(/[,;]/g, "").trim();
@@ -70,7 +92,7 @@ function remove(i: number) {
 
 <template>
   <div class="tags-field reference-cell">
-    <div v-if="codes.length" class="tag-row">
+    <div class="tag-row">
       <span
         v-for="(code, i) in codes"
         :key="code"
@@ -86,10 +108,21 @@ function remove(i: number) {
           @click="remove(i)"
         >×</button>
       </span>
+      <button
+        v-if="!readonly && !adding && remaining.length"
+        type="button"
+        class="btn-ghost-icon btn-sm"
+        :title="t('workspace.storage.field.reference_add_button')"
+        :aria-label="t('workspace.storage.field.reference_add_button')"
+        @click="open"
+      >+</button>
+      <span v-if="!readonly && !choices.length" class="reference-cell-hint">
+        {{ t("workspace.storage.field.reference_no_items") }}
+      </span>
     </div>
-    <template v-if="!readonly">
+    <template v-if="!readonly && adding">
       <input
-        v-if="choices.length"
+        ref="input"
         v-model="draft"
         :class="['field-input', 'tag-input', { invalid }]"
         :list="listId"
@@ -97,13 +130,12 @@ function remove(i: number) {
         :title="invalid ? t('workspace.storage.field.reference_not_an_item') : undefined"
         @input="onInput"
         @keydown.enter.prevent="add"
+        @keydown.esc.prevent="cancel"
+        @blur="close"
       />
       <datalist :id="listId">
         <option v-for="c in remaining" :key="c" :value="c" />
       </datalist>
-      <p v-if="!choices.length" class="reference-cell-hint">
-        {{ t("workspace.storage.field.reference_no_items") }}
-      </p>
     </template>
   </div>
 </template>
