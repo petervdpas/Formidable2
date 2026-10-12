@@ -12,6 +12,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/connection"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/stat"
@@ -779,4 +780,63 @@ func clientErr(err error) error {
 		return fmt.Errorf("%s: %s", ie.Code, ie.Message)
 	}
 	return err
+}
+
+// pdfExporter is the slice of *pdf.Service a plugin reaches: the same export
+// the Storage workspace runs, guarded against a concurrent second export.
+type pdfExporter interface {
+	GetStatus() pdf.Status
+	ExportPDF(templateFilename, datafile string, opts pdf.ExportOpts) (pdf.Result, error)
+}
+
+// pluginPDFAdapter puts PDF export behind formidable.pdf. svc is set after the
+// PDF service exists, which is later in the composition root than the plugin
+// manager; until then, and whenever export is not set up, it reads as inactive.
+type pluginPDFAdapter struct {
+	svc pdfExporter
+}
+
+func (a *pluginPDFAdapter) PDFActive() bool {
+	return a != nil && a.svc != nil && a.svc.GetStatus().Active
+}
+
+func (a *pluginPDFAdapter) ExportPDF(template, datafile string, opts map[string]any) (map[string]any, error) {
+	if a == nil || a.svc == nil {
+		return nil, pdfErr(pdf.ErrPDFNotActivated)
+	}
+	var o pdf.ExportOpts
+	if opts != nil {
+		raw, err := json.Marshal(opts)
+		if err != nil {
+			return nil, err
+		}
+		dec := json.NewDecoder(bytes.NewReader(raw))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&o); err != nil {
+			return nil, fmt.Errorf("bad option: %w", err)
+		}
+	}
+	res, err := a.svc.ExportPDF(template, datafile, o)
+	if err != nil {
+		return nil, pdfErr(err)
+	}
+	return map[string]any{
+		"path":        res.Path,
+		"bytes":       res.Bytes,
+		"duration_ms": res.Duration.Milliseconds(),
+	}, nil
+}
+
+// pdfErr flattens an export failure to "code: message. hint", the same shape
+// clientErr gives, so a script sees plainly that export is not set up.
+func pdfErr(err error) error {
+	ee := pdf.MapExportError(err)
+	if ee == nil {
+		return err
+	}
+	msg := strings.TrimSuffix(ee.Message, ".")
+	if ee.Hint != "" {
+		msg += ". " + ee.Hint
+	}
+	return fmt.Errorf("%s: %s", ee.Code, msg)
 }

@@ -54,6 +54,8 @@ type Manifest struct {
 	Author                 string `json:"author,omitempty"`
 	RunMode                string `json:"run_mode,omitempty"`
 	RequiresInternalServer bool   `json:"requires_internal_server,omitempty"`
+	// RequiresPDF says the plugin calls formidable.pdf.export; a Run is refused up front while PDF export is not set up.
+	RequiresPDF bool `json:"requires_pdf,omitempty"`
 	// Workspaces lists where the plugin contributes a topbar entry; nil/empty leaves it Run-modal-only.
 	Workspaces []string `json:"workspaces,omitempty"`
 	// Templates narrows a workspace attachment to exact template filenames; non-empty makes the plugin template-scoped (shows only while a listed template is selected). It only narrows, never broadens.
@@ -154,6 +156,7 @@ var (
 	ErrPluginExists     = errors.New("plugin: already exists")
 	ErrServerNotRunning = errors.New("plugin: requires the internal server, but it's stopped")
 	ErrClientMissing    = errors.New("plugin: requires an api-client that is not installed")
+	ErrPDFNotActive     = errors.New("plugin: requires PDF export, but it is not set up")
 	// ErrPluginBusy: plugins run one at a time. VMs are per-call but their bound services (KV/render/fs) aren't safe to interleave.
 	ErrPluginBusy = errors.New("plugin: another command is currently running")
 	// ErrPluginCancelled: the runtime maps gopher-lua's "context canceled" to this so the Service can branch on Kind="cancelled".

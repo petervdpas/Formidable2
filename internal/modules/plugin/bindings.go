@@ -111,6 +111,13 @@ type ClientAccess interface {
 	ClientSnapshot(item map[string]any, keys []string) (map[string]any, error)
 }
 
+// PDFAccess is the formidable.pdf.* surface: the same export the Storage workspace offers, for one form.
+// ExportPDF returns {path, bytes, duration_ms}; opts carries the export options (output_path, style, cover_template, disable_cover, disable_theme) or nil.
+type PDFAccess interface {
+	PDFActive() bool
+	ExportPDF(template, datafile string, opts map[string]any) (map[string]any, error)
+}
+
 // ExecOptions narrows what `formidable.exec(cmd, args, opts)` accepts; a Go struct (not a free-form map) keeps the contract from drifting.
 type ExecOptions struct {
 	Cwd     string
@@ -1226,4 +1233,48 @@ func mountClientAdmin(L *lua.LState, t *lua.LTable, admin ClientAdmin, declared 
 		L.Push(lua.LBool(created))
 		return 1
 	}))
+}
+
+// buildPDFTable mounts formidable.pdf.active() and formidable.pdf.export(template, datafile, opts).
+// export writes the PDF to disk and returns its path, so a script reads or sends the file from there; nothing of the PDF passes through Lua.
+func buildPDFTable(L *lua.LState, p PDFAccess) *lua.LTable {
+	t := L.NewTable()
+	if p == nil {
+		for _, name := range []string{"active", "export"} {
+			t.RawSetString(name, L.NewFunction(nilGuard("pdf")))
+		}
+		return t
+	}
+	t.RawSetString("active", L.NewFunction(func(L *lua.LState) int {
+		L.Push(lua.LBool(p.PDFActive()))
+		return 1
+	}))
+	t.RawSetString("export", L.NewFunction(func(L *lua.LState) int {
+		template := L.CheckString(1)
+		datafile := L.CheckString(2)
+		if strings.TrimSpace(template) == "" || strings.TrimSpace(datafile) == "" {
+			L.RaiseError("pdf.export: a template and a datafile are required")
+			return 0
+		}
+		var opts map[string]any
+		if v := L.Get(3); v != lua.LNil {
+			tbl, ok := v.(*lua.LTable)
+			if !ok {
+				L.RaiseError("pdf.export: options must be a table")
+				return 0
+			}
+			if opts, ok = tableToGo(tbl).(map[string]any); !ok {
+				L.RaiseError("pdf.export: options must be a table of name = value")
+				return 0
+			}
+		}
+		out, err := p.ExportPDF(template, datafile, opts)
+		if err != nil {
+			L.RaiseError("pdf.export: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	}))
+	return t
 }

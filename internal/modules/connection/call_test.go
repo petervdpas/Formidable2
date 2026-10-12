@@ -152,6 +152,9 @@ const writesSpec = `{
       "content": {"text/markdown": {"schema": {"type": "string"}}}}}},
     "/files": {"post": {"operationId": "upload", "requestBody": {
       "content": {"multipart/form-data": {"schema": {"type": "object"}}}}}},
+    "/documents/{id}": {"put": {"operationId": "putDocument",
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}],
+      "requestBody": {"required": true, "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}}}},
     "/ping": {"post": {"operationId": "ping"}}
   }
 }`
@@ -332,5 +335,71 @@ func TestParseSpec_DescribesRequestBodies(t *testing.T) {
 	}
 	if _, isParam := pet.Param("body"); isParam {
 		t.Error("the body leaked into the parameter list")
+	}
+}
+
+// realPDF is a complete one-page PDF. Its second line is the binary marker
+// every PDF writer emits (bytes above 0x7F), and a NUL and a CRLF are added in
+// a comment: the bytes a text-minded transport would mangle.
+var realPDF = "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n% \x00 \r\n \xff\xfe\n" +
+	"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+	"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+	"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>\nendobj\n" +
+	"trailer\n<< /Root 1 0 R >>\n%%EOF\n"
+
+func TestCall_BinaryBodyArrivesByteForByte(t *testing.T) {
+	cases := map[string]struct {
+		op          string
+		params      map[string]string
+		contentType string
+	}{
+		"operation declares application/pdf": {"putDocument", map[string]string{"id": "inv-7"}, ""},
+		"caller names the type":              {"ping", nil, "application/pdf"},
+		"caller overrides a JSON operation":  {"addCustomer", nil, "application/pdf"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			iv, got := writesFixture(t, 201, `{"stored": true}`)
+			_, err := iv.Call(context.Background(), CallRequest{
+				Connection: "shop", Operation: tc.op, Params: tc.params, Body: realPDF, ContentType: tc.contentType,
+			})
+			if err != nil {
+				t.Fatalf("Call: %v", err)
+			}
+			if got.contentType != "application/pdf" {
+				t.Errorf("content type = %q", got.contentType)
+			}
+			if got.body != realPDF {
+				t.Errorf("%d bytes arrived, %d were sent; the body was altered in transit", len(got.body), len(realPDF))
+			}
+			if got.hits != 1 {
+				t.Errorf("the write was sent %d times", got.hits)
+			}
+		})
+	}
+}
+
+func TestCall_LargeBinaryBodyIsNotCappedByTheResponseLimit(t *testing.T) {
+	big := strings.Repeat(realPDF, 20000) // several megabytes, far over the 512-byte answer cap below
+	got := &sent{}
+	iv, _, _ := shopFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		got.body = string(raw)
+		got.hits++
+		w.WriteHeader(204)
+	}, WithMaxResponseBytes(512))
+	if _, err := iv.mgr.ImportSpec("writes", []byte(writesSpec)); err != nil {
+		t.Fatal(err)
+	}
+	c := shopConn(t, iv)
+	c.SpecFile, c.Resources = "writes.json", nil
+	if err := iv.mgr.Save(c); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := iv.Call(context.Background(), CallRequest{Connection: "shop", Operation: "putDocument", Params: map[string]string{"id": "x"}, Body: big}); err != nil {
+		t.Fatalf("Call: %v", err)
+	}
+	if got.body != big {
+		t.Errorf("%d of %d bytes arrived", len(got.body), len(big))
 	}
 }

@@ -9,7 +9,7 @@
   "workspace.plugins.archive.import.overwrite_title": "Replace existing plugin?",
   "workspace.plugins.archive.import.success": "Plugin '{0}' imported.",
   "workspace.plugins.archive.import.success_overwrite": "Plugin '{0}' replaced.",
-  "workspace.plugins.behavior.subtitle": "Run mode and internal-server requirement",
+  "workspace.plugins.behavior.subtitle": "Run mode and what the plugin requires",
   "workspace.plugins.behavior.title": "Behavior",
   "workspace.plugins.workspaces.subtitle": "Workspaces where this plugin contributes a topbar menu entry",
   "workspace.plugins.workspaces.title": "Workspaces",
@@ -154,5 +154,8 @@
   "workspace.plugins.apiclients.base_url_help_server": "Where the client's calls go. The plugin stores it and the client is created with it. Leave empty to use the server the document declares: {0}",
   "workspace.plugins.apiclients.base_url_help_none": "Where the client's calls go. The plugin stores it and the client is created with it. This document declares no usable server, so the client cannot be created without a base URL.",
   "workspace.plugins.apiclients.name": "Display name",
-  "workspace.plugins.apiclients.name_help": "The name the client shows under API clients. The plugin stores it and the client is created with it. Leave empty to use the document's title: {0}"
+  "workspace.plugins.apiclients.name_help": "The name the client shows under API clients. The plugin stores it and the client is created with it. Leave empty to use the document's title: {0}",
+  "workspace.plugins.manifest.requires_pdf": "Requires PDF export",
+  "workspace.plugins.manifest.requires_pdf_help": "Switch on when the script calls formidable.pdf.export. The run is then blocked up front while PDF export is not set up, instead of failing halfway.",
+  "workspace.plugins.error_pdf_not_active": "This plugin needs PDF export, which is not set up. Activate it under Information > PDF (it needs Chrome or Chromium) and try again."
 }

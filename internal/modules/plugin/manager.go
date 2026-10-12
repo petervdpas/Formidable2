@@ -40,6 +40,8 @@ type ManagerDeps struct {
 	RunOptionsOut RunOptionsEmitter
 	// Locale supplies the active locale id at Run time; nil falls back to "en".
 	Locale LocaleProvider
+	// PDF is the PDF export behind formidable.pdf; nil disables the namespace and refuses plugins that declare requires_pdf.
+	PDF PDFAccess
 	// Client is the read side of the api-client store behind formidable.client; a script reaches only the clients its manifest declares.
 	Client ClientAccess
 	// Clients installs the api-clients plugins ship; nil leaves Manifest.APIClients inert.
@@ -254,6 +256,9 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 			return RunResult{}, ErrServerNotRunning
 		}
 	}
+	if p.Manifest.RequiresPDF && (m.deps.PDF == nil || !m.deps.PDF.PDFActive()) {
+		return RunResult{}, ErrPDFNotActive
+	}
 	if id := m.missingClient(p); id != "" {
 		return RunResult{}, fmt.Errorf("%w: %s", ErrClientMissing, id)
 	}
@@ -301,6 +306,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Client:        m.deps.Client,
 		ClientIDs:     p.Manifest.APIClients,
 		ClientAdmin:   clientAdmin{m: m, p: p},
+		PDF:           m.deps.PDF,
 		Stats:         m.deps.Stats,
 		Facets:        m.deps.Facets,
 		StatObject:    m.deps.StatObject,

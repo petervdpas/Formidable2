@@ -223,6 +223,11 @@ export class Manifest {
     "requires_internal_server"?: boolean;
 
     /**
+     * RequiresPDF says the plugin calls formidable.pdf.export; a Run is refused up front while PDF export is not set up.
+     */
+    "requires_pdf"?: boolean;
+
+    /**
      * Workspaces lists where the plugin contributes a topbar entry; nil/empty leaves it Run-modal-only.
      */
     "workspaces"?: string[];
@@ -276,22 +281,22 @@ export class Manifest {
      * Creates a new Manifest instance from a string or object.
      */
     static createFrom($$source: any = {}): Manifest {
-        const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
         const $$createField10_0 = $$createType0;
-        const $$createField13_0 = $$createType5;
+        const $$createField11_0 = $$createType0;
+        const $$createField14_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
-            $$parsedSource["workspaces"] = $$createField8_0($$parsedSource["workspaces"]);
+            $$parsedSource["workspaces"] = $$createField9_0($$parsedSource["workspaces"]);
         }
         if ("templates" in $$parsedSource) {
-            $$parsedSource["templates"] = $$createField9_0($$parsedSource["templates"]);
+            $$parsedSource["templates"] = $$createField10_0($$parsedSource["templates"]);
         }
         if ("api_clients" in $$parsedSource) {
-            $$parsedSource["api_clients"] = $$createField10_0($$parsedSource["api_clients"]);
+            $$parsedSource["api_clients"] = $$createField11_0($$parsedSource["api_clients"]);
         }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField13_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField14_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }

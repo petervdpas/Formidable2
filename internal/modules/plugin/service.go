@@ -190,6 +190,8 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrServerNotRunning):
 		return RunResultDTO{Kind: "server_not_running", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
+	case errors.Is(err, ErrPDFNotActive):
+		return RunResultDTO{Kind: "pdf_not_active", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrClientMissing):
 		return RunResultDTO{Kind: "client_missing", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrPluginBusy):

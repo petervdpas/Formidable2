@@ -70,6 +70,7 @@ type runtimeDeps struct {
 	// ClientIDs are the api-clients the manifest declares; formidable.client refuses any other.
 	ClientIDs   []string
 	ClientAdmin ClientAdmin
+	PDF         PDFAccess
 	Stats       StatsAccess
 	Facets      FacetStatsAccess
 	StatObject  StatObjectAccess
@@ -87,6 +88,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("path", buildPathTable(L))
 	f.RawSetString("url", buildURLTable(L))
 	f.RawSetString("api", buildAPITable(L, deps.API))
+	f.RawSetString("pdf", buildPDFTable(L, deps.PDF))
 	f.RawSetString("client", buildClientTable(L, deps.Ctx, deps.Client, deps.ClientAdmin, deps.ClientIDs))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
 	f.RawSetString("plugin", buildPluginTable(L, deps.Plugin))
@@ -213,6 +215,7 @@ type scriptOpts struct {
 	// ClientIDs are the api-clients the manifest declares; formidable.client refuses any other.
 	ClientIDs     []string
 	ClientAdmin   ClientAdmin
+	PDF           PDFAccess
 	Stats         StatsAccess
 	Facets        FacetStatsAccess
 	StatObject    StatObjectAccess
@@ -258,6 +261,7 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		Client:        opts.Client,
 		ClientIDs:     opts.ClientIDs,
 		ClientAdmin:   opts.ClientAdmin,
+		PDF:           opts.PDF,
 		Stats:         opts.Stats,
 		Facets:        opts.Facets,
 		StatObject:    opts.StatObject,

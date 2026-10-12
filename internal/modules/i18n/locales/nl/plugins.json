@@ -9,7 +9,7 @@
   "workspace.plugins.archive.import.overwrite_title": "Bestaande plugin vervangen?",
   "workspace.plugins.archive.import.success": "Plugin '{0}' geïmporteerd.",
   "workspace.plugins.archive.import.success_overwrite": "Plugin '{0}' vervangen.",
-  "workspace.plugins.behavior.subtitle": "Run-modus en interne-server vereiste",
+  "workspace.plugins.behavior.subtitle": "Run-modus en wat de plugin vereist",
   "workspace.plugins.behavior.title": "Gedrag",
   "workspace.plugins.workspaces.subtitle": "Werkruimtes waar deze plugin een menu-item in de topbar toont",
   "workspace.plugins.workspaces.title": "Werkruimtes",
@@ -154,5 +154,8 @@
   "workspace.plugins.apiclients.base_url_help_server": "Waar de aanroepen van de client naartoe gaan. De plugin bewaart hem en de client wordt ermee aangemaakt. Laat leeg om de server uit het document te gebruiken: {0}",
   "workspace.plugins.apiclients.base_url_help_none": "Waar de aanroepen van de client naartoe gaan. De plugin bewaart hem en de client wordt ermee aangemaakt. Dit document noemt geen bruikbare server, dus zonder basis-URL kan de client niet worden aangemaakt.",
   "workspace.plugins.apiclients.name": "Weergavenaam",
-  "workspace.plugins.apiclients.name_help": "De naam waaronder de client bij API-clients verschijnt. De plugin bewaart hem en de client wordt ermee aangemaakt. Laat leeg om de titel uit het document te gebruiken: {0}"
+  "workspace.plugins.apiclients.name_help": "De naam waaronder de client bij API-clients verschijnt. De plugin bewaart hem en de client wordt ermee aangemaakt. Laat leeg om de titel uit het document te gebruiken: {0}",
+  "workspace.plugins.manifest.requires_pdf": "Vereist PDF-export",
+  "workspace.plugins.manifest.requires_pdf_help": "Zet aan wanneer het script formidable.pdf.export aanroept. De run wordt dan vooraf geblokkeerd zolang PDF-export niet is ingesteld, in plaats van halverwege te mislukken.",
+  "workspace.plugins.error_pdf_not_active": "Deze plugin heeft PDF-export nodig en die is niet ingesteld. Activeer hem onder Informatie > PDF (vereist Chrome of Chromium) en probeer opnieuw."
 }

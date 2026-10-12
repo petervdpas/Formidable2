@@ -911,6 +911,13 @@ setTopbarMenu(() => [
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />
+          <FormSwitchRow
+            v-model="draftManifest.requires_pdf"
+            :label="t('workspace.plugins.manifest.requires_pdf')"
+            :description="t('workspace.plugins.manifest.requires_pdf_help')"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
         </FormSection>
 
         <nav class="tabs" role="tablist">

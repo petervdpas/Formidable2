@@ -703,6 +703,10 @@ func New(d Deps) (*App, error) {
 	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretCategory)
 	clientInv := connection.NewInvoker(clientM, clientKeys, connection.WithLogger(d.Logger))
 
+	// formidable.pdf: the PDF service is composed further down, so the plugin
+	// manager gets a holder that is filled in once it exists.
+	pluginPDF := &pluginPDFAdapter{}
+
 	pluginsDir := filepath.Join(d.AppRoot, "plugins")
 	pluginKV := plugin.NewKV(sysM, filepath.Join(pluginsDir, ".kv"))
 	pluginM := plugin.NewManager(plugin.ManagerDeps{
@@ -747,6 +751,7 @@ func New(d Deps) (*App, error) {
 		// rank-N grid for plugins.
 		StatObject: pluginStatObjectAdapter{svc: statSvc},
 		Locale:     pluginLocaleAdapter{cfg: cfgM},
+		PDF:        pluginPDF,
 		Client:     pluginClientAdapter{m: clientM, inv: clientInv},
 		Clients:    pluginClientAdapter{m: clientM, inv: clientInv},
 		ClientNoticeOut: func() {
@@ -813,6 +818,9 @@ func New(d Deps) (*App, error) {
 	// The standalone deck export inlines user fonts too (@font-face data URIs).
 	standaloneRender.SetFontFaceProvider(fontsM.FontFaceCSS)
 
+	pdfSvc := newPDFService(pdfM, opsRegistry)
+	pluginPDF.svc = pdfSvc
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -848,7 +856,7 @@ func New(d Deps) (*App, error) {
 		History:           historySvc,
 		Integrity:         integrity.NewService(integrityM, emitter),
 		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
-		PDF:               newPDFService(pdfM, opsRegistry),
+		PDF:               pdfSvc,
 		Fonts:             fonts.NewService(fontsM),
 		Manual:            manual.NewService(),
 		Mermaid:           mermaid.NewService(),

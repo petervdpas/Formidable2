@@ -77,3 +77,53 @@ De Plugins-werkruimte bevat een editor voor elk plugin-bestand:
 
 Opslaan persisteert alle gewijzigde bestanden in één atomaire actie;
 de rest van de app pikt de wijzigingen op bij de volgende refresh.
+
+## API-clients in een plugin
+
+Een plugin kan een API-client meenemen en die vanuit het script gebruiken. Op
+het tabblad **API-clients** van de plugin geef je een client een naam en een
+OpenAPI- of Swagger-document, geplakt of uit een bestand geladen.
+
+- **Weergavenaam** en **Basis-URL** zijn optioneel. Blijven ze leeg, dan krijgt
+  de client de titel en de server uit het document.
+- **Opslaan in plugin** bewaart het document in de plugin, zodat het meereist
+  in de plugin-zip. Opslaan maakt geen client aan.
+- **API-client aanmaken** maakt de client op deze machine. De plugin-zip
+  importeren op een andere machine doet daar hetzelfde. Een bestaande client
+  wordt nooit overschreven: verwijder hem onder Informatie > API-clients om hem
+  opnieuw aan te maken.
+- Inloggegevens reizen nooit mee met een plugin. Vul ze in onder Informatie >
+  API-clients nadat de client is aangemaakt.
+
+Het script bereikt alleen de clients die de plugin noemt. De aanroepen:
+
+| Aanroep | Wat hij doet |
+|---|---|
+| `formidable.client.list()` | De clients van de plugin. |
+| `formidable.client.operations(id)` | Elke operatie in het document, met methode, parameters en request-body. |
+| `formidable.client.call(id, operation, params, body, content_type)` | Voert één operatie uit op basis van haar id, ongeacht de methode. |
+| `formidable.client.items(id, resource, opts)` en `fetch(id, resource, item_id, opts)` | Lezen via een resource-binding. |
+| `formidable.client.snapshot(item, keys)` | De waarde die een api-client-veld voor een item opslaat. |
+| `formidable.client.exists(id)` en `create(id, opts)` | Laten het script de client aanmaken uit een document in de pluginmap. |
+
+`call` verstuurt de methode die de operatie noemt: GET, POST, PUT, PATCH,
+DELETE en de rest. Een tabel als `body` gaat als JSON, of als formulier wanneer
+de operatie alleen dat accepteert. Een string gaat exact zoals hij is, dus een
+bestand dat met `formidable.fs.read(path)` is gelezen komt byte voor byte aan;
+geef het type mee als `content_type` (bijvoorbeeld `application/pdf`), tenzij
+de operatie het zelf noemt. Multipart-uploads worden niet ondersteund. Een
+mislukte aanroep geeft een fout die begint met de code, zoals `forbidden` of
+`timeout`.
+
+## PDF vanuit een plugin
+
+`formidable.pdf.export(template, datafile, opts)` maakt de PDF van één
+formulier, dezelfde export als in de werkruimte Opslag, en geeft `path`,
+`bytes` en `duration_ms` terug. `opts` is optioneel en kent `output_path`,
+`style`, `cover_template`, `disable_cover` en `disable_theme`.
+`formidable.pdf.active()` zegt of PDF-export is ingesteld.
+
+PDF-export vereist Chrome of Chromium en wordt geactiveerd onder Informatie >
+PDF. Is dat niet gebeurd, dan geeft `export` een fout die begint met
+`engine_inactive`. Zet **Vereist PDF-export** aan onder Gedrag om de run in dat
+geval vooraf te laten weigeren.

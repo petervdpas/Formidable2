@@ -305,6 +305,7 @@ func initConnectionScenario(ctx *godog.ScenarioContext) {
 	})
 
 	initInvokeSteps(ctx, w)
+	initCallSteps(ctx)
 
 	ctx.Step(`^the stored definition does not contain a secret$`, func() error {
 		raw, err := w.fs.LoadFile("api-clients/" + w.lastID + ".yaml")

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -512,5 +513,94 @@ end`,
 	notices := pluginM.TakeClientNotices()
 	if len(notices) != 1 || notices[0].ID != "kennel-api" || notices[0].Status != plugin.ClientInstalled || signals != 1 {
 		t.Errorf("notices = %+v, signals = %d", notices, signals)
+	}
+}
+
+// pdfFixture is a complete one-page PDF with the bytes a text-minded
+// transport would mangle: the binary marker line, a NUL, a CRLF and 0xFF.
+var pdfFixture = []byte("%PDF-1.4\n%\xe2\xe3\xcf\xd3\n% \x00 \r\n \xff\xfe\n" +
+	"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+	"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+	"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>\nendobj\n" +
+	"trailer\n<< /Root 1 0 R >>\n%%EOF\n")
+
+const archiveSpec = `{
+  "openapi": "3.0.3",
+  "info": {"title": "Archive", "version": "1.0.0"},
+  "servers": [{"url": "%s"}],
+  "paths": {
+    "/entries/{guid}/document": {"put": {"operationId": "putDocument",
+      "parameters": [{"name": "guid", "in": "path", "required": true, "schema": {"type": "string"}}],
+      "requestBody": {"required": true,
+        "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}}}}
+  }
+}`
+
+func TestPluginClient_SendsAFileFromDiskByteForByte(t *testing.T) {
+	var gotBody []byte
+	var gotType, gotPath string
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBody, _ = io.ReadAll(r.Body)
+		gotType, gotPath = r.Header.Get("Content-Type"), r.URL.Path
+		hits++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"bytes": ` + fmt.Sprint(len(gotBody)) + `}`))
+	}))
+	defer srv.Close()
+
+	root := t.TempDir()
+	pdfPath := filepath.Join(root, "invoice-7.pdf")
+	if err := os.WriteFile(pdfPath, pdfFixture, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pluginsDir := filepath.Join(root, "plugins")
+	dir := filepath.Join(pluginsDir, "filer")
+	for name, body := range map[string]string{
+		"plugin.json": `{"manifest_version": 1, "id": "filer", "name": "Filer", "version": "0.1.0",
+			"api_clients": ["archive"], "commands": [{"id": "send", "label": "Send"}]}`,
+		"main.lua": `
+function send(ctx)
+  local bytes = formidable.fs.read(ctx.path)
+  local res = formidable.client.call("archive", "putDocument", { guid = "abc-123" }, bytes)
+  return { read = #bytes, status = res.status, stored = res.data.bytes }
+end`,
+		"api-clients/specs/archive.json": fmt.Sprintf(archiveSpec, srv.URL),
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	clientM := connection.NewManager(&clientStoreFS{files: map[string]string{}}, nil)
+	adapter := pluginClientAdapter{m: clientM, inv: connection.NewInvoker(clientM, nil)}
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter,
+		FS: plugin.OSFS{}, Editor: system.NewManager(t.TempDir(), nil)})
+	if err := pluginM.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pluginM.GenerateShippedClient("filer", "archive"); err != nil {
+		t.Fatalf("GenerateShippedClient: %v", err)
+	}
+
+	res, err := pluginM.Run("filer", "send", map[string]any{"path": pdfPath})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	n := float64(len(pdfFixture))
+	if got["read"] != n || got["status"] != float64(201) || got["stored"] != n {
+		t.Errorf("result = %v, want %v bytes read and stored", got, n)
+	}
+	if !bytes.Equal(gotBody, pdfFixture) {
+		t.Errorf("%d bytes arrived, %d were on disk; the file was altered on the way", len(gotBody), len(pdfFixture))
+	}
+	if gotType != "application/pdf" || gotPath != "/entries/abc-123/document" || hits != 1 {
+		t.Errorf("remote saw %q on %s, %d times", gotType, gotPath, hits)
 	}
 }
