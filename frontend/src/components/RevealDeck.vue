@@ -16,7 +16,7 @@ const props = withDefaults(
   { width: 1280, height: 720, accent: "", progress: 3, fontFaceCss: "" },
 );
 
-const { theme } = useTheme();
+const { isLight } = useTheme();
 
 // Deck chrome vars (progress thickness + accent); accent gated by a class so
 // reveal's adaptive arrow colour stays when none is set (mirrors deck.css).
@@ -54,7 +54,7 @@ async function hydrateSlide(scope?: HTMLElement | null) {
   // hydrate; passing the whole deck renders every slide (incl. overview) up front.
   const el = scope ?? revealEl.value;
   await hydrateKatex(el);
-  await hydrateMermaid(el, theme.value === "light" ? "default" : "dark");
+  await hydrateMermaid(el, isLight.value ? "default" : "dark");
 }
 
 function destroyReveal() {

@@ -11,14 +11,14 @@ import { hydrateMermaid } from "../utils/mermaidHydrate";
 const props = defineProps<{ html: string }>();
 
 const root = ref<HTMLElement | null>(null);
-const { theme } = useTheme();
+const { theme, isLight } = useTheme();
 
 let seq = 0;
 async function hydrate() {
   const mine = ++seq;
   await hydrateMermaid(
     root.value,
-    theme.value === "light" ? "default" : "dark",
+    isLight.value ? "default" : "dark",
     () => mine === seq && !!root.value,
   );
 }

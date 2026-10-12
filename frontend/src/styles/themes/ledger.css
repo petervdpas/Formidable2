@@ -1,0 +1,55 @@
+/* Ledger paper: cream pages ruled in green, the way the books looked when
+   they were bound volumes, with a dark green binding for the ribbon. Ported
+   from Themis; the tokens Themis does not have are derived from its palette. */
+:root[data-theme="ledger"] {
+    --color-bg:           #fbf8ee;
+    --color-bg-sunken:    #ece6d2;
+    --color-surface:      #f2edda;
+    --color-surface-2:    #e8e1c8;
+    --color-border:       #b9d3b1;
+
+    --color-text:         #2b2a26;
+    --color-text-muted:   #6f6b5e;
+
+    --color-accent:       #2e6b3a;
+    --color-accent-fg:    #fbf8ee;
+    --color-accent-soft:  #dcebd6;
+
+    --color-error:        #a62b1f;
+    --color-error-fg:     #fbf8ee;
+    --color-error-soft:   #f5dcd6;
+    --color-warning:      #b45309;
+    --color-warning-fg:   #fbf8ee;
+    --color-warning-soft: #f6e7c8;
+    --color-success:      #2e6b3a;
+    --color-success-fg:   #fbf8ee;
+    --color-success-soft: #dcebd6;
+
+    --ribbon-bg:          #23402b;
+    --ribbon-fg:          #b8cdb5;
+    --ribbon-fg-active:   #fbf8ee;
+    --ribbon-hover-bg:    #2d5236;
+
+    --list-hover-bg:      #e2ecd9;
+    --list-active-bg:     var(--color-accent);
+    --list-active-fg:     var(--color-accent-fg);
+
+    --input-bg:           #fffdf6;
+    --input-fg:           #2b2a26;
+    --input-border:       #b9d3b1;
+    --input-focus-border: #2e6b3a;
+    --input-focus-ring:   rgba(46, 107, 58, 0.25);
+    --input-disabled-bg:  #ece6d2;
+    --input-disabled-fg:  #9a9585;
+    --input-readonly-bg:  #f6f1e0;
+    --input-readonly-fg:  #6f6b5e;
+    --input-placeholder:  #9a9585;
+    --input-invalid-border: #a62b1f;
+
+    --switch-track-bg:         #b9c7b3;
+    --switch-track-bg-checked: #2e6b3a;
+    --switch-knob-bg:          #fffdf6;
+    --switch-focus-ring:       rgba(46, 107, 58, 0.30);
+
+    color-scheme: light;
+}

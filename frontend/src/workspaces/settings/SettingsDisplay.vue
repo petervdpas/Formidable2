@@ -27,6 +27,7 @@ const themeOptions = computed(() => [
   { value: "light",    label: t("theme.light") },
   { value: "dark",     label: t("theme.dark") },
   { value: "purplish", label: t("theme.purplish") },
+  { value: "ledger",   label: t("theme.ledger") },
 ] as { value: ThemeId; label: string }[]);
 
 // Window-size presets. "0x0" = fullscreen; main.go reads window_bounds

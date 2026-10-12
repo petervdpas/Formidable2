@@ -6,6 +6,7 @@
 @import "./themes/light.css";
 @import "./themes/dark.css";
 @import "./themes/purplish.css";
+@import "./themes/ledger.css";
 
 @import "./base.css";
 @import "./shell.css";

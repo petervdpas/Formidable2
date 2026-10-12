@@ -27,9 +27,9 @@ withDefaults(
 
 const model = defineModel<string>({ default: "" });
 
-const { theme } = useTheme();
+const { theme, isLight } = useTheme();
 const editorTheme = computed<"light" | "dark">(() =>
-  theme.value === "light" ? "light" : "dark",
+  isLight.value ? "light" : "dark",
 );
 
 const editorRef = ref<{ getEditorView(): EditorView | undefined } | null>(

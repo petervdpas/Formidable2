@@ -44,11 +44,11 @@ function onReady(payload: { view: EditorView }) {
   editorView.value = payload.view;
 }
 
-const { theme } = useTheme();
+const { isLight } = useTheme();
 
 // One-Dark looks at home for dark/purplish; light theme uses CM6's
 // default light styling (no extension).
-const themeExtension = computed(() => (theme.value === "light" ? [] : [oneDark]));
+const themeExtension = computed(() => (isLight.value ? [] : [oneDark]));
 
 // Lua uses a legacy stream parser (no first-class lang package
 // exists) wrapped via StreamLanguage. yaml/markdown have proper

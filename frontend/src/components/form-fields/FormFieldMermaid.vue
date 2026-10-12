@@ -18,7 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
 const { t } = useI18n();
-const { theme } = useTheme();
+const { theme, isLight } = useTheme();
 
 const value = computed<string>({
   get: () => (props.modelValue == null ? "" : String(props.modelValue)),
@@ -197,7 +197,7 @@ const heightFill = EditorView.theme({
   ".cm-scroller": { overflow: "auto" },
 });
 const extensions = computed(() => [
-  ...(theme.value === "light" ? [] : [oneDark]),
+  ...(isLight.value ? [] : [oneDark]),
   heightFill,
   EditorView.lineWrapping,
 ]);
@@ -218,7 +218,7 @@ async function renderPreview() {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "strict",
-      theme: theme.value === "light" ? "default" : "dark",
+      theme: isLight.value ? "default" : "dark",
     });
     const out = await mermaid.render(id, src);
     if (seq !== renderSeq) return;
