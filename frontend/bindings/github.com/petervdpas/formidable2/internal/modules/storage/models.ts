@@ -264,6 +264,45 @@ export class SaveResult {
     }
 }
 
+/**
+ * TableCopyResult is the outcome of CopyTableRows: Value is the target table's
+ * new rows, Added how many were appended, and UnknownReferences the codes that
+ * landed in a reference column without matching an item of its target loop
+ * (kept in the cell, listed once each, so the author can fix them).
+ */
+export class TableCopyResult {
+    "value": any;
+    "added": number;
+    "unknown_references": string[];
+
+    /** Creates a new TableCopyResult instance. */
+    constructor($$source: Partial<TableCopyResult> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = null;
+        }
+        if (!("added" in $$source)) {
+            this["added"] = 0;
+        }
+        if (!("unknown_references" in $$source)) {
+            this["unknown_references"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TableCopyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TableCopyResult {
+        const $$createField2_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("unknown_references" in $$parsedSource) {
+            $$parsedSource["unknown_references"] = $$createField2_0($$parsedSource["unknown_references"]);
+        }
+        return new TableCopyResult($$parsedSource as Partial<TableCopyResult>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = FormMeta.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);

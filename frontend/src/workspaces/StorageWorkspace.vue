@@ -274,6 +274,22 @@ provide(FORM_FIELD_OPS_KEY, {
     ),
   dedupField: (fieldKey, opts) =>
     runFieldOp((tpl, df) => FormSvc.DedupFieldValue(tpl, df, fieldKey, opts?.column ?? "")),
+  tableCopySources: async (fieldKey) => {
+    const tpl = selectedTemplate.value;
+    if (!tpl) return [];
+    try {
+      return (await FormSvc.TableCopySources(tpl, fieldKey)) ?? [];
+    } catch {
+      return [];
+    }
+  },
+  copyTable: async (fieldKey, sourceKey) => {
+    const res = (await runFieldOp((tpl, df) => FormSvc.CopyTableRows(tpl, df, fieldKey, sourceKey))) as
+      | { value: unknown; added: number; unknown_references: string[] | null }
+      | undefined;
+    if (!res) return undefined;
+    return { value: res.value, added: res.added, unknownReferences: res.unknown_references ?? [] };
+  },
 });
 
 // ── Form list (sidebar) ──────────────────────────────────────────────

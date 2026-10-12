@@ -26,6 +26,16 @@ export interface FormFieldOps {
     fieldKey: string,
     opts?: { column?: string },
   ) => Promise<unknown | undefined>;
+  /** Tables of the open template whose rows can be copied into table
+   *  `fieldKey` (backend-decided: other top-level tables sharing a column). */
+  tableCopySources: (fieldKey: string) => Promise<{ key: string; label: string }[]>;
+  /** The table's saved rows plus the rows of table `sourceKey`, mapped by
+   *  column key; rows already present are not added. `unknownReferences`
+   *  lists codes copied into a reference column that match no loop item. */
+  copyTable: (
+    fieldKey: string,
+    sourceKey: string,
+  ) => Promise<{ value: unknown; added: number; unknownReferences: string[] } | undefined>;
 }
 
 // Nullable so a synthetic context (e.g. a slide list block, which isn't a saved

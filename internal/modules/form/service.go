@@ -1,6 +1,9 @@
 package form
 
-import "github.com/petervdpas/formidable2/internal/modules/storage"
+import (
+	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/template"
+)
 
 // Service is the Wails-bound facade. Its surface is the single
 // entry point Vue uses for form ops; template/storage services stay
@@ -79,6 +82,22 @@ func (s *Service) SortFieldValue(templateName, datafile, fieldKey, column, direc
 // for list fields.
 func (s *Service) DedupFieldValue(templateName, datafile, fieldKey, column string) (any, error) {
 	return s.m.DedupFieldValue(templateName, datafile, fieldKey, column)
+}
+
+// CopyTableRows returns table targetKey's saved rows plus the rows of table
+// sourceKey of the same record, cells mapped by column key (no persistence).
+// Rows already present are not added, so repeating the copy changes nothing.
+// Cells copied into a reference column take the loop items' spelling; codes
+// matching no item are kept and listed in UnknownReferences.
+func (s *Service) CopyTableRows(templateName, datafile, targetKey, sourceKey string) (storage.TableCopyResult, error) {
+	return s.m.CopyTableRows(templateName, datafile, targetKey, sourceKey)
+}
+
+// TableCopySources lists the tables of a template whose rows can be copied into
+// table targetKey: other top-level tables sharing a column key with it. The
+// table toolbar's source dropdown reads this; empty hides the action.
+func (s *Service) TableCopySources(templateName, targetKey string) []template.ItemField {
+	return s.m.TableCopySources(templateName, targetKey)
 }
 
 // ListForms returns the per-template form summaries (title + meta +

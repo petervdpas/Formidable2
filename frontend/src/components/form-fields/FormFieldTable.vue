@@ -6,6 +6,7 @@ import { TextField, SelectField, SwitchField, DateInput, type SelectOption } fro
 import PasteDataDialog from "../PasteDataDialog.vue";
 import { useConfig } from "../../composables/useConfig";
 import { FORM_FIELD_OPS_KEY } from "../../composables/formFieldOps";
+import { useToast } from "../../composables/useToast";
 import {
   Service as CsvSvc,
   TableColumn,
@@ -43,6 +44,33 @@ async function doSort() {
   if (next !== undefined) {
     emitRows(next as unknown[][]);
     sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  }
+}
+
+// Copy rows from another table of the same record. The backend lists the
+// tables that qualify and does the mapping (by column key) on the saved record.
+const toast = useToast();
+const showCopyTable = computed(() => !!config.value?.show_table_copy_buttons && !!fieldOps);
+const copySources = ref<SelectOption[]>([]);
+const copySource = ref("");
+
+async function loadCopySources() {
+  copySource.value = "";
+  copySources.value = [];
+  if (!showCopyTable.value || !fieldOps) return;
+  const list = await fieldOps.tableCopySources(props.field.key);
+  copySources.value = list.map((s) => ({ value: s.key, label: s.label }));
+}
+
+async function doCopyTable() {
+  if (!copySource.value) return;
+  const res = await fieldOps?.copyTable(props.field.key, copySource.value);
+  if (!res) return;
+  emitRows(res.value as unknown[][]);
+  if (res.added > 0) toast.success("workspace.storage.field.table_copy_done", [res.added]);
+  else toast.info("workspace.storage.field.table_copy_none");
+  if (res.unknownReferences.length) {
+    toast.warn("workspace.storage.field.table_copy_unknown", [res.unknownReferences.join(", ")]);
   }
 }
 
@@ -115,6 +143,14 @@ const columns = computed<Col[]>(() => {
 const templateFilename = inject<Ref<string>>("templateFilename", ref(""));
 const formValues = inject<FormValuesContext | null>(FORM_VALUES_KEY, null);
 const targetLoops = ref<Record<string, string>>({});
+
+// The copy sources depend on the template's tables, so reload them when the
+// template, this field's columns, or the setting changes.
+watch(
+  [templateFilename, showCopyTable, () => props.field.key, () => columns.value.map((c) => c.key).join("|")],
+  () => void loadCopySources(),
+  { immediate: true },
+);
 
 watch(
   [templateFilename, () => columns.value.some((c) => c.type === "reference")],
@@ -389,6 +425,25 @@ function asNumber(v: unknown): number {
           :title="t('workspace.storage.field.dedup')"
           @click="doDedup"
         ><i class="fa-solid fa-broom"></i></button>
+      </template>
+
+      <template v-if="showCopyTable && copySources.length && !field.readonly">
+        <span class="ff-table-op-sep" aria-hidden="true"></span>
+        <SelectField
+          v-model="copySource"
+          class="ff-table-op-col"
+          :options="copySources"
+          :placeholder="t('workspace.storage.field.table_copy_source')"
+          :aria-label="t('workspace.storage.field.table_copy_source')"
+        />
+        <button
+          type="button"
+          class="btn-ghost-icon"
+          :disabled="!copySource"
+          :aria-label="t('workspace.storage.field.table_copy')"
+          :title="t('workspace.storage.field.table_copy')"
+          @click="doCopyTable"
+        ><i class="fa-solid fa-table-columns"></i></button>
       </template>
     </div>
 

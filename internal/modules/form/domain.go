@@ -25,6 +25,8 @@ type formStore interface {
 	DeleteForm(templateFilename, datafile string) error
 	SortFieldValue(templateFilename, datafile, fieldKey, column, direction string) (any, error)
 	DedupFieldValue(templateFilename, datafile, fieldKey, column string) (any, error)
+	CopyTableRows(templateFilename, datafile, targetKey, sourceKey string) (storage.TableCopyResult, error)
+	TableCopySources(templateFilename, targetKey string) []template.ItemField
 	MaxFieldValue(templateFilename, fieldKey string) (float64, bool)
 }
 
@@ -288,6 +290,18 @@ func (m *Manager) SortFieldValue(templateName, datafile, fieldKey, column, direc
 // the key whose value identifies a duplicate row (empty = first column).
 func (m *Manager) DedupFieldValue(templateName, datafile, fieldKey, column string) (any, error) {
 	return m.storage.DedupFieldValue(templateName, datafile, fieldKey, column)
+}
+
+// CopyTableRows returns table targetKey's saved rows plus the rows of table
+// sourceKey mapped by column key, without persisting. Repeating it adds nothing;
+// codes copied into a reference column that match no loop item are reported.
+func (m *Manager) CopyTableRows(templateName, datafile, targetKey, sourceKey string) (storage.TableCopyResult, error) {
+	return m.storage.CopyTableRows(templateName, datafile, targetKey, sourceKey)
+}
+
+// TableCopySources lists the tables whose rows can be copied into table targetKey.
+func (m *Manager) TableCopySources(templateName, targetKey string) []template.ItemField {
+	return m.storage.TableCopySources(templateName, targetKey)
 }
 
 // DeleteForm removes the form's meta.json; missing is a no-op.

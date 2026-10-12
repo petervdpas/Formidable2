@@ -26,6 +26,7 @@ func defaultConfig() Config {
 		ShowPasteButtons:     true,
 		ShowSortButtons:      false,
 		ShowDedupButtons:     false,
+		ShowTableCopyButtons: false,
 		UseExpressions:       false,
 		ShowMetaSection:      true,
 		ShowCopyButton:       true,

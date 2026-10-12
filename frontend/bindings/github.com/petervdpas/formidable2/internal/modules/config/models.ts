@@ -16,6 +16,7 @@ export class Config {
     "show_paste_buttons": boolean;
     "show_sort_buttons": boolean;
     "show_dedup_buttons": boolean;
+    "show_table_copy_buttons": boolean;
     "use_expressions": boolean;
     "show_meta_section": boolean;
     "show_copy_button": boolean;
@@ -71,6 +72,9 @@ export class Config {
         }
         if (!("show_dedup_buttons" in $$source)) {
             this["show_dedup_buttons"] = false;
+        }
+        if (!("show_table_copy_buttons" in $$source)) {
+            this["show_table_copy_buttons"] = false;
         }
         if (!("use_expressions" in $$source)) {
             this["use_expressions"] = false;
@@ -194,30 +198,30 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField27_0 = $$createType0;
-        const $$createField33_0 = $$createType1;
-        const $$createField34_0 = $$createType2;
-        const $$createField37_0 = $$createType3;
-        const $$createField41_0 = $$createType4;
-        const $$createField42_0 = $$createType5;
+        const $$createField28_0 = $$createType0;
+        const $$createField34_0 = $$createType1;
+        const $$createField35_0 = $$createType2;
+        const $$createField38_0 = $$createType3;
+        const $$createField42_0 = $$createType4;
+        const $$createField43_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabled_templates" in $$parsedSource) {
-            $$parsedSource["enabled_templates"] = $$createField27_0($$parsedSource["enabled_templates"]);
+            $$parsedSource["enabled_templates"] = $$createField28_0($$parsedSource["enabled_templates"]);
         }
         if ("git" in $$parsedSource) {
-            $$parsedSource["git"] = $$createField33_0($$parsedSource["git"]);
+            $$parsedSource["git"] = $$createField34_0($$parsedSource["git"]);
         }
         if ("gigot" in $$parsedSource) {
-            $$parsedSource["gigot"] = $$createField34_0($$parsedSource["gigot"]);
+            $$parsedSource["gigot"] = $$createField35_0($$parsedSource["gigot"]);
         }
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField37_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField38_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField41_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField42_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField42_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField43_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

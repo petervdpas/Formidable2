@@ -13,6 +13,7 @@ type Config struct {
 	ShowPasteButtons     bool          `json:"show_paste_buttons"`
 	ShowSortButtons      bool          `json:"show_sort_buttons"`
 	ShowDedupButtons     bool          `json:"show_dedup_buttons"`
+	ShowTableCopyButtons bool          `json:"show_table_copy_buttons"`
 	UseExpressions       bool          `json:"use_expressions"`
 	ShowMetaSection      bool          `json:"show_meta_section"`
 	ShowCopyButton       bool          `json:"show_copy_button"`

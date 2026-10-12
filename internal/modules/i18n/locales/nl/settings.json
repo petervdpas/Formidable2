@@ -72,6 +72,7 @@
   "settings.field.paste_data": "Plakken op lijsten/tabellen",
   "settings.field.sort_data": "Lijsten/tabellen sorteren",
   "settings.field.dedup_data": "Lijsten/tabellen ontdubbelen",
+  "settings.field.table_copy": "Tabellen kopiëren",
   "settings.field.language_quick_switch": "Snelle taalwissel",
   "settings.field.reload_button": "Herlaadknop",
   "settings.field.remote_backend": "Remote backend",

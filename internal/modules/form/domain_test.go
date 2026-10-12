@@ -140,6 +140,15 @@ func (s *fakeStorage) SortFieldValue(t, df, fieldKey, _, _ string) (any, error) 
 	return nil, nil
 }
 
+func (s *fakeStorage) CopyTableRows(t, df, targetKey, _ string) (storage.TableCopyResult, error) {
+	if f := s.LoadForm(t, df); f != nil {
+		return storage.TableCopyResult{Value: f.Data[targetKey]}, nil
+	}
+	return storage.TableCopyResult{}, nil
+}
+
+func (s *fakeStorage) TableCopySources(_, _ string) []template.ItemField { return nil }
+
 func (s *fakeStorage) DedupFieldValue(t, df, fieldKey, _ string) (any, error) {
 	if f := s.LoadForm(t, df); f != nil {
 		return f.Data[fieldKey], nil

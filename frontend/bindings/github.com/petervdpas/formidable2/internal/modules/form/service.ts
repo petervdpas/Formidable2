@@ -15,6 +15,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as storage$0 from "../storage/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as template$0 from "../template/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -42,12 +45,25 @@ export function CopyForm(templateName: string, sourceDatafile: string, newDatafi
 }
 
 /**
+ * CopyTableRows returns table targetKey's saved rows plus the rows of table
+ * sourceKey of the same record, cells mapped by column key (no persistence).
+ * Rows already present are not added, so repeating the copy changes nothing.
+ * Cells copied into a reference column take the loop items' spelling; codes
+ * matching no item are kept and listed in UnknownReferences.
+ */
+export function CopyTableRows(templateName: string, datafile: string, targetKey: string, sourceKey: string): $CancellablePromise<storage$0.TableCopyResult> {
+    return $Call.ByID(2152816078, templateName, datafile, targetKey, sourceKey).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * DeckOrder returns one deck's datafiles in per-deck sequence order, so the
  * studio list can render a single deck. See Manager.DeckOrder.
  */
 export function DeckOrder(templateName: string, deck: string): $CancellablePromise<string[]> {
     return $Call.ByID(2836467807, templateName, deck).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -57,7 +73,7 @@ export function DeckOrder(templateName: string, deck: string): $CancellablePromi
  */
 export function Decks(templateName: string): $CancellablePromise<$models.DeckOption[]> {
     return $Call.ByID(2385180218, templateName).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -95,7 +111,7 @@ export function EnsureFormDir(templateName: string): $CancellablePromise<void> {
  */
 export function ImportRelations(sourceTemplate: string, fieldKey: string, fromColumn: string, toColumn: string, headers: string[], rows: string[][]): $CancellablePromise<$models.ImportRelationResult> {
     return $Call.ByID(247265434, sourceTemplate, fieldKey, fromColumn, toColumn, headers, rows).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -105,7 +121,7 @@ export function ImportRelations(sourceTemplate: string, fieldKey: string, fromCo
  */
 export function ListForms(templateName: string): $CancellablePromise<storage$0.FormSummary[]> {
     return $Call.ByID(1337737659, templateName).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -115,7 +131,7 @@ export function ListForms(templateName: string): $CancellablePromise<storage$0.F
  */
 export function NormalizeDeck(templateName: string, deck: string): $CancellablePromise<$models.ReorderResult> {
     return $Call.ByID(1750829138, templateName, deck).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -125,7 +141,7 @@ export function NormalizeDeck(templateName: string, deck: string): $CancellableP
  */
 export function NormalizeSequence(templateName: string): $CancellablePromise<$models.ReorderResult> {
     return $Call.ByID(1224904886, templateName).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -135,7 +151,7 @@ export function NormalizeSequence(templateName: string): $CancellablePromise<$mo
  */
 export function PlayableDecks(templateName: string): $CancellablePromise<$models.DeckOption[]> {
     return $Call.ByID(3514129896, templateName).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -146,7 +162,7 @@ export function PlayableDecks(templateName: string): $CancellablePromise<$models
  */
 export function RelationFields(sourceTemplate: string): $CancellablePromise<$models.RelationField[]> {
     return $Call.ByID(336515629, sourceTemplate).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
@@ -157,7 +173,7 @@ export function RelationFields(sourceTemplate: string): $CancellablePromise<$mod
  */
 export function ReorderSequence(templateName: string, movedDatafile: string, orderedDatafiles: string[]): $CancellablePromise<$models.ReorderResult> {
     return $Call.ByID(1423545710, templateName, movedDatafile, orderedDatafiles).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -178,7 +194,7 @@ export function SaveValues(templateName: string, payload: $models.SavePayload): 
  */
 export function SequenceOrder(templateName: string): $CancellablePromise<string[]> {
     return $Call.ByID(1461479659, templateName).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -199,7 +215,7 @@ export function SortFieldValue(templateName: string, datafile: string, fieldKey:
  */
 export function SyncRelationsForTemplate(template: string): $CancellablePromise<$models.ImportRelationResult> {
     return $Call.ByID(3884228353, template).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -211,19 +227,33 @@ export function SyncRelationsForTemplate(template: string): $CancellablePromise<
  */
 export function SyncRelationsToField(template: string, fieldKey: string): $CancellablePromise<$models.ImportRelationResult> {
     return $Call.ByID(3579787831, template, fieldKey).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * TableCopySources lists the tables of a template whose rows can be copied into
+ * table targetKey: other top-level tables sharing a column key with it. The
+ * table toolbar's source dropdown reads this; empty hides the action.
+ */
+export function TableCopySources(templateName: string, targetKey: string): $CancellablePromise<template$0.ItemField[]> {
+    return $Call.ByID(992719681, templateName, targetKey).then(($result: any) => {
+        return $$createType13($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.FormView.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $models.DeckOption.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.ImportRelationResult.createFrom;
-const $$createType6 = storage$0.FormSummary.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $models.ReorderResult.createFrom;
-const $$createType9 = $models.RelationField.createFrom;
-const $$createType10 = $Create.Array($$createType9);
+const $$createType2 = storage$0.TableCopyResult.createFrom;
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = $models.DeckOption.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.ImportRelationResult.createFrom;
+const $$createType7 = storage$0.FormSummary.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.ReorderResult.createFrom;
+const $$createType10 = $models.RelationField.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = template$0.ItemField.createFrom;
+const $$createType13 = $Create.Array($$createType12);
