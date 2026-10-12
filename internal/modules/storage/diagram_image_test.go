@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,11 +91,148 @@ func TestWriteDiagramImage_OnlyAcceptsGeneratedPlainNames(t *testing.T) {
 	}
 }
 
-func TestSaveForm_DoesNotDrawDiagrams(t *testing.T) {
+func saveMapping(t *testing.T, m *Manager, record, target string) {
+	t.Helper()
+	data := map[string]any{"mapping": []any{}}
+	if target != "" {
+		data["mapping"] = []any{[]any{"A", "x", target, "y", "", ""}}
+	}
+	if r := m.SaveForm(context.Background(), diagTpl, record+".meta.json", data); !r.Success {
+		t.Fatal(r.Error)
+	}
+}
+
+func TestSaveForm_CreatesTheDiagramImage(t *testing.T) {
 	m := newDiagramStack(t)
-	saveRecord(t, m, "r1")
+	saveMapping(t, m, "r1", "T")
+	got, _ := m.fs.LoadFile(imgPath(m, img("r1")))
+	if !strings.HasPrefix(got, "<svg") || !strings.Contains(got, ">T<") {
+		t.Fatalf("save must draw the record's diagram image: %.80q", got)
+	}
+}
+
+// The record is what matters: if the image cannot be written, the data save
+// still succeeds and the record is on disk.
+func TestSaveForm_SucceedsEvenWhenTheImageCannotBeWritten(t *testing.T) {
+	m := newDiagramStack(t)
+	// A plain file where the images folder should be makes every image write fail.
+	if err := m.fs.EnsureDirectory(m.templateDir(diagTpl)); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.fs.SaveFile(m.TemplateImageDir(diagTpl), "not a folder"); err != nil {
+		t.Fatal(err)
+	}
+	r := m.SaveForm(context.Background(), diagTpl, "r1.meta.json", map[string]any{"mapping": []any{[]any{"A", "x", "T", "y", "", ""}}})
+	if !r.Success {
+		t.Fatalf("data save failed because of the image: %s", r.Error)
+	}
+	if f := m.LoadForm(diagTpl, "r1.meta.json"); f == nil || len(asSlice(f.Data["mapping"])) != 1 {
+		t.Fatalf("record not persisted: %+v", f)
+	}
+	if err := m.SaveDiagramImages(diagTpl, "r1.meta.json"); err == nil {
+		t.Fatal("the image path itself must report its failure")
+	}
+}
+
+func TestSaveDiagramImages_DrawsFromTheRecordOnDisk(t *testing.T) {
+	m := newDiagramStack(t)
+	saveMapping(t, m, "r1", "OnDisk")
+	_ = m.WriteDiagramImage(diagTpl, img("r1"), "<svg>stale</svg>")
+	if err := m.SaveDiagramImages(diagTpl, "r1.meta.json"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := m.fs.LoadFile(imgPath(m, img("r1"))); !strings.Contains(got, ">OnDisk<") {
+		t.Fatalf("image must reflect the persisted record: %.80q", got)
+	}
+}
+
+func TestSaveDiagramImages_Errors(t *testing.T) {
+	m := newDiagramStack(t)
+	if err := m.SaveDiagramImages(diagTpl, "ghost.meta.json"); err == nil {
+		t.Error("unknown record must error")
+	}
+	if err := m.SaveDiagramImages("nope.yaml", "r1.meta.json"); err == nil {
+		t.Error("unknown template must error")
+	}
+}
+
+func TestSaveDiagramImages_TemplateWithoutDiagramIsANoOp(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("p.yaml", &template.Template{Name: "P", Filename: "p.yaml", Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "t", Type: "text"}}})
+	if r := m.SaveForm(context.Background(), "p.yaml", "r.meta.json", map[string]any{"t": "x"}); !r.Success {
+		t.Fatal(r.Error)
+	}
+	if err := m.SaveDiagramImages("p.yaml", "r.meta.json"); err != nil {
+		t.Fatal(err)
+	}
+	if m.fs.FileExists(m.TemplateImageDir("p.yaml")) {
+		if names, _ := m.fs.ListFiles(m.TemplateImageDir("p.yaml")); len(names) != 0 {
+			t.Fatalf("images = %v", names)
+		}
+	}
+}
+
+func TestSyncDiagramImages_DrawsEveryRecordAndPrunesOrphans(t *testing.T) {
+	m := newDiagramStack(t)
+	saveMapping(t, m, "r1", "T")
+	saveMapping(t, m, "r2", "T")
+	_ = m.fs.DeleteFile(imgPath(m, img("r1")))
+	_ = m.WriteDiagramImage(diagTpl, img("gone"), "<svg/>")
+	if err := m.SyncDiagramImages(diagTpl); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]bool{img("r1"): true, img("r2"): true, img("gone"): false} {
+		if got := exists(m, name); got != want {
+			t.Errorf("%s exists = %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestSaveForm_BringsAnExistingDiagramImageUpToDate(t *testing.T) {
+	m := newDiagramStack(t)
+	saveMapping(t, m, "r1", "Old")
+	_ = m.WriteDiagramImage(diagTpl, img("r1"), "<svg>stale</svg>")
+	saveMapping(t, m, "r1", "New")
+	got, _ := m.fs.LoadFile(imgPath(m, img("r1")))
+	if !strings.HasPrefix(got, "<svg") || !strings.Contains(got, ">New<") || strings.Contains(got, "stale") {
+		t.Fatalf("file not redrawn from the saved data: %.120q", got)
+	}
+}
+
+func TestSaveForm_UpToDateDiagramImageIsNotRewritten(t *testing.T) {
+	m := newDiagramStack(t)
+	saveMapping(t, m, "r1", "T")
+	_ = m.WriteDiagramImage(diagTpl, img("r1"), "<svg>stale</svg>")
+	saveMapping(t, m, "r1", "T")
+	full := m.fs.ResolvePath(imgPath(m, img("r1")))
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(full, old, old); err != nil {
+		t.Fatal(err)
+	}
+	saveMapping(t, m, "r1", "T")
+	if st, err := os.Stat(full); err != nil || !st.ModTime().Equal(old) {
+		t.Fatalf("an unchanged drawing must not touch the file (err %v)", err)
+	}
+}
+
+func TestSaveForm_EmptiedDiagramRemovesItsImage(t *testing.T) {
+	m := newDiagramStack(t)
+	saveMapping(t, m, "r1", "T")
+	saveMapping(t, m, "r1", "")
 	if exists(m, img("r1")) {
-		t.Fatal("drawing belongs to the render step, not to saving a record")
+		t.Fatal("a diagram with nothing to draw must not leave a stale image")
+	}
+}
+
+func TestSaveForm_OnlyTouchesTheSavedRecordsImage(t *testing.T) {
+	m := newDiagramStack(t)
+	saveMapping(t, m, "r1", "T")
+	saveMapping(t, m, "r2", "T")
+	_ = m.WriteDiagramImage(diagTpl, img("r2"), "<svg>other</svg>")
+	_ = m.WriteDiagramImage(diagTpl, img("r1"), "<svg>stale</svg>")
+	saveMapping(t, m, "r1", "New")
+	if got, _ := m.fs.LoadFile(imgPath(m, img("r2"))); got != "<svg>other</svg>" {
+		t.Fatalf("another record's image was changed: %q", got)
 	}
 }
 

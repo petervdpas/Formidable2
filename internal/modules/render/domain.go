@@ -2,7 +2,9 @@ package render
 
 import (
 	"fmt"
+	htmlpkg "html"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/petervdpas/formidable2/internal/modules/storage"
@@ -70,14 +72,16 @@ type Manager struct {
 	// fontFace supplies @font-face rules for user-uploaded fonts; nil = none.
 	fontFace func() (string, error)
 
-	// versionDiagramImages: see Options.DiagramImageVersion.
+	// versionDiagramImages: see SetVersionedDiagramImages.
 	versionDiagramImages bool
 }
 
-// SetVersionedDiagramImages makes stored diagram images carry a content
-// version in their URL. For a target whose page stays open across re-renders
-// and whose image URLs are served over HTTP (the studio panels); leave off
-// for exports.
+// SetVersionedDiagramImages makes RenderForm's HTML reference stored diagram
+// images as "<url>?v=<content hash>". The file keeps one name while its
+// content changes, so a page that stays open (the studio panel) would
+// otherwise receive identical HTML and never reload the image. The Markdown
+// is never versioned. Leave off for targets whose image URL is a file path or
+// a data: URL (wiki export, PDF, standalone).
 func (m *Manager) SetVersionedDiagramImages(on bool) {
 	if m == nil {
 		return
@@ -154,7 +158,7 @@ func (m *Manager) SetReferenceLinkResolver(fn ReferenceLinkResolverFunc) {
 // RenderForm returns both markdown and HTML in one call. Empty datafile
 // renders against the template's default values.
 func (m *Manager) RenderForm(templateName, datafile string) (*Result, error) {
-	md, err := m.RenderMarkdown(templateName, datafile)
+	md, opts, err := m.renderMarkdown(templateName, datafile)
 	if err != nil {
 		return nil, err
 	}
@@ -162,14 +166,32 @@ func (m *Manager) RenderForm(templateName, datafile string) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	if m.versionDiagramImages {
+		html = versionImageURLs(html, opts.diagramImages)
+	}
 	return &Result{Markdown: md, HTML: html}, nil
+}
+
+// versionImageURLs rewrites src="<url>" to src="<url>?v=<version>" for exactly
+// the URLs in versions (the diagram images one render just stored).
+func versionImageURLs(html string, versions map[string]string) string {
+	for url, v := range versions {
+		src := `src="` + htmlpkg.EscapeString(url)
+		html = strings.ReplaceAll(html, src+`"`, src+`?v=`+v+`"`)
+	}
+	return html
 }
 
 // RenderMarkdown loads the template + form and runs only the Handlebars stage.
 func (m *Manager) RenderMarkdown(templateName, datafile string) (string, error) {
+	md, _, err := m.renderMarkdown(templateName, datafile)
+	return md, err
+}
+
+func (m *Manager) renderMarkdown(templateName, datafile string) (string, *Options, error) {
 	tpl, err := m.templates.LoadTemplate(templateName)
 	if err != nil {
-		return "", fmt.Errorf("render: load template %q: %w", templateName, err)
+		return "", nil, fmt.Errorf("render: load template %q: %w", templateName, err)
 	}
 	values := map[string]any{}
 	var facets map[string]string
@@ -181,7 +203,8 @@ func (m *Manager) RenderMarkdown(templateName, datafile string) (string, error) 
 	}
 	opts := m.optionsFor(templateName, datafile)
 	opts.Facets = facets
-	return RenderMarkdown(values, tpl, opts)
+	md, err := RenderMarkdown(values, tpl, opts)
+	return md, opts, err
 }
 
 // flattenFacets reduces FacetState to {facetKey: selectedLabel}. Unset
@@ -223,7 +246,6 @@ func (m *Manager) optionsFor(templateName, datafile string) *Options {
 			return m.imageBase64URL(templateName, name)
 		}
 	}
-	opts.DiagramImageVersion = m.versionDiagramImages
 	if store, ok := m.storage.(diagramImageStore); ok && datafile != "" {
 		opts.DiagramImage = func(name, svg string) bool {
 			if err := store.WriteDiagramImage(templateName, name, svg); err != nil {

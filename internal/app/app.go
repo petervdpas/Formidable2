@@ -504,8 +504,9 @@ func New(d Deps) (*App, error) {
 	// or removed: cells are stored positionally, so a column change would leave
 	// existing values under the wrong header without this remap.
 	tplM.AddUpdateObserver(tableColumnMigrator{sto: stoM})
-	// Drop generated diagram images whose diagram field left the template.
-	tplM.AddUpdateObserver(diagramImagePrune{sto: stoM})
+	// Then redraw every record's diagram images (they read those realigned
+	// rows) and drop the ones whose diagram field left the template.
+	tplM.AddUpdateObserver(diagramImageSync{sto: stoM})
 
 	// First-boot reconcile picks up disk changes from while the app was
 	// off (gigot pull, manual edits). Best-effort: the index is derived,

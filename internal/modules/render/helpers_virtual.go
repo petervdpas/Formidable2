@@ -76,10 +76,11 @@ func emitDiagram(options *raymond.Options, opts *Options, rootFields []template.
 		alt = strings.NewReplacer("[", "", "]", "").Replace(f.Label)
 	}
 	url := emitImage(name, opts)
-	if opts.DiagramImageVersion {
-		sum := sha256.Sum256([]byte(svg))
-		url += "?v=" + hex.EncodeToString(sum[:4])
+	if opts.diagramImages == nil {
+		opts.diagramImages = map[string]string{}
 	}
+	sum := sha256.Sum256([]byte(svg))
+	opts.diagramImages[url] = hex.EncodeToString(sum[:4])
 	return "![" + alt + "](" + url + ")"
 }
 

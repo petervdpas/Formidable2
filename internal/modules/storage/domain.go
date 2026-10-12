@@ -327,6 +327,14 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	}
 	ordered := orderedForm{Meta: envelope.Meta, Data: orderData(envelope.Data, fields)}
 	r := m.sfr.SaveFromBase(dir, datafile, ordered, sfr.Options{})
+	// The record is written; its diagram images follow on their own path. A
+	// failure there is logged and never turns a successful save into a failed one.
+	if r.Success {
+		if err := m.SaveDiagramImages(templateFilename, datafile); err != nil {
+			m.log.Warn("storage diagram image save failed",
+				"template", templateFilename, "datafile", datafile, "err", err)
+		}
+	}
 	if r.Success && m.indexer != nil {
 		if err := m.indexer.OnFormChanged(templateFilename, datafile); err != nil {
 			m.log.Warn("storage indexer save hook failed",

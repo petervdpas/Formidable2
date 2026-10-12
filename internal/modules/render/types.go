@@ -57,12 +57,10 @@ type Options struct {
 	// never dangles; nil (no storage behind this target) renders inline SVG.
 	DiagramImage func(name, svg string) bool
 
-	// DiagramImageVersion appends "?v=<content hash>" to a stored diagram
-	// image's URL. The file keeps one name while its content changes, so a
-	// page that stays open (the studio panels) would otherwise render the
-	// same HTML and never reload it. Off for exports, whose URL is a file
-	// path or a data: URL.
-	DiagramImageVersion bool
+	// diagramImages records, per render, the URL of every diagram image this
+	// render stored -> a short hash of its content. The Markdown never carries
+	// it; the Manager uses it to version those URLs in display HTML.
+	diagramImages map[string]string
 }
 
 // Result is the dual-stage output of RenderForm.

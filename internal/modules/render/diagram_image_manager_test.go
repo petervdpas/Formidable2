@@ -80,12 +80,12 @@ func TestManager_StoreWithoutImageSupportRendersInline(t *testing.T) {
 	}
 }
 
-func TestManager_VersionedDiagramImagesOnlyWhenEnabled(t *testing.T) {
+func TestManager_DisplayHTMLVersionsDiagramImagesButMarkdownStaysPlain(t *testing.T) {
 	sys := system.NewManager(t.TempDir(), nil)
 	tplM := template.NewManager(sys, "templates", nil)
 	stoM := storage.NewManager(sys, sfr.NewManager(sys, nil), tplM, "storage", nil)
 	tpl := &template.Template{
-		Name: "M", Filename: "m.yaml", MarkdownTemplate: `{{virtual-field "lineage" "image"}}`,
+		Name: "M", Filename: "m.yaml", MarkdownTemplate: "{{virtual-field \"lineage\" \"image\"}}\n\n![photo](/api/images/m/photo.png)",
 		Fields: []template.Field{
 			{Key: "id", Type: "guid"},
 			{Key: "mapping", Type: "table", Format: template.TablePatternDataLineage},
@@ -101,18 +101,39 @@ func TestManager_VersionedDiagramImagesOnlyWhenEnabled(t *testing.T) {
 		}
 	}
 	url := func(_, n string) string { return "/api/images/m/" + n }
-	plain := NewManager(tplM, stoM, url, nil, nil)
+	name := template.DiagramImageName("m.yaml", "r1.meta.json", "lineage")
+	plainRef := `src="/api/images/m/` + name + `"`
+	export := NewManager(tplM, stoM, url, nil, nil)
 	studio := NewManager(tplM, stoM, url, nil, nil)
 	studio.SetVersionedDiagramImages(true)
 
 	save("First")
-	if md, _ := plain.RenderMarkdown("m.yaml", "r1.meta.json"); strings.Contains(md, "?v=") {
-		t.Fatalf("unversioned manager emitted a version: %q", md)
+	if res, _ := export.RenderForm("m.yaml", "r1.meta.json"); !strings.Contains(res.HTML, plainRef) || strings.Contains(res.HTML, "?v=") {
+		t.Fatalf("a target without versioning keeps the plain reference: %s", res.HTML)
 	}
-	before, _ := studio.RenderMarkdown("m.yaml", "r1.meta.json")
+	before, err := studio.RenderForm("m.yaml", "r1.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(before.Markdown, "?v=") {
+		t.Fatalf("markdown must stay plain: %q", before.Markdown)
+	}
+	if strings.Contains(before.HTML, plainRef) || !strings.Contains(before.HTML, `/api/images/m/`+name+`?v=`) {
+		t.Fatalf("display HTML must version the diagram image: %s", before.HTML)
+	}
+	if !strings.Contains(before.HTML, `src="/api/images/m/photo.png"`) {
+		t.Fatalf("other images are not touched: %s", before.HTML)
+	}
+	same, _ := studio.RenderForm("m.yaml", "r1.meta.json")
+	if same.HTML != before.HTML {
+		t.Fatal("an unchanged drawing must give identical HTML")
+	}
 	save("Second")
-	after, _ := studio.RenderMarkdown("m.yaml", "r1.meta.json")
-	if !strings.Contains(before, "?v=") || before == after {
-		t.Fatalf("after a change the studio HTML must differ so the image reloads:\n before %q\n after  %q", before, after)
+	after, _ := studio.RenderForm("m.yaml", "r1.meta.json")
+	if after.HTML == before.HTML {
+		t.Fatal("after the drawing changed the HTML must differ, or the open panel never reloads the image")
+	}
+	if md, _ := studio.RenderMarkdown("m.yaml", "r1.meta.json"); strings.Contains(md, "?v=") {
+		t.Fatalf("RenderMarkdown must stay plain for exports and plugins: %q", md)
 	}
 }

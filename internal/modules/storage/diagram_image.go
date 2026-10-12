@@ -5,13 +5,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/petervdpas/formidable2/internal/modules/diagram"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // Diagram fields are kept in the template's images folder under
 // template.DiagramImageName so every render target can include them like any
-// image. Storage only keeps the file; the render step draws it and hands the
-// SVG over, so a referenced image always matches what was rendered.
+// image. The record comes first: SaveForm writes the data, and only then runs
+// SaveDiagramImages, a separate path whose failure is logged and never fails
+// the save. A render in image mode goes through WriteDiagramImage too, so a
+// referenced file always matches what was rendered.
 
 // WriteDiagramImage stores a generated diagram image, skipping the write when
 // the content is unchanged; empty svg removes the file. Only generated names
@@ -37,6 +40,60 @@ func (m *Manager) WriteDiagramImage(templateFilename, name, svg string) error {
 		return err
 	}
 	return m.fs.SaveFile(full, svg)
+}
+
+// SaveDiagramImages is the image save path of a record: it reads the record as
+// persisted, draws every diagram field of the template and stores each drawing
+// (created, replaced only when changed, removed when there is nothing to draw).
+// It never touches the record itself.
+func (m *Manager) SaveDiagramImages(templateFilename, datafile string) error {
+	tpl, err := m.templates.LoadTemplate(templateFilename)
+	if err != nil {
+		return err
+	}
+	if tpl == nil {
+		return fmt.Errorf("storage: template %q not found", templateFilename)
+	}
+	keys := template.DiagramFieldKeys(tpl.Fields)
+	if len(keys) == 0 {
+		return nil
+	}
+	form := m.LoadForm(templateFilename, datafile)
+	if form == nil {
+		return fmt.Errorf("storage: record %q not found", datafile)
+	}
+	var firstErr error
+	for _, key := range keys {
+		name := template.DiagramImageName(templateFilename, datafile, key)
+		svg, ok := diagram.RenderField(tpl, key, form.Data)
+		if name == "" || !ok {
+			continue // not a valid binding: leave any old file to PruneDiagramImages
+		}
+		if err := m.WriteDiagramImage(templateFilename, name, svg); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+// SyncDiagramImages runs the image save path for every record of a template and
+// then prunes files that belong to no current record + diagram field. Run after
+// a template change, so existing records get (or lose) their images.
+func (m *Manager) SyncDiagramImages(templateFilename string) error {
+	files, err := m.ListForms(templateFilename)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for _, datafile := range files {
+		if err := m.SaveDiagramImages(templateFilename, datafile); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if err := m.PruneDiagramImages(templateFilename); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }
 
 // removeDiagramImages deletes a record's diagram files, by exact name, for the

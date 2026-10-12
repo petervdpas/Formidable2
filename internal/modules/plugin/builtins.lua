@@ -45,10 +45,8 @@ function formidable.rewrite.markdown(md, opts)
   local image_prefix = opts.image_path_prefix or ""
   if stem ~= "" and image_prefix ~= "" then
     local stem_pat = escape_pattern(stem)
-    -- A "?..." after the file name (the content version a redrawn diagram
-    -- image carries in the studio) is not part of the name: drop it.
     md = md:gsub(
-      "(!%[[^%]]*%]%()/api/images/" .. stem_pat .. "/([^)?]+)%??[^)]*%)",
+      "(!%[[^%]]*%]%()/api/images/" .. stem_pat .. "/([^)]+)%)",
       function(prefix, urlname)
         images[urlname] = true
         return prefix .. image_prefix .. urlname .. ")"

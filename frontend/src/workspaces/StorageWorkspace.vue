@@ -911,6 +911,9 @@ async function doSave() {
     patchSummary(df);
     await refreshSidebarItem(df);
     await refreshMarkdown();
+    // A save can change a drawing without changing the markdown text, so the
+    // markdown watcher alone would leave an open HTML panel stale.
+    if (htmlOpen.value) await refreshHtml();
   } else {
     toast.error("workspace.storage.save.error", [result.message ?? "?"]);
   }
@@ -1012,14 +1015,18 @@ async function refreshMarkdown() {
   }
 }
 
+// The backend renders the saved record's HTML itself (not from the markdown
+// text shown here): only it knows which images it just redrew, and it marks
+// those so the open panel reloads them.
 async function refreshHtml() {
   htmlError.value = "";
-  if (!markdown.value) {
+  if (!view.value?.saved || !draft.value?.template?.filename || !draft.value?.datafile) {
     html.value = "";
     return;
   }
   try {
-    html.value = await RenderSvc.RenderHTML(markdown.value);
+    const res = await RenderSvc.RenderForm(draft.value.template.filename, draft.value.datafile);
+    html.value = res?.html ?? "";
   } catch (err) {
     html.value = "";
     htmlError.value = backendErrMessage(err);

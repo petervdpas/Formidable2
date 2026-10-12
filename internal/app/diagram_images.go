@@ -5,14 +5,15 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// diagramImagePrune removes generated diagram image files that no longer belong
-// to a record + diagram field after a template change (e.g. the diagram field
-// was removed). Drawing the files is the render step's job, not this one's.
-type diagramImagePrune struct{ sto *storage.Manager }
+// diagramImageSync keeps diagram image files in step with a changed template:
+// it runs the image save path for every record (a diagram field was added, its
+// table changed) and prunes files whose record or field is gone. It must run
+// after tableColumnMigrator, which realigns the rows the diagrams read.
+type diagramImageSync struct{ sto *storage.Manager }
 
-func (p diagramImagePrune) OnTemplateUpdated(name string, _, _ *template.Template) error {
-	if p.sto == nil {
+func (s diagramImageSync) OnTemplateUpdated(name string, _, _ *template.Template) error {
+	if s.sto == nil {
 		return nil
 	}
-	return p.sto.PruneDiagramImages(name)
+	return s.sto.SyncDiagramImages(name)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
@@ -12,12 +13,13 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-func TestDiagramImagePrune_RemovingTheFieldRemovesItsFiles(t *testing.T) {
+func TestDiagramImageSync_TemplateChangeDrawsExistingRecordsAndPrunes(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	sys := system.NewManager(t.TempDir(), log)
 	tplM := template.NewManager(sys, "templates", log)
 	stoM := storage.NewManager(sys, sfr.NewManager(sys, log), tplM, "storage", log)
-	tplM.AddUpdateObserver(diagramImagePrune{sto: stoM})
+	tplM.AddUpdateObserver(tableColumnMigrator{sto: stoM})
+	tplM.AddUpdateObserver(diagramImageSync{sto: stoM})
 
 	table := template.Field{Key: "mapping", Type: "table", Format: template.TablePatternDataLineage}
 	diagramF := template.Field{Key: "lineage", Type: "diagram", Options: []any{
@@ -26,26 +28,30 @@ func TestDiagramImagePrune_RemovingTheFieldRemovesItsFiles(t *testing.T) {
 	tpl := func(fields ...template.Field) *template.Template {
 		return &template.Template{Name: "m", Filename: "m.yaml", Fields: append([]template.Field{{Key: "id", Type: "guid"}}, fields...)}
 	}
-	if err := tplM.SaveTemplate("m.yaml", tpl(table, diagramF)); err != nil {
+	if err := tplM.SaveTemplate("m.yaml", tpl(table)); err != nil {
 		t.Fatal(err)
 	}
-	if r := stoM.SaveForm(context.Background(), "m.yaml", "r1.meta.json", map[string]any{}); !r.Success {
+	r := stoM.SaveForm(context.Background(), "m.yaml", "r1.meta.json", map[string]any{
+		"mapping": []any{[]any{"A", "x", "Target", "y", "", ""}},
+	})
+	if !r.Success {
 		t.Fatal(r.Error)
 	}
 	name := template.DiagramImageName("m.yaml", "r1.meta.json", "lineage")
-	if err := stoM.WriteDiagramImage("m.yaml", name, "<svg/>"); err != nil {
-		t.Fatal(err)
+	if raw, _, _ := stoM.OpenImageFile("m.yaml", name); raw != nil {
+		t.Fatal("no diagram field yet, no file expected")
 	}
 
-	// An unrelated template save keeps the file.
-	if err := tplM.SaveTemplate("m.yaml", tpl(table, diagramF, template.Field{Key: "note", Type: "text"})); err != nil {
+	// Adding the diagram field draws the record that already existed.
+	if err := tplM.SaveTemplate("m.yaml", tpl(table, diagramF)); err != nil {
 		t.Fatal(err)
 	}
-	if raw, _, _ := stoM.OpenImageFile("m.yaml", name); raw == nil {
-		t.Fatal("file of a still-present diagram field was pruned")
+	raw, _, _ := stoM.OpenImageFile("m.yaml", name)
+	if !strings.Contains(string(raw), ">Target<") {
+		t.Fatalf("existing record not drawn on template change: %.80q", raw)
 	}
 
-	// Removing the diagram field removes its generated file.
+	// Removing it cleans the generated file up again.
 	if err := tplM.SaveTemplate("m.yaml", tpl(table)); err != nil {
 		t.Fatal(err)
 	}
