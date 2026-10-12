@@ -16,6 +16,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	tpl "github.com/petervdpas/formidable2/internal/modules/template"
+	"github.com/petervdpas/formidable2/internal/util/httpcache"
 )
 
 // Provider is the read surface the wiki needs from the dataprovider.
@@ -859,6 +860,9 @@ func (h *Handler) image(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", mime)
+	if httpcache.NotModified(w, r, raw) {
+		return
+	}
 	_, _ = w.Write(raw)
 }
 

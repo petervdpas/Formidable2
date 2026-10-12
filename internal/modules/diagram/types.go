@@ -36,7 +36,13 @@ const (
 const (
 	PortUnmapped  = "unmapped"
 	PortUnsourced = "unsourced"
+	// PortKey is an attribute that only takes part in an entity relation.
+	PortKey = "key"
 )
+
+// EdgeRelation is the Kind of an edge between two entities of one layer (a
+// join or a structural link), as opposed to a flow edge between layers.
+const EdgeRelation = "relation"
 
 // Node Link is an in-page target ("#id") the node points at; Class marks state
 // such as NodeUndefined.
@@ -83,4 +89,5 @@ type Edge struct {
 	Label string  `json:"label,omitempty"`
 	Note  string  `json:"note,omitempty"`
 	Title string  `json:"title,omitempty"`
+	Kind  string  `json:"kind,omitempty"`
 }

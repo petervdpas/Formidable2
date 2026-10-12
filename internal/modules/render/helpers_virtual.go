@@ -1,6 +1,8 @@
 package render
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	"github.com/aymerick/raymond"
@@ -73,7 +75,12 @@ func emitDiagram(options *raymond.Options, opts *Options, rootFields []template.
 	if f := findFieldByKey(rootFields, key); f != nil && f.Label != "" {
 		alt = strings.NewReplacer("[", "", "]", "").Replace(f.Label)
 	}
-	return "![" + alt + "](" + emitImage(name, opts) + ")"
+	url := emitImage(name, opts)
+	if opts.DiagramImageVersion {
+		sum := sha256.Sum256([]byte(svg))
+		url += "?v=" + hex.EncodeToString(sum[:4])
+	}
+	return "![" + alt + "](" + url + ")"
 }
 
 // virtualFieldMode reads {{virtual-field "key" "mode"}}; the hash form

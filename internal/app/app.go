@@ -283,6 +283,9 @@ func New(d Deps) (*App, error) {
 		return dataURL
 	}
 	slideoutRender := render.NewManager(tplM, stoM, slideoutImageURL, nil /*linkURL*/, d.Logger)
+	// The studio panels stay open across re-renders: a redrawn diagram keeps its
+	// file name, so its URL carries a content version or the page never reloads it.
+	slideoutRender.SetVersionedDiagramImages(true)
 	slideoutRender.SetImageBase64URL(slideoutImageBase64)
 
 	wikiImageURL := func(templateFilename, name string) string {

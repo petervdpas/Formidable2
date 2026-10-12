@@ -79,3 +79,40 @@ func TestManager_StoreWithoutImageSupportRendersInline(t *testing.T) {
 		t.Fatalf("md = %.120q err %v", md, err)
 	}
 }
+
+func TestManager_VersionedDiagramImagesOnlyWhenEnabled(t *testing.T) {
+	sys := system.NewManager(t.TempDir(), nil)
+	tplM := template.NewManager(sys, "templates", nil)
+	stoM := storage.NewManager(sys, sfr.NewManager(sys, nil), tplM, "storage", nil)
+	tpl := &template.Template{
+		Name: "M", Filename: "m.yaml", MarkdownTemplate: `{{virtual-field "lineage" "image"}}`,
+		Fields: []template.Field{
+			{Key: "id", Type: "guid"},
+			{Key: "mapping", Type: "table", Format: template.TablePatternDataLineage},
+			{Key: "lineage", Type: "diagram", Options: []any{map[string]any{"value": template.DiagramSource, "label": "mapping"}}},
+		},
+	}
+	if err := tplM.SaveTemplate("m.yaml", tpl); err != nil {
+		t.Fatal(err)
+	}
+	save := func(target string) {
+		if r := stoM.SaveForm(context.Background(), "m.yaml", "r1.meta.json", map[string]any{"mapping": []any{[]any{"A", "x", target, "y", "", ""}}}); !r.Success {
+			t.Fatal(r.Error)
+		}
+	}
+	url := func(_, n string) string { return "/api/images/m/" + n }
+	plain := NewManager(tplM, stoM, url, nil, nil)
+	studio := NewManager(tplM, stoM, url, nil, nil)
+	studio.SetVersionedDiagramImages(true)
+
+	save("First")
+	if md, _ := plain.RenderMarkdown("m.yaml", "r1.meta.json"); strings.Contains(md, "?v=") {
+		t.Fatalf("unversioned manager emitted a version: %q", md)
+	}
+	before, _ := studio.RenderMarkdown("m.yaml", "r1.meta.json")
+	save("Second")
+	after, _ := studio.RenderMarkdown("m.yaml", "r1.meta.json")
+	if !strings.Contains(before, "?v=") || before == after {
+		t.Fatalf("after a change the studio HTML must differ so the image reloads:\n before %q\n after  %q", before, after)
+	}
+}

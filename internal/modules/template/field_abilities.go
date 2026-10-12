@@ -348,8 +348,9 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"diagram": {
-		// A drawing of the record's own data (virtual: stores nothing). Its one
-		// option row names a root table whose pattern has a diagram counterpart.
+		// A drawing of the record's own data (virtual: stores nothing). Its option
+		// rows name a root table whose pattern has a diagram counterpart, plus an
+		// optional entity-relations table drawn into the same diagram.
 		ID: "diagram", Virtual: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
@@ -361,6 +362,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
 				{LabelKey: "workspace.templates.diagram.source", Input: "table-field", Defaults: map[string]any{"value": DiagramSource, "label": ""}},
+				{LabelKey: "workspace.templates.diagram.relations", Input: "relations-table", Defaults: map[string]any{"value": DiagramRelations, "label": ""}},
 			},
 			LockedColumns: []string{"value"},
 		},

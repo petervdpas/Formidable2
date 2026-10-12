@@ -263,6 +263,27 @@ export function formatError(error: ValidationError): FormattedError {
         args: [String(error.detail?.source ?? "?")],
       };
 
+    case "diagram-field-unknown-relations":
+      return {
+        key: "error.field.diagram_unknown_relations",
+        args: [String(error.detail?.relations ?? "?")],
+      };
+
+    case "diagram-field-relations-not-pattern":
+      return {
+        key: "error.field.diagram_relations_not_pattern",
+        args: [String(error.detail?.relations ?? "?")],
+      };
+
+    case "diagram-field-relations-not-root":
+      return {
+        key: "error.field.diagram_relations_not_root",
+        args: [String(error.detail?.relations ?? "?")],
+      };
+
+    case "diagram-field-relations-same-as-source":
+      return { key: "error.field.diagram_relations_same_as_source", args: [] };
+
     case "table-reference-unknown-target":
       return {
         key: "error.field.table_reference_unknown_target",

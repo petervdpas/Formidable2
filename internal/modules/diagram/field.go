@@ -9,24 +9,46 @@ import (
 )
 
 // RenderField draws diagram field fieldKey of t from a record's data. ok is
-// false when the field is not a validly bound diagram; an empty source table
-// is ok and yields "".
+// false when the field is not a validly bound diagram; empty tables are ok and
+// yield "". A lineage table draws the mapping, an entity-relations table its
+// relations; a bound second (relations) table is drawn into the same diagram.
 func RenderField(t *template.Template, fieldKey string, data map[string]any) (string, bool) {
 	b, ok := template.DiagramBindingOf(t, fieldKey)
-	if !ok || b.Projection != template.DiagramProjectionLineage {
+	if !ok {
 		return "", false
 	}
-	cols := LineageColumns{
-		FromEntity: b.Columns[template.DiagramFromEntity],
-		FromAttr:   b.Columns[template.DiagramFromAttr],
-		ToEntity:   b.Columns[template.DiagramToEntity],
-		ToAttr:     b.Columns[template.DiagramToAttr],
-		Label:      b.Columns[template.DiagramLabel],
-		Example:    b.Columns[template.DiagramExample],
+	var g Graph
+	switch b.Projection {
+	case template.DiagramProjectionLineage:
+		g = Lineage(tableRows(data[b.Source]), LineageColumns{
+			FromEntity: b.Columns[template.DiagramFromEntity],
+			FromAttr:   b.Columns[template.DiagramFromAttr],
+			ToEntity:   b.Columns[template.DiagramToEntity],
+			ToAttr:     b.Columns[template.DiagramToAttr],
+			Label:      b.Columns[template.DiagramLabel],
+			Example:    b.Columns[template.DiagramExample],
+		})
+		linkRules(&g, t, b, data)
+	case template.DiagramProjectionRelations:
+		g = Relations(tableRows(data[b.Source]), relationColumns(b.Columns))
+	default:
+		return "", false
 	}
-	g := Lineage(tableRows(data[b.Source]), cols)
-	linkRules(&g, t, b, data)
+	if b.Relations != "" {
+		AddRelations(&g, tableRows(data[b.Relations]), relationColumns(b.RelationColumns))
+	}
 	return SVG(Place(g)), true
+}
+
+func relationColumns(cols map[string]int) RelationColumns {
+	return RelationColumns{
+		Side:       cols[template.DiagramSide],
+		FromEntity: cols[template.DiagramFromEntity],
+		FromAttr:   cols[template.DiagramFromAttr],
+		ToEntity:   cols[template.DiagramToEntity],
+		ToAttr:     cols[template.DiagramToAttr],
+		Label:      cols[template.DiagramLabel],
+	}
 }
 
 // linkRules points each rule pill (shared, or part of a rule set) at its rule's in-page anchor when the rule

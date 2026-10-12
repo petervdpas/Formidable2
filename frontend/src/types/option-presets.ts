@@ -266,6 +266,12 @@ export function hasDiagramPattern(id: string): boolean {
   return !!tablePattern(id)?.diagram;
 }
 
+// tablePatternDiagram is the projection a pattern's table is drawn with
+// ("lineage", "relations"), or "" for regular / unknown.
+export function tablePatternDiagram(id: string): string {
+  return tablePattern(id)?.diagram ?? "";
+}
+
 // Column keys the editor renders read-only for a fixed-shape type
 // (e.g. the structural "value" of boolean's true/false or range's
 // min/max/step). Empty for free-form / unlocked types.

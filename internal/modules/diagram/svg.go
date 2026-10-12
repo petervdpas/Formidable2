@@ -28,6 +28,7 @@ const (
 	literalStroke = "#6b7280"
 	literalText   = "#1f2937"
 	edgeNeutral   = "#6b7280"
+	relationInk   = "#6d28d9"
 	legendH       = 28.0
 )
 
@@ -106,6 +107,9 @@ func SVG(l Layout) string {
 	b.WriteString(`<rect width="` + w + `" height="` + h + `" fill="` + canvasBg + `"/>`)
 	b.WriteString(`<g fill="none" stroke-width="1.4">`)
 	for i, e := range l.Edges {
+		if e.Edge.Kind == EdgeRelation {
+			continue
+		}
 		b.WriteString(`<path data-edge="` + strconv.Itoa(i) + `" d="` + curve(e) + `" stroke="` + EdgeColour(e.Edge.Label) + `">`)
 		b.WriteString(`<title>` + esc(edgeTitle(labels, e.Edge)) + `</title></path>`)
 	}
@@ -127,9 +131,58 @@ func SVG(l Layout) string {
 			writeEntity(&b, n)
 		}
 	}
+	// Relations go on top of the boxes so their end dots stay visible.
+	writeRelations(&b, l, labels)
 	writeLegend(&b, cats, l.Height)
 	b.WriteString(`</svg>`)
 	return b.String()
+}
+
+// RelationLabel is the text drawn on a relation: its label, unless that only
+// repeats the attribute name at both ends (the ports already say it).
+func RelationLabel(e Edge) string {
+	label := strings.TrimSpace(e.Label)
+	if label == "" || e.From.Port == "" || e.To.Port == "" {
+		return label
+	}
+	if canon(label) == e.From.Port && canon(label) == e.To.Port {
+		return ""
+	}
+	return label
+}
+
+// writeRelations draws entity relations in their own ink: a square bracket in
+// its lane beside the column with a dot at each end, the label running along it.
+func writeRelations(b *strings.Builder, l Layout, nodes map[string]Node) {
+	n := 0
+	for _, e := range l.Edges {
+		if e.Edge.Kind != EdgeRelation || len(e.Via) != 2 {
+			continue
+		}
+		laneX := e.Via[0].X
+		b.WriteString(`<g data-relation="` + strconv.Itoa(n) + `">`)
+		b.WriteString(`<path d="M` + num(e.X1) + ` ` + num(e.Y1) + ` H` + num(laneX) + ` V` + num(e.Y2) + ` H` + num(e.X2) +
+			`" fill="none" stroke="` + relationInk + `" stroke-width="1.8" stroke-linejoin="round">`)
+		title := endName(nodes, e.Edge.From) + " - " + endName(nodes, e.Edge.To)
+		if e.Edge.Label != "" {
+			title += " (" + e.Edge.Label + ")"
+		}
+		b.WriteString(`<title>` + esc(title) + `</title></path>`)
+		b.WriteString(`<circle cx="` + num(e.X1) + `" cy="` + num(e.Y1) + `" r="3" fill="` + relationInk + `"/>`)
+		b.WriteString(`<circle cx="` + num(e.X2) + `" cy="` + num(e.Y2) + `" r="3" fill="` + relationInk + `"/>`)
+		if label := RelationLabel(e.Edge); label != "" {
+			// Rotated -90: glyphs rise to the left of the anchor, so on the right
+			// side the baseline sits a line further out.
+			x := e.LabelX
+			if x > laneX {
+				x += 9
+			}
+			b.WriteString(`<text transform="rotate(-90 ` + num(x) + ` ` + num(e.LabelY) + `)" x="` + num(x) + `" y="` + num(e.LabelY) +
+				`" text-anchor="middle" font-size="10" font-weight="bold" fill="` + relationInk + `" stroke="` + canvasBg + `" stroke-width="3" paint-order="stroke">` + esc(label) + `</text>`)
+		}
+		b.WriteString(`</g>`)
+		n++
+	}
 }
 
 func edgeTitle(nodes map[string]Node, e Edge) string {
@@ -231,6 +284,9 @@ func writePill(b *strings.Builder, n NodeBox, fill, stroke, text, extra string) 
 func legendCategories(l Layout) []string {
 	seen := map[string]bool{}
 	for _, e := range l.Edges {
+		if e.Edge.Kind == EdgeRelation {
+			continue
+		}
 		for _, code := range splitCodes(e.Edge.Label) {
 			if c := category(code); c != "" {
 				seen[c] = true
@@ -276,6 +332,8 @@ func writeEntity(b *strings.Builder, n NodeBox) {
 			fill, extra = unmappedText, ` font-style="italic"`
 		case PortUnsourced:
 			fill = unsourcedText
+		case PortKey:
+			fill = unmappedText
 		}
 		b.WriteString(`<g data-port="` + esc(p.Port.ID) + `"`)
 		if p.Port.Class != "" {

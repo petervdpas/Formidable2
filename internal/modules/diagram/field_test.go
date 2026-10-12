@@ -108,3 +108,81 @@ func TestRenderField_RuleSetPartsLinkToDefinedRules(t *testing.T) {
 		t.Fatalf("got %s", svg)
 	}
 }
+
+func twoTableTemplate(withRelations bool) *template.Template {
+	t := lineageTemplate()
+	t.Fields = append(t.Fields, template.Field{
+		Key: "rels", Type: "table", Format: template.TablePatternEntityRelations,
+		Options: template.ApplyTablePattern(nil, template.TablePatternEntityRelations),
+	})
+	if withRelations {
+		t.Fields[1].Options = append(t.Fields[1].Options, map[string]any{"value": template.DiagramRelations, "label": "rels"})
+	}
+	return t
+}
+
+func twoTableData() map[string]any {
+	return map[string]any{
+		"mapping": []any{[]any{"Account", "Pcn", "Medewerker", "Personeelsnummer", "", ""}},
+		"rels": []any{
+			[]any{"target", "RequestContext", "", "Medewerker", "", "bevat"},
+			[]any{"source", "Account", "AfdelingId", "Afdeling", "Id", ""},
+		},
+	}
+}
+
+func TestRenderField_SecondTableFeedsRelationsIntoTheLineageDiagram(t *testing.T) {
+	svg, ok := RenderField(twoTableTemplate(true), "lineage", twoTableData())
+	if !ok {
+		t.Fatal("not ok")
+	}
+	for _, want := range []string{">Account<", ">Medewerker<", ">RequestContext<", ">Afdeling<", ">bevat<", `data-relation="1"`, `data-edge="0"`} {
+		if !strings.Contains(svg, want) {
+			t.Fatalf("missing %q in %s", want, svg)
+		}
+	}
+}
+
+func TestRenderField_RelationsTableIsOptional(t *testing.T) {
+	svg, ok := RenderField(twoTableTemplate(false), "lineage", twoTableData())
+	if !ok || strings.Contains(svg, "data-relation=") || strings.Contains(svg, ">RequestContext<") {
+		t.Fatalf("an unbound relations table must not be drawn: ok=%v %s", ok, svg)
+	}
+	plain, _ := RenderField(lineageTemplate(), "lineage", twoTableData())
+	if svg != plain {
+		t.Fatal("a diagram without a relations table must render exactly as before")
+	}
+}
+
+func TestRenderField_EmptyRelationsTableChangesNothing(t *testing.T) {
+	data := twoTableData()
+	data["rels"] = []any{}
+	with, _ := RenderField(twoTableTemplate(true), "lineage", data)
+	plain, _ := RenderField(lineageTemplate(), "lineage", data)
+	if with != plain {
+		t.Fatal("an empty relations table must leave the lineage diagram unchanged")
+	}
+}
+
+func TestRenderField_RelationsTableAsSourceDrawsOnlyRelations(t *testing.T) {
+	tpl := twoTableTemplate(false)
+	tpl.Fields[1].Options = []any{map[string]any{"value": template.DiagramSource, "label": "rels"}}
+	svg, ok := RenderField(tpl, "lineage", twoTableData())
+	if !ok || !strings.Contains(svg, ">RequestContext<") || !strings.Contains(svg, "data-relation=") {
+		t.Fatalf("ok=%v %s", ok, svg)
+	}
+	if strings.Contains(svg, "data-edge=") || strings.Contains(svg, ">Pcn<") {
+		t.Fatalf("the mapping table is not this diagram's source: %s", svg)
+	}
+	if empty, ok := RenderField(tpl, "lineage", map[string]any{}); !ok || empty != "" {
+		t.Fatalf("empty relations: ok=%v %q", ok, empty)
+	}
+}
+
+func TestRenderField_RelationsOnlyEntitiesAppearEvenWithoutMappings(t *testing.T) {
+	data := map[string]any{"rels": []any{[]any{"source", "A", "", "B", "", ""}}}
+	svg, ok := RenderField(twoTableTemplate(true), "lineage", data)
+	if !ok || !strings.Contains(svg, ">A<") || !strings.Contains(svg, ">B<") {
+		t.Fatalf("ok=%v %q", ok, svg)
+	}
+}

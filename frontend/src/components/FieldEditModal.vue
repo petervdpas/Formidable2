@@ -26,6 +26,7 @@ import {
   tablePatternRows,
   tablePatternLockedColumns,
   hasDiagramPattern,
+  tablePatternDiagram,
 } from "../types/option-presets";
 import { Service as TemplateSvc, Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Field, Facet, Formula, ValidationError } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -306,6 +307,9 @@ async function onFormatChange(next: string) {
       const key = typeof r.defaults.value === "string" ? r.defaults.value : "";
       if (key) labels[key] = t(r.labelKey);
     }
+    // Choice labels of the entity-relations "side" dropdown (values are fixed).
+    labels["side.source"] = t("workspace.templates.table_pattern.side.source");
+    labels["side.target"] = t("workspace.templates.table_pattern.side.target");
     draft.value.options = await TemplateSvc.ApplyTablePattern(draft.value.options ?? [], next, labels);
   } catch (e) {
     toast.error(backendErrMessage(e));
@@ -628,8 +632,26 @@ watch(
 );
 const optionSubRowChoices = computed(() => ({ "loop-field": loopFieldChoices.value }));
 
+// The optional second table: only top-level tables with the entity-relations
+// pattern, and never the table already chosen as source.
+const diagramRelationsChoices = computed(() => {
+  const src = optionRows.value.find((r) => r.value === "source")?.label ?? "";
+  const tables = (props.availableFields ?? []).filter(
+    (f) =>
+      f.type === "table" && f.key && f.key !== src && (f.level_scope ?? 0) === 0 &&
+      tablePatternDiagram(f.format ?? "") === "relations",
+  );
+  const labels: Record<string, string> = { "": t("workspace.templates.diagram.none") };
+  for (const f of tables) labels[f.key] = f.label ? `${f.label} (${f.key})` : f.key;
+  return { choices: ["", ...tables.map((f) => f.key)], choiceLabels: labels };
+});
+
 const diagramOptionFixedRows = computed(() =>
-  (optionFixedRows.value ?? []).map((r) => (r.input === "table-field" ? { ...r, ...diagramSourceChoices.value } : r)),
+  (optionFixedRows.value ?? []).map((r) => {
+    if (r.input === "table-field") return { ...r, ...diagramSourceChoices.value };
+    if (r.input === "relations-table") return { ...r, ...diagramRelationsChoices.value };
+    return r;
+  }),
 );
 const optionLockedColumns = computed(() =>
   tablePatternId.value ? tablePatternLockedColumns(tablePatternId.value) : lockedColumnsFor(draft.value?.type || ""),

@@ -142,3 +142,38 @@ func TestVirtualFieldHelper_EmptyDiagramEmitsNothingAndClearsItsFile(t *testing.
 		t.Fatalf("written = %+v, want one empty write so a stale file is removed", written)
 	}
 }
+
+func TestVirtualFieldHelper_VersionedImageURLChangesWithTheDrawing(t *testing.T) {
+	render := func(target string) string {
+		var written []writtenImage
+		opts := diagramOpts(true, &written)
+		opts.DiagramImageVersion = true
+		opts.ImageURL = func(n string) string { return "/api/images/m/" + n }
+		data := map[string]any{"mapping": []any{[]any{"A", "x", target, "y", "", ""}}}
+		got, err := RenderMarkdown(data, diagramRenderTpl(`{{virtual-field "lineage" "image"}}`), opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	name := template.DiagramImageName("m.yaml", "r1.meta.json", "lineage")
+	one, again, two := render("T"), render("T"), render("U")
+	prefix := "![lineage](/api/images/m/" + name + "?v="
+	if !strings.HasPrefix(one, prefix) || len(one) != len(prefix)+8+1 {
+		t.Fatalf("got %q, want %s<8 hex>)", one, prefix)
+	}
+	if one != again {
+		t.Fatal("the same drawing must keep the same URL")
+	}
+	if one == two {
+		t.Fatal("a changed drawing must change the URL, or a page that already shows it never reloads it")
+	}
+}
+
+func TestVirtualFieldHelper_ImageURLIsUnversionedByDefault(t *testing.T) {
+	var written []writtenImage
+	got, _ := RenderMarkdown(oneMapping, diagramRenderTpl(`{{virtual-field "lineage" "image"}}`), diagramOpts(true, &written))
+	if strings.Contains(got, "?v=") {
+		t.Fatalf("exports must get the plain file reference: %q", got)
+	}
+}

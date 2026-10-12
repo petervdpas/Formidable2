@@ -14,31 +14,70 @@ const (
 	DiagramToAttr     = "to_attr"
 	DiagramLabel      = "label"
 	DiagramExample    = "example"
+	DiagramSide       = "side"
+	// DiagramRelations is the diagram field's optional second option row: an
+	// entity-relations table drawn into the source table's diagram.
+	DiagramRelations = "relations"
 
-	DiagramProjectionLineage = "lineage"
+	DiagramProjectionLineage   = "lineage"
+	DiagramProjectionRelations = "relations"
+
+	RelationSideSource = "source"
+	RelationSideTarget = "target"
 )
 
-var diagramColumnRoles = []string{DiagramFromEntity, DiagramFromAttr, DiagramToEntity, DiagramToAttr, DiagramLabel, DiagramExample}
+var diagramColumnRoles = []string{DiagramFromEntity, DiagramFromAttr, DiagramToEntity, DiagramToAttr, DiagramLabel, DiagramExample, DiagramSide}
 
 // DiagramBinding is a diagram field resolved against its template: Columns maps
 // every column role to its index in the source table, -1 when absent.
+// Relations names the optional second table (entity-relations pattern) drawn
+// into the same diagram, with RelationColumns its role indices; "" when unset.
 type DiagramBinding struct {
-	Projection string
-	Source     string
-	Columns    map[string]int
+	Projection      string
+	Source          string
+	Columns         map[string]int
+	Relations       string
+	RelationColumns map[string]int
 }
 
-// diagramSourceKey reads the bound table key from a diagram field's options.
-func diagramSourceKey(f Field) string {
+// diagramOption reads the table key bound to one of a diagram field's option
+// rows (DiagramSource or DiagramRelations).
+func diagramOption(f Field, row string) string {
 	for _, o := range f.Options {
 		if m, ok := o.(map[string]any); ok {
-			if role, _ := m["value"].(string); role == DiagramSource {
+			if role, _ := m["value"].(string); role == row {
 				key, _ := m["label"].(string)
-				return key
+				return strings.TrimSpace(key)
 			}
 		}
 	}
 	return ""
+}
+
+func diagramSourceKey(f Field) string { return diagramOption(f, DiagramSource) }
+
+// patternColumns maps every diagram role to its column index in pattern table tf.
+func patternColumns(tf Field, p *tablePattern) map[string]int {
+	cols := tableColumnIndex(tf)
+	out := map[string]int{}
+	for _, role := range diagramColumnRoles {
+		out[role] = -1
+		if key, ok := p.roles[role]; ok {
+			if idx, ok := cols[key]; ok {
+				out[role] = idx
+			}
+		}
+	}
+	return out
+}
+
+func fieldByKey(fields []Field, key string) (Field, bool) {
+	for _, f := range fields {
+		if f.Key == key {
+			return f, true
+		}
+	}
+	return Field{}, false
 }
 
 func tableColumnIndex(f Field) map[string]int {
@@ -90,21 +129,15 @@ func DiagramBindingOf(t *Template, fieldKey string) (DiagramBinding, bool) {
 			return DiagramBinding{}, false
 		}
 		src := diagramSourceKey(f)
-		for _, tf := range t.Fields {
-			if tf.Key != src || tf.Type != "table" {
-				continue
-			}
-			p := tablePatternOf(tf)
-			cols := tableColumnIndex(tf)
-			b := DiagramBinding{Projection: p.diagram, Source: src, Columns: map[string]int{}}
-			for _, role := range diagramColumnRoles {
-				b.Columns[role] = -1
-				if idx, ok := cols[p.roles[role]]; ok {
-					b.Columns[role] = idx
-				}
-			}
-			return b, true
+		tf, _ := fieldByKey(t.Fields, src)
+		p := tablePatternOf(tf)
+		b := DiagramBinding{Projection: p.diagram, Source: src, Columns: patternColumns(tf, p)}
+		if rel := diagramOption(f, DiagramRelations); rel != "" {
+			rf, _ := fieldByKey(t.Fields, rel)
+			b.Relations = rel
+			b.RelationColumns = patternColumns(rf, tablePatternOf(rf))
 		}
+		return b, true
 	}
 	return DiagramBinding{}, false
 }
@@ -150,6 +183,28 @@ func diagramFieldErrorsAt(fields, canonical []Field, i int) []ValidationError {
 		return fail("diagram-field-source-not-root", "Diagram field source must be a top-level table, not inside a loop: "+src, map[string]any{"source": src})
 	case tablePatternOf(fields[idx]) == nil:
 		return fail("diagram-field-source-no-pattern", "Diagram field source table has no diagram pattern: "+src, map[string]any{"source": src})
+	}
+	rel := diagramOption(f, DiagramRelations)
+	if rel == "" {
+		return nil
+	}
+	detail := map[string]any{"relations": rel}
+	ridx := -1
+	for j, tf := range fields {
+		if tf.Key == rel && j != i {
+			ridx = j
+			break
+		}
+	}
+	switch {
+	case rel == src:
+		return fail("diagram-field-relations-same-as-source", "Diagram field relations table must differ from its source table: "+rel, detail)
+	case ridx < 0:
+		return fail("diagram-field-unknown-relations", "Diagram field relations table is not a field: "+rel, detail)
+	case fields[ridx].Type != "table" || canonicalTablePattern(fields[ridx].Format) != TablePatternEntityRelations:
+		return fail("diagram-field-relations-not-pattern", "Diagram field relations table must be a table with the entity-relations pattern: "+rel, detail)
+	case ridx < len(canonical) && canonical[ridx].LevelScope > 0:
+		return fail("diagram-field-relations-not-root", "Diagram field relations table must be a top-level table, not inside a loop: "+rel, detail)
 	}
 	return nil
 }

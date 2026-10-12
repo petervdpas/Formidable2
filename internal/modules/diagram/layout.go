@@ -28,6 +28,12 @@ const (
 	sweeps    = 12
 	unnamedID = "(?)"
 	kindDummy = "~dummy"
+
+	// Relation brackets: lanes outside a column, laneGap apart, labelled on
+	// their far side.
+	laneGap   = 16.0
+	labelPad  = 4.0
+	labelLine = 14.0
 )
 
 type Layout struct {
@@ -52,8 +58,10 @@ type PortBox struct {
 	Y    float64 `json:"y"`
 }
 
-// EdgePath runs from (X1,Y1) through Via to (X2,Y2). Via holds the lane an
-// edge takes through each column it skips, so it never runs behind a node.
+// EdgePath runs from (X1,Y1) through Via to (X2,Y2). For a flow edge Via holds
+// the lane it takes through each column it skips, so it never runs behind a
+// node. For a relation edge (Edge.Kind) Via holds the two corners of its
+// bracket: out of one box, along a lane beside the column, into the other.
 type EdgePath struct {
 	Edge Edge    `json:"edge"`
 	X1   float64 `json:"x1"`
@@ -61,7 +69,11 @@ type EdgePath struct {
 	X2   float64 `json:"x2"`
 	Y2   float64 `json:"y2"`
 	Via  []Point `json:"via,omitempty"`
-	cols []int
+	// LabelX/LabelY anchor a relation's label, which runs along its bracket:
+	// centred on the lane at LabelY, just outside it at LabelX.
+	LabelX float64 `json:"labelX,omitempty"`
+	LabelY float64 `json:"labelY,omitempty"`
+	cols   []int
 }
 
 type Point struct {
@@ -138,6 +150,8 @@ type placer struct {
 	edges  []Edge
 	chains [][]PortRef
 	segs   []Edge
+	// relations join two nodes of one column; they take no part in ordering.
+	relations []Edge
 }
 
 func newPlacer(g Graph) *placer {
@@ -170,9 +184,16 @@ func newPlacer(g Graph) *placer {
 		p.colOf[n.ID] = ci
 	}
 	for _, e := range g.Edges {
-		if p.anchorOK(e.From) && p.anchorOK(e.To) {
-			p.addEdge(e)
+		if !p.anchorOK(e.From) || !p.anchorOK(e.To) {
+			continue
 		}
+		if e.Kind == EdgeRelation {
+			if p.colOf[e.From.Node] == p.colOf[e.To.Node] {
+				p.relations = append(p.relations, e)
+			}
+			continue
+		}
+		p.addEdge(e)
 	}
 	x := margin
 	for _, col := range p.cols {
@@ -408,7 +429,116 @@ func (p *placer) paths() []EdgePath {
 
 func (p *placer) crossings() int { return Crossings(Layout{Edges: p.paths()}) }
 
+// bracket is one placed relation: its lane index on one side of its column.
+type bracket struct {
+	edge   Edge
+	col    int
+	right  bool
+	lo, hi float64
+	lane   int
+}
+
+// brackets assigns every relation a lane beside its column: the last column's
+// run on its right, all others on their left. Shorter relations take the inner
+// lanes; two relations share a lane only when their spans do not touch.
+func (p *placer) brackets() []bracket {
+	last := -1
+	for ci, col := range p.cols {
+		if len(col) > 0 {
+			last = ci
+		}
+	}
+	out := make([]bracket, 0, len(p.relations))
+	for _, e := range p.relations {
+		_, y1, _ := p.anchor(e.From)
+		_, y2, _ := p.anchor(e.To)
+		col := p.colOf[e.From.Node]
+		out = append(out, bracket{edge: e, col: col, right: col == last && col != 0, lo: min(y1, y2), hi: max(y1, y2)})
+	}
+	order := make([]int, len(out))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		return out[order[a]].hi-out[order[a]].lo < out[order[b]].hi-out[order[b]].lo
+	})
+	taken := map[int][]int{} // column -> indices already laned
+	for _, i := range order {
+		b := &out[i]
+		for lane := 0; ; lane++ {
+			free := true
+			for _, j := range taken[b.col] {
+				o := out[j]
+				if o.lane == lane && b.lo <= o.hi && o.lo <= b.hi {
+					free = false
+					break
+				}
+			}
+			if free {
+				b.lane = lane
+				break
+			}
+		}
+		taken[b.col] = append(taken[b.col], i)
+	}
+	return out
+}
+
+// colSpan is a column's horizontal extent over its real boxes.
+func (p *placer) colSpan(ci int) (left, right float64) {
+	first := true
+	for _, b := range p.cols[ci] {
+		if b.Node.Kind == kindDummy {
+			continue
+		}
+		if first || b.X < left {
+			left = b.X
+		}
+		if first || b.X+b.W > right {
+			right = b.X + b.W
+		}
+		first = false
+	}
+	return left, right
+}
+
 func (p *placer) layout() Layout {
+	brs := p.brackets()
+	// Brackets left of the first column need room: shift everything right.
+	need := 0.0
+	for _, b := range brs {
+		if b.col == 0 && !b.right {
+			need = max(need, float64(b.lane+1)*laneGap+labelLine)
+		}
+	}
+	if need > 0 {
+		for _, b := range p.boxes {
+			b.X += need
+		}
+	}
+	l := p.layoutFlow()
+	for _, b := range brs {
+		left, right := p.colSpan(b.col)
+		laneX := left - float64(b.lane+1)*laneGap
+		labelX := laneX - labelPad
+		if b.right {
+			laneX = right + float64(b.lane+1)*laneGap
+			labelX = laneX + labelPad
+		}
+		_, y1, fb := p.anchor(b.edge.From)
+		_, y2, tb := p.anchor(b.edge.To)
+		ep := EdgePath{Edge: b.edge, X1: fb.X, Y1: y1, X2: tb.X, Y2: y2, Via: []Point{{laneX, y1}, {laneX, y2}},
+			LabelX: labelX, LabelY: (y1 + y2) / 2}
+		if b.right {
+			ep.X1, ep.X2 = fb.X+fb.W, tb.X+tb.W
+			l.Width = max(l.Width, laneX+labelLine+margin)
+		}
+		l.Edges = append(l.Edges, ep)
+	}
+	return l
+}
+
+func (p *placer) layoutFlow() Layout {
 	l := Layout{Nodes: make([]NodeBox, 0, len(p.order)), Edges: p.paths()}
 	for _, id := range p.order {
 		b := p.boxes[id]

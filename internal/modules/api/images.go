@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"net/http"
 	"strconv"
+
+	"github.com/petervdpas/formidable2/internal/util/httpcache"
 )
 
 // imageBytes serves GET /api/images/{tpl}/{filename}: raw image bytes, or the data: URL string
@@ -59,6 +61,11 @@ func (h *Handler) imageBytes(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(body))
 	default:
 		w.Header().Set("Content-Type", mime)
+		// An image can change under the same name (a redrawn diagram, a
+		// replaced upload): make every use revalidate against its content.
+		if httpcache.NotModified(w, r, bytes) {
+			return
+		}
 		w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 		// Honor the declared type (don't sniff), and for SVG neutralize the
 		// direct-navigation vector: an <img>/mask reference is already sandboxed,

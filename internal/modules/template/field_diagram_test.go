@@ -32,13 +32,6 @@ func TestDiagramField_IsVirtualAndKnown(t *testing.T) {
 	}
 }
 
-func TestDiagramField_OnlyOptionRowIsSource(t *testing.T) {
-	rows := fieldDescriptors["diagram"].OptionsShape.Rows
-	if len(rows) != 1 || rows[0].Defaults["value"] != DiagramSource || rows[0].Input != "table-field" {
-		t.Fatalf("rows = %+v", rows)
-	}
-}
-
 func TestDiagramField_BoundToLineageTableIsValid(t *testing.T) {
 	tpl := &Template{Fields: []Field{lineageTable("mapping"), diagramField("mapping")}}
 	if got := diagramErrs(Validate(tpl)); len(got) != 0 {
@@ -84,7 +77,7 @@ func TestDiagramBindingOf_ColumnsComeFromThePattern(t *testing.T) {
 	want := DiagramBinding{
 		Projection: DiagramProjectionLineage,
 		Source:     "mapping",
-		Columns:    map[string]int{DiagramFromEntity: 0, DiagramFromAttr: 1, DiagramToEntity: 2, DiagramToAttr: 3, DiagramLabel: 5, DiagramExample: 4},
+		Columns:    map[string]int{DiagramFromEntity: 0, DiagramFromAttr: 1, DiagramToEntity: 2, DiagramToAttr: 3, DiagramLabel: 5, DiagramExample: 4, DiagramSide: -1},
 	}
 	if !ok || !reflect.DeepEqual(b, want) {
 		t.Fatalf("binding = %+v ok=%v, want %+v", b, ok, want)

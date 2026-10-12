@@ -69,6 +69,20 @@ type Manager struct {
 
 	// fontFace supplies @font-face rules for user-uploaded fonts; nil = none.
 	fontFace func() (string, error)
+
+	// versionDiagramImages: see Options.DiagramImageVersion.
+	versionDiagramImages bool
+}
+
+// SetVersionedDiagramImages makes stored diagram images carry a content
+// version in their URL. For a target whose page stays open across re-renders
+// and whose image URLs are served over HTTP (the studio panels); leave off
+// for exports.
+func (m *Manager) SetVersionedDiagramImages(on bool) {
+	if m == nil {
+		return
+	}
+	m.versionDiagramImages = on
 }
 
 // SetFontFaceProvider wires the source of @font-face CSS for user fonts (the
@@ -209,6 +223,7 @@ func (m *Manager) optionsFor(templateName, datafile string) *Options {
 			return m.imageBase64URL(templateName, name)
 		}
 	}
+	opts.DiagramImageVersion = m.versionDiagramImages
 	if store, ok := m.storage.(diagramImageStore); ok && datafile != "" {
 		opts.DiagramImage = func(name, svg string) bool {
 			if err := store.WriteDiagramImage(templateName, name, svg); err != nil {
