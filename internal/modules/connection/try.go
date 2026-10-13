@@ -398,11 +398,21 @@ func (iv *Invoker) Call(ctx context.Context, req CallRequest) (*CallResult, erro
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 && !safeMethods[op.Method] {
+		return nil, &InvokeError{
+			Code: CodeRedirected,
+			Message: fmt.Sprintf("%s %s answered %s and was not followed, so the write is not sent twice",
+				op.Method, requestPath(target, op.Path), resp.Status),
+			Status: resp.StatusCode,
+			Body:   capErrorBody(body),
+		}
+	}
 	if resp.StatusCode >= 400 {
 		return nil, &InvokeError{
 			Code:    statusCode(resp.StatusCode),
 			Message: fmt.Sprintf("%s %s returned %s", op.Method, requestPath(target, op.Path), resp.Status),
 			Status:  resp.StatusCode,
+			Body:    capErrorBody(body),
 		}
 	}
 
@@ -492,4 +502,13 @@ func redactQuery(target string, conn *Connection) string {
 	q.Set(conn.Auth.Name, "***")
 	u.RawQuery = q.Encode()
 	return u.String()
+}
+
+// capErrorBody keeps the start of a refusal's body: enough for a reason, not a
+// whole page.
+func capErrorBody(body []byte) string {
+	if len(body) > maxErrorBody {
+		body = body[:maxErrorBody]
+	}
+	return string(body)
 }

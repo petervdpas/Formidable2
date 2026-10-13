@@ -79,7 +79,10 @@
 
 .toast.info    { border-left-color: var(--color-accent); }
 .toast.success { border-left-color: var(--color-success); }
-.toast.warn    { border-left-color: var(--color-warning); }
+/* --color-warning is dark enough to be read as text on a light theme, which
+   makes a bar of it look red. A light theme may set a brighter accent for
+   bars; themes without one keep their warning colour. */
+.toast.warn    { border-left-color: var(--color-warning-accent, var(--color-warning)); }
 .toast.error   { border-left-color: var(--color-error); }
 
 /* TransitionGroup hooks - slide-in from the right, slide-out, FLIP for

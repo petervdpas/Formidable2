@@ -173,6 +173,30 @@ async function create(): Promise<void> {
   }
 }
 
+// The one deliberate way a template is overwritten: the user asks for the
+// plugin's version. The button waits for unsaved edits, since the copy stored
+// in the plugin is what gets written.
+const canReplace = computed<boolean>(
+  () => !!activeRow.value?.installed && activeRow.value.differs && !activeRow.value.error && !dirty.value,
+);
+
+async function replace(): Promise<void> {
+  if (!props.pluginId || !activeFile.value) return;
+  const file = activeFile.value;
+  if (!window.confirm(t("workspace.plugins.heldtemplates.replace_confirm", [file]))) return;
+  busy.value = true;
+  try {
+    rows.value = (await PluginSvc.ReplaceShippedTemplate(props.pluginId, file)) ?? [];
+    emit("changed");
+    await refreshTemplates();
+    toast.success("workspace.plugins.heldtemplates.replace_success", [file]);
+  } catch (err) {
+    toast.error("workspace.plugins.heldtemplates.replace_error", [backendErrMessage(err)]);
+  } finally {
+    busy.value = false;
+  }
+}
+
 async function remove(): Promise<void> {
   if (!props.pluginId || !activeFile.value) return;
   const file = activeFile.value;
@@ -283,6 +307,7 @@ watch(() => props.pluginId, () => void load(), { immediate: true });
           <dt class="meta-key small">{{ t("workspace.plugins.heldtemplates.fact_state") }}</dt>
           <dd class="small">
             <template v-if="isPending">{{ t("workspace.plugins.heldtemplates.state_pending") }}</template>
+            <template v-else-if="activeRow?.installed && activeRow.differs">{{ t("workspace.plugins.heldtemplates.state_differs") }}</template>
             <template v-else-if="activeRow?.installed">{{ t("workspace.plugins.heldtemplates.state_installed") }}</template>
             <template v-else>{{ t("workspace.plugins.heldtemplates.state_not_installed") }}</template>
           </dd>
@@ -318,6 +343,15 @@ watch(() => props.pluginId, () => void load(), { immediate: true });
           @click="takeOver(activeFile)"
         >
           {{ t("workspace.plugins.heldtemplates.retake") }}
+        </button>
+        <button
+          v-if="activeRow?.installed && activeRow.differs"
+          type="button"
+          class="tool-btn danger"
+          :disabled="busy || !canReplace"
+          @click="replace"
+        >
+          {{ t("workspace.plugins.heldtemplates.replace") }}
         </button>
         <button
           v-else

@@ -11,8 +11,9 @@ import (
 // fakeTemplates stands in for the template store: have is what exists in the
 // context folder, by file name and YAML.
 type fakeTemplates struct {
-	have    map[string]string
-	creates int
+	have     map[string]string
+	creates  int
+	replaces int
 }
 
 func newFakeTemplates() *fakeTemplates { return &fakeTemplates{have: map[string]string{}} }
@@ -325,6 +326,22 @@ func TestTemplateNoticeDoesNotReplaceAClientNoticeOfTheSameName(t *testing.T) {
 	}
 }
 
+func (f *fakeTemplates) ReplaceTemplate(name string, yaml []byte) error {
+	if _, err := f.InspectTemplate(name, yaml); err != nil {
+		return err
+	}
+	if !f.HasTemplate(name) {
+		return errors.New("template: not found: " + name)
+	}
+	f.have[name] = string(yaml)
+	f.replaces++
+	return nil
+}
+
+func (f *fakeTemplates) TemplateDiffers(name string, yaml []byte) (bool, error) {
+	return f.have[name] != string(yaml), nil
+}
+
 func (f *fakeTemplates) TemplateFiles() ([]string, error) {
 	var out []string
 	for name := range f.have {
@@ -427,5 +444,92 @@ func TestListBindableTemplates_OffersHeldTemplatesBeforeTheyExist(t *testing.T) 
 	}
 	if _, err := m.ListBindableTemplates("absent"); !errors.Is(err, ErrPluginNotFound) {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestReplaceShippedTemplate_OnlyOnRequestAndOnlyAnExistingTemplate(t *testing.T) {
+	m, _, store, _ := templateManager(t, "function run() return 1 end")
+	if _, err := m.SaveShippedTemplate("demo", "invoice.yaml", heldYAML); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.ReplaceShippedTemplate("demo", "invoice.yaml"); err == nil {
+		t.Error("replace made a template that did not exist; that is what create is for")
+	}
+
+	store.have["invoice.yaml"] = "name: Edited by the user\n"
+	rows, err := m.ListShippedTemplates("demo")
+	if err != nil || !rows[0].Installed || !rows[0].Differs {
+		t.Fatalf("rows = %+v, err = %v; the difference must be reported", rows, err)
+	}
+	// Everything short of the explicit request leaves the user's version in place.
+	if _, err := m.CreateShippedTemplate("demo", "invoice.yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Run("demo", "run", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if store.have["invoice.yaml"] != "name: Edited by the user\n" || store.replaces != 0 {
+		t.Fatalf("the template was replaced without being asked: %q", store.have["invoice.yaml"])
+	}
+
+	rows, err = m.ReplaceShippedTemplate("demo", "invoice.yaml")
+	if err != nil {
+		t.Fatalf("ReplaceShippedTemplate: %v", err)
+	}
+	if store.have["invoice.yaml"] != heldYAML || store.replaces != 1 || rows[0].Differs {
+		t.Errorf("template = %q, replaces = %d, rows = %+v", store.have["invoice.yaml"], store.replaces, rows)
+	}
+}
+
+func TestReplaceShippedTemplate_Unhappy(t *testing.T) {
+	m, _, store, _ := templateManager(t, "")
+	store.have["invoice.yaml"] = "name: Mine\n"
+	if _, err := m.ReplaceShippedTemplate("demo", "invoice.yaml"); !errors.Is(err, ErrTemplateNotShipped) {
+		t.Errorf("not held: err = %v", err)
+	}
+	if _, err := m.ReplaceShippedTemplate("demo", "../invoice.yaml"); !errors.Is(err, ErrManifestInvalid) {
+		t.Errorf("bad name: err = %v", err)
+	}
+	if _, err := m.ReplaceShippedTemplate("absent", "invoice.yaml"); !errors.Is(err, ErrPluginNotFound) {
+		t.Errorf("unknown plugin: err = %v", err)
+	}
+	if store.have["invoice.yaml"] != "name: Mine\n" {
+		t.Error("a refused replace changed the template")
+	}
+}
+
+func TestImportArchive_SaysWhenAnExistingTemplateDiffers(t *testing.T) {
+	m, pluginsDir := newTestManager(t)
+	store := newFakeTemplates()
+	store.have["same.yaml"] = heldYAML
+	store.have["changed.yaml"] = "name: Mine\n"
+	m.deps.Editor = kvTestFS{}
+	m.deps.Templates = store
+	zipPath := filepath.Join(filepath.Dir(pluginsDir), "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json":            validManifest("imported"),
+		"main.lua":               "function run(ctx) end\n",
+		"templates/same.yaml":    heldYAML,
+		"templates/changed.yaml": heldYAML,
+	})
+	res, err := m.ImportArchive(zipPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	differs := map[string]bool{}
+	for _, r := range res.Templates {
+		if r.Status != ClientExists {
+			t.Errorf("%s: status = %s", r.File, r.Status)
+		}
+		differs[r.File] = r.Differs
+	}
+	if differs["same.yaml"] || !differs["changed.yaml"] {
+		t.Errorf("differs = %v", differs)
+	}
+	if store.have["changed.yaml"] != "name: Mine\n" {
+		t.Error("the import replaced a template")
 	}
 }

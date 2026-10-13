@@ -1,0 +1,1189 @@
+{
+  "components": {
+    "schemas": {
+      "Account": {
+        "properties": {
+          "closed": {
+            "description": "A closed account takes no new entries.",
+            "type": "boolean"
+          },
+          "code": {
+            "description": "The code entries name it by.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Its name.",
+            "type": "string"
+          },
+          "nature": {
+            "enum": [
+              "balance",
+              "result"
+            ],
+            "type": "string"
+          },
+          "rgs": {
+            "description": "Its Dutch RGS code, if it has one.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Administration": {
+        "properties": {
+          "basis": {
+            "description": "cash or accrual; empty until chosen.",
+            "type": "string"
+          },
+          "id": {
+            "description": "Its id; send it as X-Themis-Administration to be refused when another is open.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Its name.",
+            "type": "string"
+          },
+          "test": {
+            "description": "A test administration.",
+            "type": "boolean"
+          },
+          "vatPackage": {
+            "description": "The VAT package applied to it; empty without VAT.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BalanceRow": {
+        "properties": {
+          "account": {
+            "description": "The code of the account.",
+            "type": "string"
+          },
+          "balance": {
+            "description": "Debit less credit, in cents.",
+            "type": "integer"
+          },
+          "credit": {
+            "description": "Cents, as a positive number.",
+            "type": "integer"
+          },
+          "debit": {
+            "description": "Cents.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Its name.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Contact": {
+        "additionalProperties": true,
+        "description": "A contact as the contact list holds it: name, kind, IBAN and more.",
+        "type": "object"
+      },
+      "Entry": {
+        "properties": {
+          "createdAt": {
+            "description": "When it was first written.",
+            "type": "string"
+          },
+          "date": {
+            "description": "YYYY-MM-DD.",
+            "type": "string"
+          },
+          "description": {
+            "description": "What the entry is.",
+            "type": "string"
+          },
+          "guid": {
+            "description": "What the entry is known by, here and anywhere else.",
+            "type": "string"
+          },
+          "href": {
+            "description": "Where this entry is.",
+            "type": "string"
+          },
+          "journal": {
+            "description": "The code of the journal.",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array"
+          },
+          "number": {
+            "description": "Its number in its journal and year; 0 for a concept.",
+            "type": "integer"
+          },
+          "postedAt": {
+            "description": "When it was posted; empty for a concept.",
+            "type": "string"
+          },
+          "reversedBy": {
+            "description": "The GUID of the entry that reverses this one, if any.",
+            "type": "string"
+          },
+          "reverses": {
+            "description": "The GUID of the entry this one reverses, if any.",
+            "type": "string"
+          },
+          "source": {
+            "description": "Who sent it.",
+            "type": "string"
+          },
+          "sourceRef": {
+            "description": "The sender's reference.",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "concept",
+              "posted"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EntryIn": {
+        "properties": {
+          "date": {
+            "description": "YYYY-MM-DD.",
+            "type": "string"
+          },
+          "description": {
+            "description": "What the entry is.",
+            "type": "string"
+          },
+          "guid": {
+            "description": "Optional. The GUID the entry gets; leave it out and Themis makes one. GET /api/guid hands one out.",
+            "type": "string"
+          },
+          "journal": {
+            "description": "The code of the journal.",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array"
+          },
+          "source": {
+            "description": "Who sent it, such as \"register\". Empty becomes \"api\".",
+            "type": "string"
+          },
+          "sourceRef": {
+            "description": "Your own reference, such as a receipt number. The same source and reference are taken once.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "journal",
+          "date",
+          "description",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "EntryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "description": "How many were asked for.",
+            "type": "integer"
+          },
+          "offset": {
+            "description": "How many were skipped.",
+            "type": "integer"
+          },
+          "total": {
+            "description": "How many entries match.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "error": {
+            "description": "A slug to match on, such as \"unauthorized\", or the key of a refusal by the books, such as \"ledger.error.immutable\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "Guid": {
+        "properties": {
+          "guid": {
+            "description": "A new GUID.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Index": {
+        "properties": {
+          "administration": {
+            "$ref": "#/components/schemas/Administration"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "name": {
+            "description": "Themis.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The running version.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Journal": {
+        "properties": {
+          "closed": {
+            "description": "A closed journal takes no new entries.",
+            "type": "boolean"
+          },
+          "code": {
+            "description": "The code entries name it by.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Its name.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Line": {
+        "properties": {
+          "account": {
+            "description": "The code of the account.",
+            "type": "string"
+          },
+          "amount": {
+            "description": "In cents. Positive is debit, negative is credit. Never zero.",
+            "type": "integer"
+          },
+          "memo": {
+            "description": "A note on this line.",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "account",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "Product": {
+        "additionalProperties": true,
+        "description": "A product as the product list holds it: code, name, use (sell or buy), rate and more.",
+        "type": "object"
+      },
+      "Tag": {
+        "properties": {
+          "key": {
+            "description": "The key of the tag.",
+            "type": "string"
+          },
+          "value": {
+            "description": "Its value.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "TrialBalance": {
+        "properties": {
+          "credit": {
+            "description": "Cents.",
+            "type": "integer"
+          },
+          "debit": {
+            "description": "Cents.",
+            "type": "integer"
+          },
+          "from": {
+            "description": "YYYY-MM-DD or empty.",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BalanceRow"
+            },
+            "type": "array"
+          },
+          "to": {
+            "description": "YYYY-MM-DD or empty.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "key": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Reach the books of the open administration from another program. Amounts are whole cents. What you send arrives as a concept; a person posts it in Themis. Send the key from Settings as a bearer token.",
+    "title": "Themis API",
+    "version": "dev"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api": {
+      "get": {
+        "operationId": "getIndex",
+        "parameters": [
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Index"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "What this API is and where to go."
+      }
+    },
+    "/api/accounts": {
+      "get": {
+        "operationId": "listAccounts",
+        "parameters": [
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Account"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "The accounts of the ledger scheme."
+      }
+    },
+    "/api/administration": {
+      "get": {
+        "operationId": "getAdministration",
+        "parameters": [
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Administration"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "The administration that is open."
+      }
+    },
+    "/api/contacts": {
+      "get": {
+        "operationId": "listContacts",
+        "parameters": [
+          {
+            "description": "Words to look for. What holds every one of them is listed, whatever the capitals and the order; everything when left out.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Contact"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "Suppliers, customers, banks and other contacts."
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "operationId": "getDocs",
+        "responses": {
+          "200": {
+            "description": "The answer."
+          }
+        },
+        "security": [],
+        "summary": "This API described for a person."
+      }
+    },
+    "/api/entries": {
+      "get": {
+        "operationId": "listEntries",
+        "parameters": [
+          {
+            "description": "concept, posted or all (the default).",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The code of a journal.",
+            "in": "query",
+            "name": "journal",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The code of an account.",
+            "in": "query",
+            "name": "account",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "At most 500; 100 when left out.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "How many to skip.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day, YYYY-MM-DD.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day, YYYY-MM-DD.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryPage"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "Entries, newest last, by status, period, journal or account."
+      },
+      "post": {
+        "operationId": "createEntry",
+        "parameters": [
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "Taken as a concept."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The books refuse it; the error names why."
+          }
+        },
+        "summary": "Send an entry. It arrives as a concept; a person posts it."
+      }
+    },
+    "/api/entries/{guid}": {
+      "delete": {
+        "operationId": "deleteEntry",
+        "parameters": [
+          {
+            "description": "The GUID of the entry.",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "Withdraw a concept. A posted entry is refused."
+      },
+      "get": {
+        "operationId": "getEntry",
+        "parameters": [
+          {
+            "description": "The GUID of the entry.",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "One entry."
+      },
+      "put": {
+        "operationId": "replaceEntry",
+        "parameters": [
+          {
+            "description": "The GUID of the entry.",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The books refuse it; the error names why."
+          }
+        },
+        "summary": "Replace a concept. A posted entry is refused."
+      }
+    },
+    "/api/guid": {
+      "get": {
+        "operationId": "newGuid",
+        "parameters": [
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Guid"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "A new GUID, for an entry you are about to send."
+      }
+    },
+    "/api/journals": {
+      "get": {
+        "operationId": "listJournals",
+        "parameters": [
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Journal"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "The journals of the ledger scheme."
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "operationId": "getDescription",
+        "responses": {
+          "200": {
+            "description": "The answer."
+          }
+        },
+        "security": [],
+        "summary": "This API described as OpenAPI 3."
+      }
+    },
+    "/api/products": {
+      "get": {
+        "operationId": "listProducts",
+        "parameters": [
+          {
+            "description": "sell or buy; both when left out.",
+            "in": "query",
+            "name": "use",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Words to look for. What holds every one of them is listed, whatever the capitals and the order; everything when left out.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "What is sold and what is bought regularly."
+      }
+    },
+    "/api/trial-balance": {
+      "get": {
+        "operationId": "getTrialBalance",
+        "parameters": [
+          {
+            "description": "First day, YYYY-MM-DD.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day, YYYY-MM-DD.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialBalance"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "The trial balance over a period, from posted entries."
+      }
+    }
+  },
+  "security": [
+    {
+      "key": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8484"
+    }
+  ]
+}

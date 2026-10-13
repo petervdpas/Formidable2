@@ -27,6 +27,9 @@ type TemplateInstaller interface {
 	TemplateSource(name string) (string, error)
 	// TemplateFiles lists the template file names in the open context folder.
 	TemplateFiles() ([]string, error)
+	// ReplaceTemplate overwrites an existing template; TemplateDiffers says whether the existing one differs from yaml in more than its author.
+	ReplaceTemplate(name string, yaml []byte) error
+	TemplateDiffers(name string, yaml []byte) (bool, error)
 }
 
 // ErrTemplateNotCreated: a template the plugin holds could not be created when a Run started.
@@ -106,21 +109,24 @@ type TemplateAdmin interface {
 }
 
 // ShippedTemplate is one template a plugin holds, as the editor's Templates tab shows it.
-// Installed says whether a template of that file name exists in the open context folder.
+// Installed says whether a template of that file name exists in the open context folder; Differs, whether that one differs from the plugin's copy.
 type ShippedTemplate struct {
 	File      string `json:"file"`
 	Name      string `json:"name,omitempty"`
 	Fields    int    `json:"fields"`
 	Installed bool   `json:"installed"`
+	Differs   bool   `json:"differs"`
 	Error     string `json:"error,omitempty"`
 }
 
 // TemplateInstall is the outcome for one template on a zip import; Status uses the Client* vocabulary.
+// Differs is set on ClientExists when the template that is there differs from the plugin's copy, so the user knows a replace is on offer.
 type TemplateInstall struct {
-	Plugin string `json:"plugin"`
-	File   string `json:"file"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	Plugin  string `json:"plugin"`
+	File    string `json:"file"`
+	Status  string `json:"status"`
+	Differs bool   `json:"differs,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // validTemplateFile accepts a plain "<name>.yaml", so the name cannot leave the plugin's templates folder; the template store applies its own rule on top.
@@ -192,6 +198,9 @@ func (m *Manager) ListShippedTemplates(pluginID string) ([]ShippedTemplate, erro
 			var info TemplateInfo
 			if info, err = m.deps.Templates.InspectTemplate(file, []byte(raw)); err == nil {
 				row.Name, row.Fields = info.Name, info.Fields
+				if row.Installed {
+					row.Differs, err = m.deps.Templates.TemplateDiffers(file, []byte(raw))
+				}
 			}
 		}
 		if err != nil {
@@ -266,6 +275,23 @@ func (m *Manager) CreateShippedTemplate(pluginID, file string) ([]ShippedTemplat
 	return m.ListShippedTemplates(pluginID)
 }
 
+// ReplaceShippedTemplate overwrites the template in the context folder with the copy the plugin holds. It exists for one case: the user asks for the plugin's improved version.
+// Nothing else replaces a template, because doing so discards the user's own changes to it. Records stay; a field the new version drops keeps its stored values but is no longer shown.
+func (m *Manager) ReplaceShippedTemplate(pluginID, file string) ([]ShippedTemplate, error) {
+	p, err := m.templatePlugin(pluginID)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := m.heldTemplate(p, file)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.deps.Templates.ReplaceTemplate(file, []byte(raw)); err != nil {
+		return nil, err
+	}
+	return m.ListShippedTemplates(pluginID)
+}
+
 // RemoveShippedTemplate takes the template out of the plugin. A template created from it in the context folder stays, with its records.
 func (m *Manager) RemoveShippedTemplate(pluginID, file string) ([]ShippedTemplate, error) {
 	p, err := m.templatePlugin(pluginID)
@@ -307,6 +333,9 @@ func (m *Manager) installTemplates(p Plugin) []TemplateInstall {
 			m.log.Warn("plugin: template create failed", "plugin", p.Manifest.ID, "template", file, "err", err)
 		case created:
 			res.Status = ClientInstalled
+		default:
+			// Left alone, but say so when the plugin's copy is a different version.
+			res.Differs, _ = m.deps.Templates.TemplateDiffers(file, []byte(raw))
 		}
 		out = append(out, res)
 	}

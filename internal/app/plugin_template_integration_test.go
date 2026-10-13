@@ -123,6 +123,19 @@ func TestPluginTemplate_AnEditedTemplateSurvivesANewerCopyInThePlugin(t *testing
 	if after, _ := tplM.LoadTemplate("invoice.yaml"); after.Name != "Invoice, as I changed it" {
 		t.Errorf("the user's template was replaced: name = %q", after.Name)
 	}
+
+	// The plugin's improved version is there for the taking, and only then.
+	rows, err := pluginM.ListShippedTemplates("invoicer")
+	if err != nil || !rows[0].Installed || !rows[0].Differs {
+		t.Fatalf("rows = %+v, err = %v", rows, err)
+	}
+	rows, err = pluginM.ReplaceShippedTemplate("invoicer", "invoice.yaml")
+	if err != nil || rows[0].Differs {
+		t.Fatalf("ReplaceShippedTemplate: rows = %+v, err = %v", rows, err)
+	}
+	if after, _ := tplM.LoadTemplate("invoice.yaml"); after.Name != "Invoice v2" || after.Fields[1].ClientID != "themis" {
+		t.Errorf("after the replace: %+v", after)
+	}
 }
 
 func TestPluginTemplate_CopyFromTheContextIntoThePluginAndRefuseABadOne(t *testing.T) {

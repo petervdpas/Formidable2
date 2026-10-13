@@ -165,3 +165,97 @@ func TestSourceAndExists(t *testing.T) {
 		t.Error("a name outside the folder reads as existing")
 	}
 }
+
+func TestReplaceFromYAML_OverwritesAndTellsUpdateObservers(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.CreateFromYAML("invoice.yaml", []byte(invoiceYAML)); err != nil {
+		t.Fatal(err)
+	}
+	var sawOld, sawNew string
+	m.AddUpdateObserver(UpdateObserverFunc(func(name string, old, updated *Template) error {
+		sawOld, sawNew = old.Name, updated.Name
+		return nil
+	}))
+	improved := strings.Replace(invoiceYAML, "name: Invoice", "name: Invoice v2", 1) +
+		"  - key: due\n    type: date\n    label: Due\n"
+	if err := m.ReplaceFromYAML("invoice.yaml", []byte(improved)); err != nil {
+		t.Fatalf("ReplaceFromYAML: %v", err)
+	}
+	got, _ := m.LoadTemplate("invoice.yaml")
+	if got.Name != "Invoice v2" || len(got.Fields) != 3 || got.Filename != "invoice.yaml" {
+		t.Errorf("template = %+v", got)
+	}
+	if sawOld != "Invoice" || sawNew != "Invoice v2" {
+		t.Errorf("update observer saw %q -> %q", sawOld, sawNew)
+	}
+}
+
+func TestReplaceFromYAML_Unhappy(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.ReplaceFromYAML("absent.yaml", []byte(invoiceYAML)); !errors.Is(err, ErrNotFound) {
+		t.Errorf("missing template: err = %v", err)
+	}
+	if list, _ := m.ListTemplates(); len(list) != 0 {
+		t.Error("replacing a missing template created it")
+	}
+	if err := m.CreateFromYAML("invoice.yaml", []byte(invoiceYAML)); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := m.Source("invoice.yaml")
+	for label, tc := range map[string][2]string{
+		"bad name": {"../invoice.yaml", invoiceYAML},
+		"not yaml": {"invoice.yaml", "\t: ["},
+		"empty":    {"invoice.yaml", " "},
+		"invalid":  {"invoice.yaml", "name: Bad\nfields:\n  - key: a\n    type: text\n    label: A\n  - key: a\n    type: text\n    label: B\n"},
+	} {
+		if err := m.ReplaceFromYAML(tc[0], []byte(tc[1])); err == nil {
+			t.Errorf("%s: replaced", label)
+		}
+	}
+	if after, _ := m.Source("invoice.yaml"); after != before {
+		t.Error("a refused replace changed the template")
+	}
+}
+
+func TestDiffersFromYAML(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.SetAuthorReader(fixedAuthor{})
+	if err := m.CreateFromYAML("invoice.yaml", []byte(invoiceYAML)); err != nil {
+		t.Fatal(err)
+	}
+	same := map[string]string{
+		"the same text":         invoiceYAML,
+		"another filename line": strings.Replace(invoiceYAML, "something-else.yaml", "whatever.yaml", 1),
+		"keys in another order": "fields:\n  - label: Number\n    type: text\n    key: number\n  - type: number\n    key: amount\n    label: Amount\nname: Invoice\n",
+		"another author":        invoiceYAML + "author_name: Someone\nauthor_email: s@example.com\n",
+	}
+	for label, src := range same {
+		if differs, err := m.DiffersFromYAML("invoice.yaml", []byte(src)); err != nil || differs {
+			t.Errorf("%s: differs = %v, err = %v; want the same", label, differs, err)
+		}
+	}
+	changed := map[string]string{
+		"a renamed template": strings.Replace(invoiceYAML, "name: Invoice", "name: Invoice v2", 1),
+		"an added field":     invoiceYAML + "  - key: due\n    type: date\n    label: Due\n",
+		"a changed label":    strings.Replace(invoiceYAML, "label: Amount", "label: Total", 1),
+	}
+	for label, src := range changed {
+		if differs, err := m.DiffersFromYAML("invoice.yaml", []byte(src)); err != nil || !differs {
+			t.Errorf("%s: differs = %v, err = %v; want a difference", label, differs, err)
+		}
+	}
+	if _, err := m.DiffersFromYAML("absent.yaml", []byte(invoiceYAML)); err == nil {
+		t.Error("comparing against a missing template gave an answer")
+	}
+	if _, err := m.DiffersFromYAML("invoice.yaml", []byte("\t: [")); err == nil {
+		t.Error("comparing against text that is not YAML gave an answer")
+	}
+	// Comparing must not alter what LoadTemplate hands out next.
+	if got, _ := m.LoadTemplate("invoice.yaml"); got.AuthorName == "" {
+		t.Error("the comparison blanked the author on the cached template")
+	}
+}
+
+type fixedAuthor struct{}
+
+func (fixedAuthor) Author() (string, string) { return "Peter", "p@example.com" }

@@ -63,7 +63,9 @@ const NoticeTemplate = "template"
 // ClientInstall is the outcome for one api-client a plugin declares. Error is set only on ClientFailed.
 // Derived marks an installed client whose definition was drafted from the document alone, so the user knows to review more than the credential.
 // Kind is empty for an api-client and NoticeTemplate when the thing a script created is a template; ID then holds its file name.
+// Differs is only used with NoticeTemplate and ClientExists: the template that is there is not the plugin's version.
 type ClientInstall struct {
+	Differs bool   `json:"differs,omitempty"`
 	Kind    string `json:"kind,omitempty"`
 	Plugin  string `json:"plugin"`
 	ID      string `json:"id"`

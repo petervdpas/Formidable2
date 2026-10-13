@@ -772,14 +772,29 @@ func (a pluginClientAdapter) ClientSnapshot(item map[string]any, keys []string) 
 	return snap, nil
 }
 
-// clientErr flattens an InvokeError to "code: message". Its Error() is JSON
-// for the Wails boundary, which reads as noise in a Lua error string.
+// clientErr turns an InvokeError into the plugin's ClientError: flat
+// "code: message" as text (the InvokeError's own Error() is JSON for the Wails
+// boundary), with status, delivery and the remote's answer kept beside it for
+// formidable.client.attempt.
 func clientErr(err error) error {
 	var ie *connection.InvokeError
-	if errors.As(err, &ie) {
-		return fmt.Errorf("%s: %s", ie.Code, ie.Message)
+	if !errors.As(err, &ie) {
+		return err
 	}
-	return err
+	out := &plugin.ClientError{
+		Code:     string(ie.Code),
+		Message:  ie.Message,
+		Status:   ie.Status,
+		Delivery: ie.Delivery(),
+		Body:     ie.Body,
+	}
+	if strings.TrimSpace(ie.Body) != "" {
+		var data any
+		if json.Unmarshal([]byte(ie.Body), &data) == nil {
+			out.Data = data
+		}
+	}
+	return out
 }
 
 // pdfExporter is the slice of *pdf.Service a plugin reaches: the same export
@@ -874,3 +889,11 @@ func (a pluginTemplateInstaller) TemplateSource(name string) (string, error) {
 }
 
 func (a pluginTemplateInstaller) TemplateFiles() ([]string, error) { return a.tpl.ListTemplates() }
+
+func (a pluginTemplateInstaller) ReplaceTemplate(name string, yaml []byte) error {
+	return a.tpl.ReplaceFromYAML(name, yaml)
+}
+
+func (a pluginTemplateInstaller) TemplateDiffers(name string, yaml []byte) (bool, error) {
+	return a.tpl.DiffersFromYAML(name, yaml)
+}

@@ -1,0 +1,54 @@
+id: themis
+name: Themis API
+spec_file: themis.json
+auth:
+    kind: bearer
+resources:
+    - key: customers
+      label: Customers
+      list:
+        operation: listContacts
+      id_path: /id
+      label_path: /name
+      search_param: q
+      fields:
+        - key: kind
+          label: Kind
+          pointer: /kind
+        - key: vat_number
+          label: VAT number
+          pointer: /vatNumber
+        - key: registration
+          label: Registration
+          pointer: /registration
+        - key: email
+          label: Email
+          pointer: /email
+        - key: phone
+          label: Phone
+          pointer: /phone
+        - key: address
+          label: Address
+          pointer: /address
+        - key: iban
+          label: IBAN
+          pointer: /iban
+    - key: products
+      label: Products
+      list:
+        operation: listProducts
+        params:
+            use: sell
+      id_path: /id
+      label_path: /name
+      search_param: q
+      fields:
+        - key: code
+          label: Code
+          pointer: /code
+        - key: rate
+          label: Rate
+          pointer: /rate
+        - key: description
+          label: Description
+          pointer: /description

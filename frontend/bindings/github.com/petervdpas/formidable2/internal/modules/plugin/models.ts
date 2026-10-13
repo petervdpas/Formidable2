@@ -42,8 +42,10 @@ export class BindableTemplate {
  * ClientInstall is the outcome for one api-client a plugin declares. Error is set only on ClientFailed.
  * Derived marks an installed client whose definition was drafted from the document alone, so the user knows to review more than the credential.
  * Kind is empty for an api-client and NoticeTemplate when the thing a script created is a template; ID then holds its file name.
+ * Differs is only used with NoticeTemplate and ClientExists: the template that is there is not the plugin's version.
  */
 export class ClientInstall {
+    "differs"?: boolean;
     "kind"?: string;
     "plugin": string;
     "id": string;
@@ -429,13 +431,14 @@ export class ShippedClient {
 
 /**
  * ShippedTemplate is one template a plugin holds, as the editor's Templates tab shows it.
- * Installed says whether a template of that file name exists in the open context folder.
+ * Installed says whether a template of that file name exists in the open context folder; Differs, whether that one differs from the plugin's copy.
  */
 export class ShippedTemplate {
     "file": string;
     "name"?: string;
     "fields": number;
     "installed": boolean;
+    "differs": boolean;
     "error"?: string;
 
     /** Creates a new ShippedTemplate instance. */
@@ -448,6 +451,9 @@ export class ShippedTemplate {
         }
         if (!("installed" in $$source)) {
             this["installed"] = false;
+        }
+        if (!("differs" in $$source)) {
+            this["differs"] = false;
         }
 
         Object.assign(this, $$source);
@@ -464,11 +470,13 @@ export class ShippedTemplate {
 
 /**
  * TemplateInstall is the outcome for one template on a zip import; Status uses the Client* vocabulary.
+ * Differs is set on ClientExists when the template that is there differs from the plugin's copy, so the user knows a replace is on offer.
  */
 export class TemplateInstall {
     "plugin": string;
     "file": string;
     "status": string;
+    "differs"?: boolean;
     "error"?: string;
 
     /** Creates a new TemplateInstall instance. */

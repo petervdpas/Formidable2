@@ -142,6 +142,7 @@ async function importArchive(zipPath: string, overwrite: boolean): Promise<Impor
           plugin: tpl.plugin,
           id: tpl.file,
           status: tpl.status,
+          differs: tpl.differs,
           error: tpl.error,
         }),
     );

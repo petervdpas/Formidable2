@@ -109,6 +109,15 @@ the operation accepts. A string is sent exactly as given, so a file read with
 it. Multipart uploads are not supported. A failed call raises an error that
 starts with its code, such as `forbidden` or `timeout`.
 
+`formidable.client.attempt` takes the same arguments and does not raise for a
+failed call. It returns `result, nil` or `nil, err`, where `err` holds `code`,
+`message`, `status`, `delivery`, and `body` and `data` with what the service
+answered. `delivery` is `not_sent`, `answered` or `unknown`. Use it for a
+write: the script can read why the service refused, and after a timeout it
+knows the outcome is unknown, so it can ask the service before sending again.
+A write is never sent twice by Formidable itself: a redirect on a writing
+call is not followed and comes back as the error `redirected`.
+
 ## PDF from a plugin
 
 `formidable.pdf.export(template, datafile, opts)` makes the PDF of one form,
@@ -140,6 +149,10 @@ what it fetches. On the plugin's **Shipped templates** tab:
   it brings. Run it once from the Plugins workspace to create that template.
 - **Take over current version** copies the template as it is now back into the
   plugin.
+- **Replace with plugin's version** shows when the template in the context
+  folder differs from the plugin's copy. It overwrites the template with the
+  plugin's version after you confirm. This is the only way a template is
+  replaced: an import, a run or a script never does it. Records are kept.
 
 A script can do the same with `formidable.template.install(file)`. It returns
 `true` when the template was created and `false` when one of that name was

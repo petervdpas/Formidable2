@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/petervdpas/formidable2/internal/modules/connection"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
@@ -602,5 +604,98 @@ end`,
 	}
 	if gotType != "application/pdf" || gotPath != "/entries/abc-123/document" || hits != 1 {
 		t.Errorf("remote saw %q on %s, %d times", gotType, gotPath, hits)
+	}
+}
+
+func TestPluginClient_AttemptReadsARefusalAndRecoversAfterAnUnknownOutcome(t *testing.T) {
+	// The remote books an entry once per guid, as Themis does: a repeat is a 409 with the reason in the body.
+	booked := map[string]bool{}
+	posts := 0
+	slowOnce := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		posts++
+		var in map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		guid, _ := in["guid"].(string)
+		if booked[guid] {
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error": "ledger.error.duplicate_guid"}`))
+			return
+		}
+		booked[guid] = true
+		if slowOnce {
+			// Booked, but the answer never makes it back in time.
+			slowOnce = false
+			time.Sleep(400 * time.Millisecond)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"guid": "` + guid + `"}`))
+	}))
+	defer srv.Close()
+
+	pluginsDir := filepath.Join(t.TempDir(), "plugins")
+	dir := filepath.Join(pluginsDir, "kennel")
+	for name, body := range map[string]string{
+		"plugin.json": `{"manifest_version": 1, "id": "kennel", "name": "Kennel", "version": "0.1.0",
+			"api_clients": ["kennel-api"], "commands": [{"id": "send", "label": "Send"}]}`,
+		"main.lua": `
+function send(ctx)
+  local body = { guid = "g-1", name = "Bo" }
+  local res, err = formidable.client.attempt("kennel-api", "addDog", nil, body)
+  local first = err and err.delivery or "ok"
+  local outcome = "sent"
+  if err and err.delivery == "unknown" then
+    -- Not known whether it arrived: ask by sending the same guid again.
+    res, err = formidable.client.attempt("kennel-api", "addDog", nil, body)
+    if err and err.status == 409 and err.data and err.data.error == "ledger.error.duplicate_guid" then
+      outcome = "it had arrived the first time"
+    end
+  end
+  return { first = first, outcome = outcome, status = err and err.status, reason = err and err.data and err.data.error }
+end`,
+		"api-clients/specs/kennel-api.json": fmt.Sprintf(docOnlySpec, srv.URL),
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clientM := connection.NewManager(&clientStoreFS{files: map[string]string{}}, nil)
+	inv := connection.NewInvoker(clientM, fixedSecret{value: "s3cret"}, connection.WithTimeout(100*time.Millisecond))
+	adapter := pluginClientAdapter{m: clientM, inv: inv}
+	pluginM := plugin.NewManager(plugin.ManagerDeps{PluginsDir: pluginsDir, Client: adapter, Clients: adapter,
+		Editor: system.NewManager(t.TempDir(), nil)})
+	if err := pluginM.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pluginM.GenerateShippedClient("kennel", "kennel-api"); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := pluginM.Run("kennel", "send", nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	want := map[string]any{
+		"first": "unknown", "outcome": "it had arrived the first time",
+		"status": float64(409), "reason": "ledger.error.duplicate_guid",
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+	if posts != 2 || len(booked) != 1 {
+		t.Errorf("posts = %d, booked = %d; the script sent twice on purpose and the remote booked once", posts, len(booked))
 	}
 }

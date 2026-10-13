@@ -929,13 +929,13 @@ func buildPluginTable(L *lua.LState, info PluginInfo) *lua.LTable {
 	return t
 }
 
-// buildClientTable mounts formidable.client.{list, resources, operations, items, fetch, call, snapshot} over the api-client store, plus exists / create when admin is wired.
+// buildClientTable mounts formidable.client.{list, resources, operations, items, fetch, call, attempt, snapshot} over the api-client store, plus exists / create when admin is wired.
 // declared is Manifest.APIClients: a script reaches only those, so the manifest stays the complete list of what a plugin calls or creates.
 func buildClientTable(L *lua.LState, ctx context.Context, c ClientAccess, admin ClientAdmin, declared []string) *lua.LTable {
 	t := L.NewTable()
 	defer mountClientAdmin(L, t, admin, declared)
 	if c == nil {
-		for _, name := range []string{"list", "resources", "operations", "items", "fetch", "call", "snapshot"} {
+		for _, name := range []string{"list", "resources", "operations", "items", "fetch", "call", "attempt", "snapshot"} {
 			t.RawSetString(name, L.NewFunction(nilGuard("client")))
 		}
 		return t
@@ -1033,47 +1033,35 @@ func buildClientTable(L *lua.LState, ctx context.Context, c ClientAccess, admin 
 	}))
 	// call(id, operation, params, body, content_type) reaches an operation straight from the document, so a client derived from a document alone is usable without any resource binding.
 	// It sends whatever method the operation declares. body is optional: a table goes out as JSON (or as a form when that is all the operation accepts), a string verbatim.
+	// A failure raises "client.call: <code>: <message>".
 	t.RawSetString("call", L.NewFunction(func(L *lua.LState) int {
-		id := checkClient(L, "call")
-		operation := L.CheckString(2)
-		var params map[string]string
-		if v := L.Get(3); v != lua.LNil {
-			tbl, ok := v.(*lua.LTable)
-			if !ok {
-				L.RaiseError("client.call: params must be a table of name = value (or nil)")
-				return 0
-			}
-			var err error
-			if params, err = clientParams(tbl); err != nil {
-				L.RaiseError("client.call: %v", err)
-				return 0
-			}
-		}
-		var body any
-		switch v := L.Get(4); v.Type() {
-		case lua.LTNil:
-		case lua.LTTable, lua.LTString, lua.LTNumber, lua.LTBool:
-			body = luaToGo(v)
-		default:
-			L.RaiseError("client.call: body must be a table, string, number or boolean")
+		res, err, ok := clientCall(L, ctx, c, "call", checkClient)
+		if !ok {
 			return 0
 		}
-		contentType := ""
-		if v := L.Get(5); v != lua.LNil {
-			s, ok := v.(lua.LString)
-			if !ok {
-				L.RaiseError("client.call: content type must be a string")
-				return 0
-			}
-			contentType = string(s)
-		}
-		res, err := c.ClientCall(ctx, id, operation, params, body, contentType)
 		if err != nil {
 			L.RaiseError("client.call: %v", err)
 			return 0
 		}
 		L.Push(goToLua(L, res))
 		return 1
+	}))
+	// attempt takes the same arguments as call and never raises for a failed call: it returns `result, nil` or `nil, err`.
+	// err is a table {code, message, status, delivery, body, data}: delivery is "not_sent", "answered" or "unknown", and body / data hold what the remote answered with a failing status.
+	// It is the form for a write: the script can read the refusal's reason, and can tell "refused" from "unknown" before deciding to send again. Bad arguments still raise.
+	t.RawSetString("attempt", L.NewFunction(func(L *lua.LState) int {
+		res, err, ok := clientCall(L, ctx, c, "attempt", checkClient)
+		if !ok {
+			return 0
+		}
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(goToLua(L, clientErrorTable(err)))
+			return 2
+		}
+		L.Push(goToLua(L, res))
+		L.Push(lua.LNil)
+		return 2
 	}))
 	// snapshot makes no remote call, so it names no client: it only shapes an item the script already holds.
 	t.RawSetString("snapshot", L.NewFunction(func(L *lua.LState) int {
@@ -1291,4 +1279,72 @@ func buildPDFTable(L *lua.LState, p PDFAccess) *lua.LTable {
 		return 1
 	}))
 	return t
+}
+
+// ClientError is a failed client call with what a script needs to act on it. Error() is the flat "code: message" a raised error shows.
+// Delivery is "not_sent", "answered" or "unknown"; Body is what the remote answered with a failing status and Data the same parsed as JSON, when it is JSON.
+type ClientError struct {
+	Code     string
+	Message  string
+	Status   int
+	Delivery string
+	Body     string
+	Data     any
+}
+
+func (e *ClientError) Error() string { return e.Code + ": " + e.Message }
+
+// clientErrorTable is the err value formidable.client.attempt hands a script. An error that is not a ClientError says so with delivery "unknown": nothing is known about it.
+func clientErrorTable(err error) map[string]any {
+	var ce *ClientError
+	if !errors.As(err, &ce) {
+		return map[string]any{"code": "error", "message": err.Error(), "status": 0, "delivery": "unknown"}
+	}
+	out := map[string]any{"code": ce.Code, "message": ce.Message, "status": ce.Status, "delivery": ce.Delivery}
+	if ce.Body != "" {
+		out["body"] = ce.Body
+	}
+	if ce.Data != nil {
+		out["data"] = ce.Data
+	}
+	return out
+}
+
+// clientCall reads (id, operation, params, body, content_type) and runs the call. ok is false when an argument error was raised.
+func clientCall(L *lua.LState, ctx context.Context, c ClientAccess, fn string, checkClient func(*lua.LState, string) string) (map[string]any, error, bool) {
+	id := checkClient(L, fn)
+	operation := L.CheckString(2)
+	var params map[string]string
+	if v := L.Get(3); v != lua.LNil {
+		tbl, ok := v.(*lua.LTable)
+		if !ok {
+			L.RaiseError("client.%s: params must be a table of name = value (or nil)", fn)
+			return nil, nil, false
+		}
+		var err error
+		if params, err = clientParams(tbl); err != nil {
+			L.RaiseError("client.%s: %v", fn, err)
+			return nil, nil, false
+		}
+	}
+	var body any
+	switch v := L.Get(4); v.Type() {
+	case lua.LTNil:
+	case lua.LTTable, lua.LTString, lua.LTNumber, lua.LTBool:
+		body = luaToGo(v)
+	default:
+		L.RaiseError("client.%s: body must be a table, string, number or boolean", fn)
+		return nil, nil, false
+	}
+	contentType := ""
+	if v := L.Get(5); v != lua.LNil {
+		s, ok := v.(lua.LString)
+		if !ok {
+			L.RaiseError("client.%s: content type must be a string", fn)
+			return nil, nil, false
+		}
+		contentType = string(s)
+	}
+	res, err := c.ClientCall(ctx, id, operation, params, body, contentType)
+	return res, err, true
 }

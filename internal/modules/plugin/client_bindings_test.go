@@ -174,6 +174,7 @@ func TestClient_UndeclaredClientIsRefusedBeforeAnyCall(t *testing.T) {
 		"resources":  `return formidable.client.resources("private")`,
 		"operations": `return formidable.client.operations("private")`,
 		"call":       `return formidable.client.call("private", "listPets")`,
+		"attempt":    `return formidable.client.attempt("private", "listPets")`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := &fakeClients{}
@@ -240,7 +241,7 @@ func TestClient_RemoteErrorIsCatchableWithPcall(t *testing.T) {
 }
 
 func TestClient_NotConfigured(t *testing.T) {
-	for _, fn := range []string{"list()", `resources("x")`, `items("x", "y")`, `fetch("x", "y", "1")`, `snapshot({ id = "1" })`, `operations("x")`, `call("x", "op")`} {
+	for _, fn := range []string{"list()", `resources("x")`, `items("x", "y")`, `fetch("x", "y", "1")`, `snapshot({ id = "1" })`, `operations("x")`, `call("x", "op")`, `attempt("x", "op")`} {
 		_, err := runClientScript(t, nil, []string{"x"}, `return formidable.client.`+fn)
 		if err == nil || !strings.Contains(err.Error(), "client: not configured") {
 			t.Errorf("%s: err = %v", fn, err)
@@ -421,5 +422,96 @@ func TestClient_CallRefusesBadBodyArguments(t *testing.T) {
 				t.Fatalf("err = %v, calls = %d", err, f.calls)
 			}
 		})
+	}
+}
+
+func TestClient_AttemptReturnsTheResultAndNoError(t *testing.T) {
+	f := &fakeClients{item: map[string]any{"status": float64(201), "data": map[string]any{"number": float64(7)}}}
+	res, err := runClientScript(t, f, []string{"themis"}, `
+		local r, e = formidable.client.attempt("themis", "createEntry", { dry = true }, { guid = "g1" }, "application/json")
+		return { number = r.data.number, err = e == nil }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := res.Value.(map[string]any)
+	if got["number"] != float64(7) || got["err"] != true {
+		t.Errorf("result = %v", got)
+	}
+	if f.gotOp != "createEntry" || f.gotParams["dry"] != "true" || f.gotType != "application/json" {
+		t.Errorf("call = %s %v %q", f.gotOp, f.gotParams, f.gotType)
+	}
+}
+
+func TestClient_AttemptHandsTheScriptTheRefusal(t *testing.T) {
+	f := &fakeClients{err: &ClientError{
+		Code: "remote_error", Message: "POST /api/entries returned 409 Conflict", Status: 409, Delivery: "answered",
+		Body: `{"error":"ledger.error.duplicate_guid"}`, Data: map[string]any{"error": "ledger.error.duplicate_guid"},
+	}}
+	res, err := runClientScript(t, f, []string{"themis"}, `
+		local r, e = formidable.client.attempt("themis", "createEntry", nil, { guid = "g1" })
+		return { r = r == nil, code = e.code, status = e.status, delivery = e.delivery, reason = e.data.error, body = e.body, message = e.message }`)
+	if err != nil {
+		t.Fatalf("attempt must not raise for a failed call: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	want := map[string]any{
+		"r": true, "code": "remote_error", "status": float64(409), "delivery": "answered",
+		"reason": "ledger.error.duplicate_guid", "body": `{"error":"ledger.error.duplicate_guid"}`,
+		"message": "POST /api/entries returned 409 Conflict",
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+}
+
+func TestClient_AttemptTellsUnknownFromNotSent(t *testing.T) {
+	for delivery, code := range map[string]string{"unknown": "timeout", "not_sent": "not_configured"} {
+		f := &fakeClients{err: &ClientError{Code: code, Message: "x", Delivery: delivery}}
+		res, err := runClientScript(t, f, []string{"themis"}, `
+			local _, e = formidable.client.attempt("themis", "createEntry", nil, {})
+			return e.delivery`)
+		if err != nil || res.Value != delivery {
+			t.Errorf("%s: value = %v, err = %v", code, res.Value, err)
+		}
+	}
+}
+
+func TestClient_AttemptWithAnUnclassifiedErrorClaimsNothing(t *testing.T) {
+	f := &fakeClients{err: errors.New("something else")}
+	res, err := runClientScript(t, f, []string{"themis"}, `
+		local _, e = formidable.client.attempt("themis", "createEntry")
+		return { code = e.code, delivery = e.delivery, message = e.message }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := res.Value.(map[string]any)
+	if got["code"] != "error" || got["delivery"] != "unknown" || got["message"] != "something else" {
+		t.Errorf("err = %v", got)
+	}
+}
+
+func TestClient_AttemptStillRaisesForBadArguments(t *testing.T) {
+	for name, args := range map[string]string{
+		"undeclared client": `"private", "createEntry"`,
+		"params a string":   `"themis", "createEntry", "x"`,
+		"body a function":   `"themis", "createEntry", nil, function() end`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := &fakeClients{}
+			_, err := runClientScript(t, f, []string{"themis"}, `return formidable.client.attempt(`+args+`)`)
+			if err == nil || !strings.Contains(err.Error(), "client.attempt") || f.calls != 0 {
+				t.Fatalf("err = %v, calls = %d", err, f.calls)
+			}
+		})
+	}
+}
+
+func TestClient_CallStillRaisesAFlatString(t *testing.T) {
+	f := &fakeClients{err: &ClientError{Code: "forbidden", Message: "GET /x returned 403 Forbidden", Status: 403, Delivery: "answered", Body: "secret detail"}}
+	_, err := runClientScript(t, f, []string{"themis"}, `return formidable.client.call("themis", "getAdministration")`)
+	if err == nil || !strings.Contains(err.Error(), "client.call: forbidden: GET /x returned 403 Forbidden") || strings.Contains(err.Error(), "secret detail") {
+		t.Fatalf("err = %v", err)
 	}
 }

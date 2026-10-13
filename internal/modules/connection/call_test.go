@@ -2,10 +2,12 @@ package connection
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func customerCall(id string) CallRequest {
@@ -401,5 +403,142 @@ func TestCall_LargeBinaryBodyIsNotCappedByTheResponseLimit(t *testing.T) {
 	}
 	if got.body != big {
 		t.Errorf("%d of %d bytes arrived", len(got.body), len(big))
+	}
+}
+
+func invokeError(t *testing.T, err error) *InvokeError {
+	t.Helper()
+	var ie *InvokeError
+	if !errors.As(err, &ie) {
+		t.Fatalf("err = %v, want an *InvokeError", err)
+	}
+	return ie
+}
+
+func TestCall_RefusalCarriesWhatTheRemoteAnswered(t *testing.T) {
+	iv, _ := writesFixture(t, 409, `{"error": "ledger.error.duplicate_guid"}`)
+	_, err := iv.Call(context.Background(), CallRequest{Connection: "shop", Operation: "addCustomer", Body: map[string]any{"guid": "g1"}})
+	ie := invokeError(t, err)
+	if ie.Status != 409 || ie.Body != `{"error": "ledger.error.duplicate_guid"}` || ie.Delivery() != DeliveryAnswered {
+		t.Errorf("status = %d, body = %q, delivery = %s", ie.Status, ie.Body, ie.Delivery())
+	}
+}
+
+func TestCall_RefusalBodyIsCapped(t *testing.T) {
+	iv, _, _ := shopFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(422)
+		_, _ = w.Write([]byte(strings.Repeat("x", maxErrorBody+500)))
+	})
+	_, err := iv.Call(context.Background(), customerCall("7"))
+	if ie := invokeError(t, err); len(ie.Body) != maxErrorBody {
+		t.Errorf("kept %d bytes of the refusal, want %d", len(ie.Body), maxErrorBody)
+	}
+}
+
+func TestCall_WriteIsNeverSentTwiceThroughARedirect(t *testing.T) {
+	for _, status := range []int{301, 302, 303, 307, 308} {
+		hits := 0
+		iv, _, _ := shopFixture(t, func(w http.ResponseWriter, r *http.Request) {
+			hits++
+			if r.URL.Path == "/moved" {
+				t.Errorf("status %d: the write was sent on to the redirect target as %s", status, r.Method)
+				return
+			}
+			http.Redirect(w, r, "/moved", status)
+		})
+		if _, err := iv.mgr.ImportSpec("writes", []byte(writesSpec)); err != nil {
+			t.Fatal(err)
+		}
+		c := shopConn(t, iv)
+		c.SpecFile, c.Resources = "writes.json", nil
+		if err := iv.mgr.Save(c); err != nil {
+			t.Fatal(err)
+		}
+		_, err := iv.Call(context.Background(), CallRequest{Connection: "shop", Operation: "addCustomer", Body: map[string]any{"name": "Ada"}})
+		ie := invokeError(t, err)
+		if ie.Code != CodeRedirected || ie.Status != status || ie.Delivery() != DeliveryAnswered || hits != 1 {
+			t.Errorf("status %d: code = %s, delivery = %s, requests = %d", status, ie.Code, ie.Delivery(), hits)
+		}
+	}
+}
+
+func TestCall_ReadStillFollowsASameHostRedirect(t *testing.T) {
+	iv, _, _ := shopFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/moved" {
+			http.Redirect(w, r, "/moved", 302)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name": "Ada"}`))
+	})
+	res, err := iv.Call(context.Background(), customerCall("7"))
+	if err != nil || res.Status != 200 {
+		t.Fatalf("res = %+v, err = %v; a read may follow a redirect on the same host", res, err)
+	}
+}
+
+func TestInvokeError_DeliverySaysWhatTheCallerMayConclude(t *testing.T) {
+	// Refused before leaving the machine.
+	iv, got := writesFixture(t, 200, `{}`)
+	_, err := iv.Call(context.Background(), CallRequest{Connection: "shop", Operation: "addCustomer"})
+	if d := invokeError(t, err).Delivery(); d != DeliveryNotSent || got.hits != 0 {
+		t.Errorf("missing body: delivery = %s, hits = %d", d, got.hits)
+	}
+
+	// No connection could be made: nothing was sent.
+	iv2, _, _ := shopFixture(t, jsonHandler(200, `{}`))
+	c := shopConn(t, iv2)
+	c.BaseURL = "http://127.0.0.1:1"
+	if err := iv2.mgr.Save(c); err != nil {
+		t.Fatal(err)
+	}
+	_, err = iv2.Call(context.Background(), customerCall("7"))
+	if ie := invokeError(t, err); ie.Code != CodeUnreachable || ie.Delivery() != DeliveryNotSent {
+		t.Errorf("refused connection: code = %s, delivery = %s", ie.Code, ie.Delivery())
+	}
+
+	// The remote took the request and never answered: it may have acted.
+	iv3, _, _ := shopFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+	}, WithTimeout(50*time.Millisecond))
+	_, err = iv3.Call(context.Background(), customerCall("7"))
+	if ie := invokeError(t, err); ie.Code != CodeTimeout || ie.Delivery() != DeliveryUnknown {
+		t.Errorf("timeout: code = %s, delivery = %s", ie.Code, ie.Delivery())
+	}
+
+	// The remote dropped the connection after taking the request.
+	iv4, _, _ := shopFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, _, _ := w.(http.Hijacker).Hijack()
+		_ = conn.Close()
+	})
+	_, err = iv4.Call(context.Background(), customerCall("7"))
+	if ie := invokeError(t, err); ie.Delivery() != DeliveryUnknown {
+		t.Errorf("dropped connection: code = %s, delivery = %s", ie.Code, ie.Delivery())
+	}
+
+	// The caller gave up.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = iv.Call(ctx, CallRequest{Connection: "shop", Operation: "listCustomers"})
+	if d := invokeError(t, err).Delivery(); d != DeliveryUnknown {
+		t.Errorf("cancelled: delivery = %s", d)
+	}
+}
+
+func TestInvokeError_EveryCodeHasADelivery(t *testing.T) {
+	codes := []InvokeErrorCode{
+		CodeConnectionNotFound, CodeResourceNotFound, CodeBindingInvalid, CodeUnknownField, CodeNotConfigured,
+		CodeOperationNotFound, CodeMissingParam, CodeMethodNotAllowed, CodeUnreachable, CodeTimeout, CodeCanceled,
+		CodeUnauthorized, CodeForbidden, CodeRemoteNotFound, CodeRateLimited, CodeRemoteError, CodeRedirected,
+		CodeBadResponse, CodeShapeMismatch, CodeTooLarge,
+	}
+	for _, code := range codes {
+		if _, ok := deliveryByCode[code]; !ok && code != CodeUnreachable {
+			t.Errorf("code %s has no delivery; a new code must say what a caller may conclude", code)
+		}
+	}
+	var none *InvokeError
+	if none.Delivery() != DeliveryUnknown {
+		t.Error("a nil error must not claim anything was or was not sent")
 	}
 }

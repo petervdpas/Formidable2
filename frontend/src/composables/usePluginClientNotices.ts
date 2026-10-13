@@ -31,6 +31,8 @@ export function usePluginClientNotices(): void {
     if (n.status === "installed") {
       void refreshTemplates();
       toast.info("workspace.plugins.heldtemplates.notice_installed", [n.plugin, n.id], { dedupeKey });
+    } else if (n.status === "exists" && n.differs) {
+      toast.warn("workspace.plugins.heldtemplates.notice_differs", [n.plugin, n.id], { sticky: true, dedupeKey });
     } else if (n.status === "exists") {
       toast.info("workspace.plugins.heldtemplates.notice_exists", [n.plugin, n.id], { dedupeKey });
     } else if (n.status === "failed") {

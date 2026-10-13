@@ -115,6 +115,16 @@ de operatie het zelf noemt. Multipart-uploads worden niet ondersteund. Een
 mislukte aanroep geeft een fout die begint met de code, zoals `forbidden` of
 `timeout`.
 
+`formidable.client.attempt` neemt dezelfde argumenten en geeft geen fout bij
+een mislukte aanroep. Het geeft `result, nil` of `nil, err` terug, waarbij
+`err` de velden `code`, `message`, `status`, `delivery`, en `body` en `data`
+met het antwoord van de dienst bevat. `delivery` is `not_sent`, `answered` of
+`unknown`. Gebruik het voor een schrijvende aanroep: het script kan lezen
+waarom de dienst weigerde, en weet na een time-out dat de uitkomst onbekend
+is, zodat het de dienst kan vragen voordat het opnieuw verstuurt. Formidable
+verstuurt een schrijvende aanroep zelf nooit twee keer: een redirect op zo'n
+aanroep wordt niet gevolgd en komt terug als de fout `redirected`.
+
 ## PDF vanuit een plugin
 
 `formidable.pdf.export(template, datafile, opts)` maakt de PDF van één
@@ -147,6 +157,11 @@ wat het ophaalt. Op het tabblad **Meegeleverde sjablonen** van de plugin:
   vanuit de werkruimte Plugins om dat sjabloon aan te maken.
 - **Huidige versie overnemen** kopieert het sjabloon zoals het nu is terug
   naar de plugin.
+- **Vervangen door versie uit plugin** verschijnt wanneer het sjabloon in de
+  contextmap afwijkt van de kopie in de plugin. Na bevestiging overschrijft
+  het het sjabloon met de versie uit de plugin. Dit is de enige manier waarop
+  een sjabloon wordt vervangen: een import, een run of een script doet dat
+  nooit. Records blijven behouden.
 
 Een script kan hetzelfde met `formidable.template.install(file)`. Dat geeft
 `true` terug wanneer het sjabloon is aangemaakt en `false` wanneer er al een

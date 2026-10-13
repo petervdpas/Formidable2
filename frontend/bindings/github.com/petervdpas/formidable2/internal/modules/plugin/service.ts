@@ -251,6 +251,15 @@ export function RemoveShippedTemplate(pluginID: string, file: string): $Cancella
 }
 
 /**
+ * ReplaceShippedTemplate overwrites the template in the context folder with the plugin's copy, on the user's explicit request.
+ */
+export function ReplaceShippedTemplate(pluginID: string, file: string): $CancellablePromise<$models.ShippedTemplate[]> {
+    return $Call.ByID(1872110810, pluginID, file).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * Run invokes a command; errors are classified into distinct Kinds so the frontend branches deterministically.
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {

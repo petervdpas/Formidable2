@@ -77,3 +77,60 @@ func (m *Manager) Source(name string) (string, error) {
 	}
 	return m.fs.LoadFile(full)
 }
+
+// ErrNotFound is returned when ReplaceFromYAML is asked to replace a template that is not there.
+var ErrNotFound = errors.New("template: not found")
+
+// ReplaceFromYAML overwrites an existing template with YAML text. It is the deliberate counterpart of CreateFromYAML:
+// only for a caller acting on the user's explicit request, since it discards whatever the template held.
+// It goes through SaveTemplate, so update observers see the old and the new version as they do for an edit.
+func (m *Manager) ReplaceFromYAML(name string, src []byte) error {
+	if err := CheckFilename(name); err != nil {
+		return err
+	}
+	t, err := ParseYAML(src)
+	if err != nil {
+		return err
+	}
+	m.createMu.Lock()
+	defer m.createMu.Unlock()
+	if !m.fs.FileExists(m.fs.JoinPath(m.templatesDir, name)) {
+		return fmt.Errorf("%w: %s", ErrNotFound, name)
+	}
+	t.Filename = name
+	return m.SaveTemplate(name, t)
+}
+
+// DiffersFromYAML reports whether the stored template differs from YAML text in anything but who authored it.
+// Both sides are compared in the canonical written form, so key order, spacing and defaults a save fills in do not count as a difference.
+func (m *Manager) DiffersFromYAML(name string, src []byte) (bool, error) {
+	if err := CheckFilename(name); err != nil {
+		return false, err
+	}
+	other, err := ParseYAML(src)
+	if err != nil {
+		return false, err
+	}
+	stored, err := m.LoadTemplate(name)
+	if err != nil {
+		return false, err
+	}
+	a, err := canonicalText(stored, name)
+	if err != nil {
+		return false, err
+	}
+	b, err := canonicalText(other, name)
+	if err != nil {
+		return false, err
+	}
+	return a != b, nil
+}
+
+// canonicalText is a template's canonical text without the fields that say whose copy it is. The template is copied first: LoadTemplate hands out a shared pointer.
+func canonicalText(t *Template, name string) (string, error) {
+	c := *t
+	c.Filename, c.AuthorName, c.AuthorEmail = name, "", ""
+	Normalize(&c)
+	out, err := marshalYAML(&c)
+	return string(out), err
+}

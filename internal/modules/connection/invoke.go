@@ -124,6 +124,12 @@ func refuseCrossHostRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) == 0 {
 		return nil
 	}
+	// A write is sent once. Following a redirect would send it again (307 and
+	// 308 repeat the method and the body), so the redirect itself is handed
+	// back as the answer and Call reports it.
+	if !safeMethods[via[0].Method] {
+		return http.ErrUseLastResponse
+	}
 	if req.URL.Host != via[0].URL.Host {
 		return fmt.Errorf("connection: refusing redirect to another host (%s)", req.URL.Host)
 	}
@@ -657,7 +663,13 @@ func transportErr(ctx context.Context, err error) error {
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return invokeErr(CodeTimeout, "the remote did not answer in time", err)
 	}
-	return invokeErr(CodeUnreachable, "cannot reach the remote service", err)
+	out := invokeErr(CodeUnreachable, "cannot reach the remote service", err)
+	// A dial failure means no connection was made, so nothing was sent.
+	var opErr *net.OpError
+	if errors.As(err, &opErr) && opErr.Op == "dial" {
+		out.notDialed = true
+	}
+	return out
 }
 
 // selectNames is the property list a server-side projection should ask for. It

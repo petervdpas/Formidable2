@@ -187,6 +187,11 @@ func (s *Service) CreateShippedTemplate(pluginID, file string) ([]ShippedTemplat
 	return s.m.CreateShippedTemplate(pluginID, file)
 }
 
+// ReplaceShippedTemplate overwrites the template in the context folder with the plugin's copy, on the user's explicit request.
+func (s *Service) ReplaceShippedTemplate(pluginID, file string) ([]ShippedTemplate, error) {
+	return s.m.ReplaceShippedTemplate(pluginID, file)
+}
+
 // RemoveShippedTemplate takes the template out of the plugin; a template created from it stays.
 func (s *Service) RemoveShippedTemplate(pluginID, file string) ([]ShippedTemplate, error) {
 	return s.m.RemoveShippedTemplate(pluginID, file)
