@@ -264,6 +264,9 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 	if id := m.missingClient(p); id != "" {
 		return RunResult{}, fmt.Errorf("%w: %s", ErrClientMissing, id)
 	}
+	if id := m.lockedClient(p); id != "" {
+		return RunResult{}, fmt.Errorf("%w: %s", ErrVaultLocked, id)
+	}
 	if err := m.createHeldTemplates(p); err != nil {
 		return RunResult{}, err
 	}

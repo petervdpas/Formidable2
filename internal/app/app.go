@@ -703,6 +703,13 @@ func New(d Deps) (*App, error) {
 	clientKeys := vault.ResolverFor(vaultSvc, connection.SecretCategory)
 	clientInv := connection.NewInvoker(clientM, clientKeys, connection.WithLogger(d.Logger))
 
+	// One adapter serves both the calls and the install side. It knows whether
+	// the vault is locked, so a Run can ask for the password up front.
+	pluginClients := pluginClientAdapter{m: clientM, inv: clientInv, vaultLocked: func() bool {
+		st := vaultSvc.VaultStatus()
+		return st.Exists && !st.Unlocked
+	}}
+
 	// formidable.pdf: the PDF service is composed further down, so the plugin
 	// manager gets a holder that is filled in once it exists.
 	pluginPDF := &pluginPDFAdapter{}
@@ -718,11 +725,13 @@ func New(d Deps) (*App, error) {
 		Editor:     sysM,
 		Template:   pluginTemplateAdapter{dp: dpM, tpl: tplM},
 		Collection: pluginCollectionAdapter{dp: dpM},
-		Form:       pluginFormAdapter{sto: stoM},
-		Render:     pluginRenderAdapter{rdr: renderM},
-		FM:         pluginFMAdapter{},
-		FS:         plugin.OSFS{},
-		Storage:    pluginStorageAdapter{sto: stoM},
+		Form: pluginFormAdapter{sto: stoM, changed: func(tpl string) {
+			emitter.Emit("storage:changed", tpl)
+		}},
+		Render:  pluginRenderAdapter{rdr: renderM},
+		FM:      pluginFMAdapter{},
+		FS:      plugin.OSFS{},
+		Storage: pluginStorageAdapter{sto: stoM},
 		// Bridge formidable.run.* to Wails events that progressbar/
 		// statusmessage widgets subscribe to. The emitter is late-bound
 		// (main.go calls SetEmit after Wails comes up), so startup-time
@@ -753,8 +762,8 @@ func New(d Deps) (*App, error) {
 		Locale:     pluginLocaleAdapter{cfg: cfgM},
 		PDF:        pluginPDF,
 		Templates:  pluginTemplateInstaller{tpl: tplM},
-		Client:     pluginClientAdapter{m: clientM, inv: clientInv},
-		Clients:    pluginClientAdapter{m: clientM, inv: clientInv},
+		Client:     pluginClients,
+		Clients:    pluginClients,
 		ClientNoticeOut: func() {
 			emitter.Emit("plugin:clients", nil)
 		},

@@ -14,6 +14,8 @@ import { useInformationSection } from "../composables/useInformationSection";
 import { confirmLeave } from "../composables/useNavGuard";
 import { backendErrMessage } from "../utils/backendError";
 import CodeEditor from "./CodeEditor.vue";
+import ConfirmDialog from "./ConfirmDialog.vue";
+import { useConfirmAsk } from "../composables/useConfirmAsk";
 
 // PluginClientsEditor - the API-clients tab of the plugin editor. This is
 // where an api-client is named and where the OpenAPI/Swagger document it is
@@ -32,6 +34,7 @@ const props = defineProps<{ pluginId: string }>();
 const { t } = useI18n();
 const toast = useToast();
 const { syncAPIClients } = usePluginEditor();
+const { ask, request: askConfirm, confirm: confirmAsk, cancel: cancelAsk } = useConfirmAsk();
 const apiClients = useAPIClients();
 const { setActive: setWorkspace } = useActiveWorkspace();
 const { setActive: setSection } = useInformationSection();
@@ -237,7 +240,15 @@ async function remove(): Promise<void> {
     await loadDocument();
     return;
   }
-  if (!window.confirm(t("workspace.plugins.apiclients.remove_confirm", [id]))) return;
+  askConfirm({
+    title: t("workspace.plugins.apiclients.remove_title"),
+    message: t("workspace.plugins.apiclients.remove_confirm", [id]),
+    confirmLabel: t("workspace.plugins.apiclients.remove"),
+    run: () => doRemove(id),
+  });
+}
+
+async function doRemove(id: string): Promise<void> {
   busy.value = true;
   try {
     adopt(await PluginSvc.RemoveShippedClient(props.pluginId, id));
@@ -420,5 +431,16 @@ watch(() => props.pluginId, () => void load(), { immediate: true });
         </button>
       </div>
     </template>
+
+    <ConfirmDialog
+      :open="ask !== null"
+      :title="ask?.title"
+      :message="ask?.message"
+      :confirm-label="ask?.confirmLabel"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @confirm="confirmAsk"
+      @cancel="cancelAsk"
+    />
   </div>
 </template>

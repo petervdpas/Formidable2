@@ -172,3 +172,8 @@ Wordt een plugin gestart vanuit de werkruimte Opslag, dan bevat de `ctx` van
 het script `ctx.template` (de bestandsnaam van het geopende sjabloon) en
 `ctx.datafile` (de bestandsnaam van het geopende record, als er een open is),
 zodat het met "dit record" kan werken zonder te vragen welk.
+
+Bewaart een API-client van een plugin zijn inloggegevens in de kluis en is de
+kluis vergrendeld, dan vraagt het uitvoeren van een commando ter plekke om het
+hoofdwachtwoord en voert het commando daarna uit. Bij annuleren blijft de
+kluis vergrendeld en wordt er niets uitgevoerd.

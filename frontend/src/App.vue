@@ -6,6 +6,7 @@ import Topbar from "./components/Topbar.vue";
 import Footer from "./components/Footer.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import PluginRunDialog from "./components/PluginRunDialog.vue";
+import VaultUnlockDialog from "./components/VaultUnlockDialog.vue";
 import { WORKSPACES, type WorkspaceId } from "./workspaces";
 import { useTheme } from "./composables/useTheme";
 import { loadAppFont } from "./composables/useAppFont";
@@ -174,5 +175,6 @@ onBeforeUnmount(() => {
     <Footer />
     <ToastContainer />
     <PluginRunDialog />
+    <VaultUnlockDialog />
   </div>
 </template>

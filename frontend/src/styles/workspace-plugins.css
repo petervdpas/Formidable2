@@ -491,3 +491,9 @@
 .plugin-clients-editor .client-url p {
     margin: 0;
 }
+
+/* The reason a master password was refused, inside the vault unlock prompt. */
+.vault-prompt-error {
+    margin: 0;
+    color: var(--color-error);
+}

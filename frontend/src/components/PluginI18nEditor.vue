@@ -6,6 +6,8 @@ import { Service as I18nSvc } from "../../bindings/github.com/petervdpas/formida
 import { useToast } from "../composables/useToast";
 import { refreshPluginI18n } from "../composables/useI18nLoader";
 import { backendErrMessage } from "../utils/backendError";
+import ConfirmDialog from "./ConfirmDialog.vue";
+import { useConfirmAsk } from "../composables/useConfirmAsk";
 
 // PluginI18nEditor - per-locale key/value editor for one plugin's
 // <plugin>/i18n/<locale>.json files. Locale switcher up top, table
@@ -18,6 +20,7 @@ const props = defineProps<{ pluginId: string }>();
 
 const { t } = useI18n();
 const toast = useToast();
+const { ask, request: askConfirm, confirm: confirmAsk, cancel: cancelAsk } = useConfirmAsk();
 
 type Row = { key: string; value: string };
 
@@ -170,13 +173,18 @@ async function save(): Promise<void> {
   }
 }
 
-async function deleteLocale(): Promise<void> {
+function deleteLocale(): void {
   if (!props.pluginId || !activeLocale.value) return;
   const locale = activeLocale.value;
-  const ok = window.confirm(
-    t("workspace.plugins.i18n.delete_locale_confirm", [locale]),
-  );
-  if (!ok) return;
+  askConfirm({
+    title: t("workspace.plugins.i18n.delete_locale"),
+    message: t("workspace.plugins.i18n.delete_locale_confirm", [locale]),
+    confirmLabel: t("workspace.plugins.i18n.delete_locale"),
+    run: () => doDeleteLocale(locale),
+  });
+}
+
+async function doDeleteLocale(locale: string): Promise<void> {
   try {
     await PluginSvc.DeletePluginI18n(props.pluginId, locale);
     locales.value = locales.value.filter((l) => l !== locale);
@@ -328,5 +336,16 @@ void loadBackendLocales();
         </button>
       </div>
     </template>
+
+    <ConfirmDialog
+      :open="ask !== null"
+      :title="ask?.title"
+      :message="ask?.message"
+      :confirm-label="ask?.confirmLabel"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @confirm="confirmAsk"
+      @cancel="cancelAsk"
+    />
   </div>
 </template>

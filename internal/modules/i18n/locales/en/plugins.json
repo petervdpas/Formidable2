@@ -194,5 +194,9 @@
   "workspace.plugins.heldtemplates.replace_confirm": "Replace template '{0}' in the context folder with the version this plugin holds? Changes made to the template are lost. Its records are kept; values of fields the new version no longer has stay stored but are no longer shown.",
   "workspace.plugins.heldtemplates.replace_success": "Template '{0}' replaced with the plugin's version.",
   "workspace.plugins.heldtemplates.replace_error": "Template not replaced: {0}",
-  "workspace.plugins.heldtemplates.notice_differs": "Plugin '{0}' brings another version of template '{1}'. Your template was left unchanged. To take the plugin's version, open the plugin's Shipped templates tab and click 'Replace with plugin's version'."
+  "workspace.plugins.heldtemplates.notice_differs": "Plugin '{0}' brings another version of template '{1}'. Your template was left unchanged. To take the plugin's version, open the plugin's Shipped templates tab and click 'Replace with plugin's version'.",
+  "workspace.plugins.error_vault_locked": "The vault is locked, and an API client of this plugin keeps its credential there. Run the command again and enter the master password, or unlock the vault under Information > Vault.",
+  "workspace.plugins.heldtemplates.replace_title": "Replace the template?",
+  "workspace.plugins.heldtemplates.remove_title": "Remove the template from the plugin?",
+  "workspace.plugins.apiclients.remove_title": "Remove the API client from the plugin?"
 }

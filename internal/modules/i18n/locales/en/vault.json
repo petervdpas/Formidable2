@@ -73,5 +73,6 @@
   "vault.entry.description_hint": "Optional reminder of what this is for.",
   "vault.list.foreign": "Plus {0} record(s) written by another tool, left untouched.",
   "vault.locked_notice": "Unlock the vault to see what it holds. Names are stored inside the encrypted records, so a locked vault cannot list them.",
-  "vault.entry.category_pick": "Pick one or type a new name"
+  "vault.entry.category_pick": "Pick one or type a new name",
+  "vault.prompt.info": "The vault is locked, and what you just started needs a credential that is kept in it. Enter the master password to continue."
 }

@@ -108,8 +108,13 @@ func (a pluginCollectionAdapter) ListCollection(templateFilename string) ([]map[
 
 // pluginFormAdapter routes load/save through the storage manager, so plugin
 // writes use the same atomic-write path (and durability) as user writes.
+//
+// changed, when set, is told the template after each successful save, so the
+// Storage workspace re-reads its list: a record a plugin made is otherwise not
+// shown until something else refreshes it.
 type pluginFormAdapter struct {
-	sto *storage.Manager
+	sto     *storage.Manager
+	changed func(templateFilename string)
 }
 
 func (a pluginFormAdapter) LoadForm(templateFilename, datafile string) (map[string]any, error) {
@@ -128,6 +133,9 @@ func (a pluginFormAdapter) SaveForm(ctx context.Context, templateFilename, dataf
 	res := a.sto.SaveForm(ctx, templateFilename, datafile, data)
 	if !res.Success {
 		return fmt.Errorf("storage: save %s/%s: %s", templateFilename, datafile, res.Error)
+	}
+	if a.changed != nil {
+		a.changed(templateFilename)
 	}
 	return nil
 }
@@ -573,9 +581,30 @@ func (a pluginHTTPAdapter) Fetch(method, path, body string, headers map[string]s
 // pluginClientAdapter is the api-client store as plugins see it: create-only
 // install of the clients a plugin ships, and the read-only calls behind
 // formidable.client. No write, no definition edit, no credential surface.
+//
+// vaultLocked, when set, says whether the vault that holds the credentials is
+// locked right now.
 type pluginClientAdapter struct {
-	m   *connection.Manager
-	inv *connection.Invoker
+	m           *connection.Manager
+	inv         *connection.Invoker
+	vaultLocked func() bool
+}
+
+// CredentialLocked is true for a client that sends a stored credential while
+// the vault is locked. A client with no authentication never needs the vault.
+func (a pluginClientAdapter) CredentialLocked(id string) bool {
+	if a.vaultLocked == nil || !a.vaultLocked() {
+		return false
+	}
+	c, _, err := a.m.Get(id)
+	if err != nil {
+		return false
+	}
+	switch c.Auth.Kind {
+	case connection.AuthBearer, connection.AuthAPIKey, connection.AuthBasic:
+		return true
+	}
+	return false
 }
 
 func (a pluginClientAdapter) HasClient(id string) bool { return a.m.Has(id) }

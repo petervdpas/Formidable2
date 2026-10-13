@@ -20,6 +20,8 @@ type ClientInstaller interface {
 	InstallClient(id string, read func(name string) ([]byte, error)) (derived bool, err error)
 	// CreateClient registers a client a script assembled: def is the JSON-shaped definition, spec the document. created is false when the id already exists, which is left untouched.
 	CreateClient(def map[string]any, spec []byte) (created bool, err error)
+	// CredentialLocked reports that the client authenticates with a stored credential and the vault holding it is locked, so a call would fail until the user unlocks it.
+	CredentialLocked(id string) bool
 	// InspectDocument parses an OpenAPI document without storing anything, so the editor can refuse a bad one before it lands in a plugin.
 	InspectDocument(spec []byte) (DocumentInfo, error)
 	// ReadSettings reads a shipped definition (empty input is none). WithSettings returns it with the display name and base URL set from s, an empty value clearing that setting;
@@ -166,6 +168,19 @@ func (m *Manager) missingClient(p Plugin) string {
 	}
 	for _, id := range p.Manifest.APIClients {
 		if shipsClient(p.Dir, id) && !m.deps.Clients.HasClient(id) {
+			return id
+		}
+	}
+	return ""
+}
+
+// lockedClient returns the first declared api-client whose credential sits in a locked vault, or "".
+func (m *Manager) lockedClient(p Plugin) string {
+	if m.deps.Clients == nil {
+		return ""
+	}
+	for _, id := range p.Manifest.APIClients {
+		if m.deps.Clients.HasClient(id) && m.deps.Clients.CredentialLocked(id) {
 			return id
 		}
 	}

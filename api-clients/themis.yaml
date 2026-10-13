@@ -30,6 +30,9 @@ resources:
         - key: address
           label: Address
           pointer: /address
+        - key: country
+          label: Country
+          pointer: /country
         - key: iban
           label: IBAN
           pointer: /iban
@@ -49,6 +52,12 @@ resources:
         - key: rate
           label: Rate
           pointer: /rate
+        - key: price
+          label: Price (cents)
+          pointer: /price
+        - key: price_vat
+          label: Price is with VAT included or excluded
+          pointer: /priceVat
         - key: description
           label: Description
           pointer: /description

@@ -9,6 +9,8 @@ import { useToast } from "../composables/useToast";
 import { useTemplates } from "../composables/useTemplates";
 import { backendErrMessage } from "../utils/backendError";
 import CodeEditor from "./CodeEditor.vue";
+import ConfirmDialog from "./ConfirmDialog.vue";
+import { useConfirmAsk } from "../composables/useConfirmAsk";
 
 // PluginTemplatesEditor - the "Shipped templates" tab of the plugin editor.
 // A plugin can hold templates of its own (plugins/<id>/templates/<file>.yaml)
@@ -28,6 +30,7 @@ const emit = defineEmits<{ changed: [] }>();
 const { t } = useI18n();
 const toast = useToast();
 const { filenames, refresh: refreshTemplates } = useTemplates();
+const { ask, request: askConfirm, confirm: confirmAsk, cancel: cancelAsk } = useConfirmAsk();
 
 const rows = ref<ShippedTemplate[]>([]);
 const activeFile = ref<string>("");
@@ -180,10 +183,18 @@ const canReplace = computed<boolean>(
   () => !!activeRow.value?.installed && activeRow.value.differs && !activeRow.value.error && !dirty.value,
 );
 
-async function replace(): Promise<void> {
+function replace(): void {
   if (!props.pluginId || !activeFile.value) return;
   const file = activeFile.value;
-  if (!window.confirm(t("workspace.plugins.heldtemplates.replace_confirm", [file]))) return;
+  askConfirm({
+    title: t("workspace.plugins.heldtemplates.replace_title"),
+    message: t("workspace.plugins.heldtemplates.replace_confirm", [file]),
+    confirmLabel: t("workspace.plugins.heldtemplates.replace"),
+    run: () => doReplace(file),
+  });
+}
+
+async function doReplace(file: string): Promise<void> {
   busy.value = true;
   try {
     rows.value = (await PluginSvc.ReplaceShippedTemplate(props.pluginId, file)) ?? [];
@@ -206,7 +217,15 @@ async function remove(): Promise<void> {
     await loadYAML();
     return;
   }
-  if (!window.confirm(t("workspace.plugins.heldtemplates.remove_confirm", [file]))) return;
+  askConfirm({
+    title: t("workspace.plugins.heldtemplates.remove_title"),
+    message: t("workspace.plugins.heldtemplates.remove_confirm", [file]),
+    confirmLabel: t("workspace.plugins.heldtemplates.remove"),
+    run: () => doRemove(file),
+  });
+}
+
+async function doRemove(file: string): Promise<void> {
   busy.value = true;
   try {
     rows.value = (await PluginSvc.RemoveShippedTemplate(props.pluginId, file)) ?? [];
@@ -367,5 +386,16 @@ watch(() => props.pluginId, () => void load(), { immediate: true });
         </button>
       </div>
     </template>
+
+    <ConfirmDialog
+      :open="ask !== null"
+      :title="ask?.title"
+      :message="ask?.message"
+      :confirm-label="ask?.confirmLabel"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @confirm="confirmAsk"
+      @cancel="cancelAsk"
+    />
   </div>
 </template>

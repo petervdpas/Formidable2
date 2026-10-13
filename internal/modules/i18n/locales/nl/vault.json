@@ -73,5 +73,6 @@
   "vault.entry.description_hint": "Optionele herinnering waar dit voor is.",
   "vault.list.foreign": "Plus {0} record(s) geschreven door een ander programma, ongemoeid gelaten.",
   "vault.locked_notice": "Open de kluis om te zien wat erin zit. Namen staan in de versleutelde records, dus een kluis op slot kan ze niet tonen.",
-  "vault.entry.category_pick": "Kies er een of typ een nieuwe naam"
+  "vault.entry.category_pick": "Kies er een of typ een nieuwe naam",
+  "vault.prompt.info": "De kluis is vergrendeld, en wat je zojuist startte heeft inloggegevens nodig die erin bewaard worden. Vul het hoofdwachtwoord in om door te gaan."
 }

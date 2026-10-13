@@ -157,6 +157,8 @@ var (
 	ErrServerNotRunning = errors.New("plugin: requires the internal server, but it's stopped")
 	ErrClientMissing    = errors.New("plugin: requires an api-client that is not installed")
 	ErrPDFNotActive     = errors.New("plugin: requires PDF export, but it is not set up")
+	// ErrVaultLocked: a declared api-client keeps its credential in the vault and the vault is locked. The frontend answers by asking for the master password and running again.
+	ErrVaultLocked = errors.New("plugin: the vault is locked, and an api-client of this plugin keeps its credential there")
 	// ErrPluginBusy: plugins run one at a time. VMs are per-call but their bound services (KV/render/fs) aren't safe to interleave.
 	ErrPluginBusy = errors.New("plugin: another command is currently running")
 	// ErrPluginCancelled: the runtime maps gopher-lua's "context canceled" to this so the Service can branch on Kind="cancelled".

@@ -19,6 +19,7 @@ import {
   setGlobalPluginRunning,
   cancelGlobalPluginRun,
 } from "../composables/useGlobalPluginRun";
+import { runPluginCommand } from "../composables/usePluginRunner";
 import { useToast } from "../composables/useToast";
 import ProgressBarWidget from "./widgets/ProgressBarWidget.vue";
 import StatusMessageWidget from "./widgets/StatusMessageWidget.vue";
@@ -242,7 +243,7 @@ async function runCommand(cmd: Command) {
         /* best-effort; don't block the run */
       }
     }
-    const res = await PluginSvc.Run(p.id, cmd.id, ctx);
+    const res = await runPluginCommand(p.id, cmd.id, ctx);
     runResults.value[cmd.id] = res;
     if (res.kind === "busy") {
       toast.warn(res.message || "plugin: another command is currently running");

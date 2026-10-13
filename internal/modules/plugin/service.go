@@ -230,6 +230,8 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrServerNotRunning):
 		return RunResultDTO{Kind: "server_not_running", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
+	case errors.Is(err, ErrVaultLocked):
+		return RunResultDTO{Kind: "vault_locked", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrTemplateNotCreated):
 		return RunResultDTO{Kind: "template_not_created", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrPDFNotActive):

@@ -18,6 +18,7 @@ type fakeInstaller struct {
 
 	created     map[string]any
 	createdSpec string
+	locked      map[string]bool
 }
 
 func newFakeInstaller() *fakeInstaller {
@@ -98,6 +99,8 @@ func (f *fakeInstaller) WithSettings(def []byte, id string, s ClientSettings) ([
 	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
+
+func (f *fakeInstaller) CredentialLocked(id string) bool { return f.locked[id] }
 
 // InspectDocument accepts anything but the literal INVALID, and reads a title out of the test documents.
 func (f *fakeInstaller) InspectDocument(spec []byte) (DocumentInfo, error) {
@@ -456,5 +459,45 @@ func TestImportArchive_ReportsAClientThatCouldNotBeCreated(t *testing.T) {
 	}
 	if _, ok := m.Get("imported"); !ok {
 		t.Error("plugin not registered")
+	}
+}
+
+func TestRun_AsksForTheVaultWhenADeclaredClientsCredentialIsLocked(t *testing.T) {
+	inst := newFakeInstaller()
+	inst.have["northwind"] = true
+	inst.locked = map[string]bool{"northwind": true}
+	m, pluginsDir := newClientManager(t, inst)
+	writePlugin(t, pluginsDir, "demo", clientManifest("demo", `["northwind"]`), "function run() return 1 end")
+	if err := m.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Run("demo", "run", nil); !errors.Is(err, ErrVaultLocked) {
+		t.Fatalf("err = %v, want ErrVaultLocked", err)
+	}
+	if got := NewService(m).Run("demo", "run", nil); got.Kind != "vault_locked" {
+		t.Errorf("Kind = %q, want vault_locked", got.Kind)
+	}
+	// Unlocked: the same run goes through.
+	inst.locked["northwind"] = false
+	if res, err := m.Run("demo", "run", nil); err != nil || res.Value != float64(1) {
+		t.Fatalf("after unlocking: %v, %v", res.Value, err)
+	}
+}
+
+func TestRun_LockedVaultDoesNotStopAPluginThatNeedsNoCredential(t *testing.T) {
+	inst := newFakeInstaller()
+	inst.locked = map[string]bool{"elsewhere": true, "not-created-yet": true}
+	inst.have["elsewhere"] = true
+	m, pluginsDir := newClientManager(t, inst)
+	// One plugin declares no client; the other declares a client that does not exist yet (its script creates it).
+	writePlugin(t, pluginsDir, "plain", clientManifest("plain", `[]`), "function run() return 1 end")
+	writePlugin(t, pluginsDir, "maker", clientManifest("maker", `["not-created-yet"]`), "function run() return 2 end")
+	if err := m.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]float64{"plain": 1, "maker": 2} {
+		if res, err := m.Run(id, "run", nil); err != nil || res.Value != want {
+			t.Errorf("%s: %v, %v; a locked vault must only stop a plugin whose own client needs it", id, res.Value, err)
+		}
 	}
 }

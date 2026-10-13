@@ -10,6 +10,7 @@ import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
 import PluginI18nEditor from "../components/PluginI18nEditor.vue";
 import PluginClientsEditor from "../components/PluginClientsEditor.vue";
+import { runPluginCommand } from "../composables/usePluginRunner";
 import PluginTemplatesEditor from "../components/PluginTemplatesEditor.vue";
 import PluginResultPanel from "../components/PluginResultPanel.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
@@ -455,7 +456,7 @@ async function runCommand(p: ListResult, cmd: Command) {
         /* persistence is best-effort; don't block the run */
       }
     }
-    const res = await PluginSvc.Run(p.id, cmd.id, ctx);
+    const res = await runPluginCommand(p.id, cmd.id, ctx);
     runResults.value[cmd.id] = res;
     if (res.kind === "busy") {
       toast.warn(res.message || "plugin: another command is currently running");

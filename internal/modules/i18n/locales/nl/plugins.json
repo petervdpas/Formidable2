@@ -194,5 +194,9 @@
   "workspace.plugins.heldtemplates.replace_confirm": "Sjabloon '{0}' in de contextmap vervangen door de versie die deze plugin bevat? Wijzigingen in het sjabloon gaan verloren. De records blijven behouden; waarden van velden die de nieuwe versie niet meer heeft blijven opgeslagen maar worden niet meer getoond.",
   "workspace.plugins.heldtemplates.replace_success": "Sjabloon '{0}' vervangen door de versie uit de plugin.",
   "workspace.plugins.heldtemplates.replace_error": "Sjabloon niet vervangen: {0}",
-  "workspace.plugins.heldtemplates.notice_differs": "Plugin '{0}' brengt een andere versie van sjabloon '{1}' mee. Je sjabloon is ongewijzigd gelaten. Open het tabblad Meegeleverde sjablonen van de plugin en klik op 'Vervangen door versie uit plugin' om de versie uit de plugin over te nemen."
+  "workspace.plugins.heldtemplates.notice_differs": "Plugin '{0}' brengt een andere versie van sjabloon '{1}' mee. Je sjabloon is ongewijzigd gelaten. Open het tabblad Meegeleverde sjablonen van de plugin en klik op 'Vervangen door versie uit plugin' om de versie uit de plugin over te nemen.",
+  "workspace.plugins.error_vault_locked": "De kluis is vergrendeld, en een API-client van deze plugin bewaart daar zijn inloggegevens. Voer het commando opnieuw uit en vul het hoofdwachtwoord in, of ontgrendel de kluis onder Informatie > Kluis.",
+  "workspace.plugins.heldtemplates.replace_title": "Het sjabloon vervangen?",
+  "workspace.plugins.heldtemplates.remove_title": "Het sjabloon uit de plugin verwijderen?",
+  "workspace.plugins.apiclients.remove_title": "De API-client uit de plugin verwijderen?"
 }

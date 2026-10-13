@@ -162,3 +162,7 @@ When a plugin is started from the Storage workspace, the script's `ctx` holds
 `ctx.template` (the open template's file name) and `ctx.datafile` (the open
 record's file name, when one is open), so it can work on "this record"
 without asking which one.
+
+When a plugin's API client keeps its credential in the vault and the vault is
+locked, running a command asks for the master password on the spot and then
+runs the command. Cancelling leaves the vault locked and nothing is run.

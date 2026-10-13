@@ -84,6 +84,27 @@
         "description": "A contact as the contact list holds it: name, kind, IBAN and more.",
         "type": "object"
       },
+      "Document": {
+        "properties": {
+          "addedAt": {
+            "description": "When it was added.",
+            "type": "string"
+          },
+          "guid": {
+            "description": "What the paper is known by.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Its name.",
+            "type": "string"
+          },
+          "size": {
+            "description": "Its size in bytes.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Entry": {
         "properties": {
           "createdAt": {
@@ -257,6 +278,152 @@
         },
         "type": "object"
       },
+      "Invoice": {
+        "properties": {
+          "buyer": {
+            "$ref": "#/components/schemas/InvoiceBuyer"
+          },
+          "date": {
+            "description": "YYYY-MM-DD.",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            },
+            "type": "array"
+          },
+          "finalAt": {
+            "description": "When it was made final.",
+            "type": "string"
+          },
+          "gross": {
+            "description": "Cents.",
+            "type": "integer"
+          },
+          "guid": {
+            "description": "What the invoice is known by, here and anywhere else.",
+            "type": "string"
+          },
+          "href": {
+            "description": "Where this invoice is.",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLine"
+            },
+            "type": "array"
+          },
+          "net": {
+            "description": "Cents.",
+            "type": "integer"
+          },
+          "notes": {
+            "description": "What stands under the lines.",
+            "type": "string"
+          },
+          "number": {
+            "description": "Its number, such as 2026-001.",
+            "type": "string"
+          },
+          "rates": {
+            "description": "A sum per VAT rate on the invoice, the highest first. Empty for books without VAT.",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceRate"
+            },
+            "type": "array"
+          },
+          "reference": {
+            "description": "What it is for, in a few words.",
+            "type": "string"
+          },
+          "vat": {
+            "description": "Cents.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "InvoiceBuyer": {
+        "properties": {
+          "address": {
+            "description": "The address, as lines of text.",
+            "type": "string"
+          },
+          "country": {
+            "description": "The country of that address, as its two letters.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The name of the customer.",
+            "type": "string"
+          },
+          "vatNumber": {
+            "description": "The VAT number of the customer, if it has one.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InvoiceLine": {
+        "properties": {
+          "description": {
+            "description": "What was sold.",
+            "type": "string"
+          },
+          "gross": {
+            "description": "The line with VAT, in cents.",
+            "type": "integer"
+          },
+          "net": {
+            "description": "The line without VAT, in cents.",
+            "type": "integer"
+          },
+          "pieces": {
+            "description": "How many were sold.",
+            "type": "integer"
+          },
+          "price": {
+            "description": "What one piece is sold for, in cents.",
+            "type": "integer"
+          },
+          "priceVat": {
+            "description": "Whether the VAT is in that price.",
+            "enum": [
+              "included",
+              "excluded"
+            ],
+            "type": "string"
+          },
+          "rateBp": {
+            "description": "The VAT rate in basis points: 2100 is 21%.",
+            "type": "integer"
+          },
+          "vat": {
+            "description": "The VAT on this line, in cents.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "InvoiceRate": {
+        "properties": {
+          "net": {
+            "description": "What the lines at this rate come to without VAT, in cents.",
+            "type": "integer"
+          },
+          "rateBp": {
+            "description": "The VAT rate in basis points.",
+            "type": "integer"
+          },
+          "vat": {
+            "description": "Their VAT, in cents.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Journal": {
         "properties": {
           "closed": {
@@ -303,7 +470,7 @@
       },
       "Product": {
         "additionalProperties": true,
-        "description": "A product as the product list holds it: code, name, use (sell or buy), rate and more.",
+        "description": "A product as the product list holds it: code, name, use (sell or buy), rate, price (the sales price in cents), priceVat (included or excluded: whether the VAT is in that price) and more.",
         "type": "object"
       },
       "Tag": {
@@ -933,6 +1100,112 @@
         "summary": "Replace a concept. A posted entry is refused."
       }
     },
+    "/api/entries/{guid}/documents": {
+      "post": {
+        "operationId": "addEntryDocument",
+        "parameters": [
+          {
+            "description": "What to call the paper, such as invoice-2026-0042.pdf; \"document.pdf\" when left out.",
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The GUID of the entry.",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            },
+            "description": "Taken as a concept."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The paper is larger than Themis keeps."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The body is not sent as application/pdf."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The paper is refused; the error names why."
+          }
+        },
+        "summary": "Send the paper of an entry, as a PDF. It is kept with the entry, concept or posted."
+      }
+    },
     "/api/guid": {
       "get": {
         "operationId": "newGuid",
@@ -979,6 +1252,228 @@
           }
         },
         "summary": "A new GUID, for an entry you are about to send."
+      }
+    },
+    "/api/invoices": {
+      "get": {
+        "operationId": "listInvoices",
+        "parameters": [
+          {
+            "description": "\"missing\" for the invoices no paper was made of yet; all final invoices when left out.",
+            "in": "query",
+            "name": "paper",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Invoice"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "The final invoices, oldest first: all of them, or those no paper was made of yet."
+      }
+    },
+    "/api/invoices/{guid}": {
+      "get": {
+        "operationId": "getInvoice",
+        "parameters": [
+          {
+            "description": "The GUID of the invoice.",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            },
+            "description": "The answer."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          }
+        },
+        "summary": "One final invoice in full: everything that is on its paper."
+      }
+    },
+    "/api/invoices/{guid}/documents": {
+      "post": {
+        "operationId": "addInvoiceDocument",
+        "parameters": [
+          {
+            "description": "What to call the paper, such as invoice-2026-001.pdf; \"document.pdf\" when left out.",
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The GUID of the invoice.",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: the id of the administration you mean.",
+            "in": "header",
+            "name": "X-Themis-Administration",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            },
+            "description": "Taken as a concept."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No key, or not the right one."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No administration is open, another one than you named is, or the books hold on to what you tried to change."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The paper is larger than Themis keeps."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The body is not sent as application/pdf."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The paper is refused; the error names why."
+          }
+        },
+        "summary": "Send the paper of a final invoice, as a PDF. It is kept with the invoice."
       }
     },
     "/api/journals": {
