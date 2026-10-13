@@ -284,7 +284,11 @@
             "$ref": "#/components/schemas/InvoiceBuyer"
           },
           "date": {
-            "description": "YYYY-MM-DD.",
+            "description": "The day the invoice was issued, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "deliveryDate": {
+            "description": "The day of what was delivered, YYYY-MM-DD.",
             "type": "string"
           },
           "documents": {
@@ -338,6 +342,9 @@
             "description": "What it is for, in a few words.",
             "type": "string"
           },
+          "seller": {
+            "$ref": "#/components/schemas/InvoiceSeller"
+          },
           "vat": {
             "description": "Cents.",
             "type": "integer"
@@ -353,6 +360,10 @@
           },
           "country": {
             "description": "The country of that address, as its two letters.",
+            "type": "string"
+          },
+          "countryName": {
+            "description": "The name of that country, in the language asked for.",
             "type": "string"
           },
           "name": {
@@ -420,6 +431,39 @@
           "vat": {
             "description": "Their VAT, in cents.",
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "InvoiceSeller": {
+        "properties": {
+          "address": {
+            "description": "Its address, as lines of text.",
+            "type": "string"
+          },
+          "country": {
+            "description": "The country of that address, as its two letters.",
+            "type": "string"
+          },
+          "countryName": {
+            "description": "The name of that country, in the language asked for.",
+            "type": "string"
+          },
+          "iban": {
+            "description": "The account to pay into.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The name of the business, as it must stand on an invoice.",
+            "type": "string"
+          },
+          "registration": {
+            "description": "Its chamber of commerce or company number.",
+            "type": "string"
+          },
+          "vatNumber": {
+            "description": "Its VAT number.",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1267,6 +1311,14 @@
             }
           },
           {
+            "description": "The language the names of countries are given in: \"en\" or \"nl\". English when left out.",
+            "in": "query",
+            "name": "lang",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "Optional: the id of the administration you mean.",
             "in": "header",
             "name": "X-Themis-Administration",
@@ -1317,6 +1369,14 @@
       "get": {
         "operationId": "getInvoice",
         "parameters": [
+          {
+            "description": "The language the names of countries are given in: \"en\" or \"nl\". English when left out.",
+            "in": "query",
+            "name": "lang",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "description": "The GUID of the invoice.",
             "in": "path",
