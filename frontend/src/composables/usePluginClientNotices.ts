@@ -2,6 +2,7 @@ import { onBeforeUnmount, onMounted } from "vue";
 import { Events } from "@wailsio/runtime";
 import { useToast } from "./useToast";
 import { useI18nLoader } from "./useI18nLoader";
+import { useTemplates } from "./useTemplates";
 import {
   Service as PluginSvc,
   type ClientInstall,
@@ -21,8 +22,30 @@ export const PLUGIN_CLIENTS_EVENT = "formidable:plugin-clients";
 // "plugin:clients" Wails event so the toast lands while the run is still up.
 export function usePluginClientNotices(): void {
   const toast = useToast();
+  const { refresh: refreshTemplates } = useTemplates();
+
+  // A template a plugin created (on import or from its script). The list of
+  // templates is re-read so it shows up without a reload.
+  function notifyTemplate(n: ClientInstall): void {
+    const dedupeKey = `plugin-template|${n.plugin}|${n.id}|${n.status}`;
+    if (n.status === "installed") {
+      void refreshTemplates();
+      toast.info("workspace.plugins.heldtemplates.notice_installed", [n.plugin, n.id], { dedupeKey });
+    } else if (n.status === "exists") {
+      toast.info("workspace.plugins.heldtemplates.notice_exists", [n.plugin, n.id], { dedupeKey });
+    } else if (n.status === "failed") {
+      toast.error("workspace.plugins.heldtemplates.notice_failed", [n.plugin, n.id, n.error ?? ""], {
+        sticky: true,
+        dedupeKey,
+      });
+    }
+  }
 
   function notify(n: ClientInstall): void {
+    if (n.kind === "template") {
+      notifyTemplate(n);
+      return;
+    }
     const dedupeKey = `plugin-client|${n.plugin}|${n.id}|${n.status}`;
     if (n.status === "installed") {
       // A derived client was drafted from the document alone, so its

@@ -19,6 +19,15 @@ import * as formwidget$0 from "../formwidget/models.js";
 import * as $models from "./models.js";
 
 /**
+ * AddShippedTemplateFrom copies an existing template of the context folder into the plugin.
+ */
+export function AddShippedTemplateFrom(pluginID: string, file: string): $CancellablePromise<$models.ShippedTemplate[]> {
+    return $Call.ByID(2578519883, pluginID, file).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * Cancel signals the currently-running plugin to abort; safe from any goroutine.
  */
 export function Cancel(): $CancellablePromise<void> {
@@ -30,6 +39,15 @@ export function Cancel(): $CancellablePromise<void> {
  */
 export function Create(id: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(2899368391, id).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * CreateShippedTemplate creates the template in the context folder from the plugin's copy; an existing template is left untouched.
+ */
+export function CreateShippedTemplate(pluginID: string, file: string): $CancellablePromise<$models.ShippedTemplate[]> {
+    return $Call.ByID(532525464, pluginID, file).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -39,7 +57,7 @@ export function Create(id: string): $CancellablePromise<$models.ListResult[]> {
  */
 export function Delete(id: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(3327307900, id).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -55,7 +73,7 @@ export function DeletePluginI18n(id: string, locale: string): $CancellablePromis
  */
 export function ExportArchive(id: string, zipPath: string): $CancellablePromise<$models.ExportArchiveResult> {
     return $Call.ByID(3459305341, id, zipPath).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -64,7 +82,7 @@ export function ExportArchive(id: string, zipPath: string): $CancellablePromise<
  */
 export function GenerateShippedClient(pluginID: string, clientID: string): $CancellablePromise<$models.ShippedClient[]> {
     return $Call.ByID(924293336, pluginID, clientID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -80,7 +98,7 @@ export function GetForm(id: string): $CancellablePromise<string> {
  */
 export function GetI18nMessages(locale: string): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(24808493, locale).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -89,7 +107,7 @@ export function GetI18nMessages(locale: string): $CancellablePromise<{ [_ in str
  */
 export function GetPluginI18n(id: string, locale: string): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(808121062, id, locale).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -98,6 +116,13 @@ export function GetPluginI18n(id: string, locale: string): $CancellablePromise<{
  */
 export function GetShippedDocument(pluginID: string, clientID: string): $CancellablePromise<string> {
     return $Call.ByID(3818698233, pluginID, clientID);
+}
+
+/**
+ * GetShippedTemplate returns the YAML of one template a plugin holds.
+ */
+export function GetShippedTemplate(pluginID: string, file: string): $CancellablePromise<string> {
+    return $Call.ByID(1465677626, pluginID, file);
 }
 
 /**
@@ -112,7 +137,7 @@ export function GetSource(id: string): $CancellablePromise<string> {
  */
 export function ImportArchive(zipPath: string, overwrite: boolean): $CancellablePromise<$models.ImportArchiveResult> {
     return $Call.ByID(1966327212, zipPath, overwrite).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -121,7 +146,16 @@ export function ImportArchive(zipPath: string, overwrite: boolean): $Cancellable
  */
 export function List(): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(2326066151).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
+    });
+}
+
+/**
+ * ListBindableTemplates returns the templates a plugin can be bound to: the context folder's, plus the ones the plugin holds even when not created yet.
+ */
+export function ListBindableTemplates(pluginID: string): $CancellablePromise<$models.BindableTemplate[]> {
+    return $Call.ByID(497931571, pluginID).then(($result: any) => {
+        return $$createType10($result);
     });
 }
 
@@ -130,7 +164,7 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
  */
 export function ListForTemplate(ws: string, template: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(3587214068, ws, template).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -139,7 +173,7 @@ export function ListForTemplate(ws: string, template: string): $CancellablePromi
  */
 export function ListForWorkspace(ws: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(1481272787, ws).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -148,7 +182,7 @@ export function ListForWorkspace(ws: string): $CancellablePromise<$models.ListRe
  */
 export function ListPluginLocales(id: string): $CancellablePromise<string[]> {
     return $Call.ByID(111512495, id).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
     });
 }
 
@@ -157,7 +191,16 @@ export function ListPluginLocales(id: string): $CancellablePromise<string[]> {
  */
 export function ListShippedClients(pluginID: string): $CancellablePromise<$models.ShippedClient[]> {
     return $Call.ByID(3889756466, pluginID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * ListShippedTemplates describes the templates a plugin holds, for the editor's Templates tab.
+ */
+export function ListShippedTemplates(pluginID: string): $CancellablePromise<$models.ShippedTemplate[]> {
+    return $Call.ByID(2285096721, pluginID).then(($result: any) => {
+        return $$createType1($result);
     });
 }
 
@@ -166,7 +209,7 @@ export function ListShippedClients(pluginID: string): $CancellablePromise<$model
  */
 export function ListWorkspaces(): $CancellablePromise<string[]> {
     return $Call.ByID(970622365).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
     });
 }
 
@@ -175,7 +218,7 @@ export function ListWorkspaces(): $CancellablePromise<string[]> {
  */
 export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(3599671491, pluginID, fieldKeys).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType12($result);
     });
 }
 
@@ -185,7 +228,7 @@ export function LoadFormValues(pluginID: string, fieldKeys: string[]): $Cancella
  */
 export function Refresh(): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(2866253602).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -194,7 +237,16 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
  */
 export function RemoveShippedClient(pluginID: string, clientID: string): $CancellablePromise<$models.ShippedClient[]> {
     return $Call.ByID(3736602729, pluginID, clientID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * RemoveShippedTemplate takes the template out of the plugin; a template created from it stays.
+ */
+export function RemoveShippedTemplate(pluginID: string, file: string): $CancellablePromise<$models.ShippedTemplate[]> {
+    return $Call.ByID(601473772, pluginID, file).then(($result: any) => {
+        return $$createType1($result);
     });
 }
 
@@ -203,7 +255,7 @@ export function RemoveShippedClient(pluginID: string, clientID: string): $Cancel
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType13($result);
     });
 }
 
@@ -212,7 +264,7 @@ export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: 
  */
 export function Save(id: string, manifest: $models.Manifest, luaSource: string, formJSON: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(2781827402, id, manifest, luaSource, formJSON).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -235,7 +287,16 @@ export function SavePluginI18n(id: string, locale: string, msgs: { [_ in string]
  */
 export function SaveShippedClient(pluginID: string, clientID: string, document: string): $CancellablePromise<$models.ShippedClient[]> {
     return $Call.ByID(3977009866, pluginID, clientID, document).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * SaveShippedTemplate stores template YAML in the plugin; it creates nothing in the context folder.
+ */
+export function SaveShippedTemplate(pluginID: string, file: string, yaml: string): $CancellablePromise<$models.ShippedTemplate[]> {
+    return $Call.ByID(553380423, pluginID, file, yaml).then(($result: any) => {
+        return $$createType1($result);
     });
 }
 
@@ -244,7 +305,7 @@ export function SaveShippedClient(pluginID: string, clientID: string, document: 
  */
 export function SetShippedSettings(pluginID: string, clientID: string, name: string, baseURL: string): $CancellablePromise<$models.ShippedClient[]> {
     return $Call.ByID(875395561, pluginID, clientID, name, baseURL).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -253,7 +314,7 @@ export function SetShippedSettings(pluginID: string, clientID: string, name: str
  */
 export function TakeClientNotices(): $CancellablePromise<$models.ClientInstall[]> {
     return $Call.ByID(866055568).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType15($result);
     });
 }
 
@@ -270,22 +331,26 @@ export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void
  */
 export function WidgetKinds(): $CancellablePromise<formwidget$0.Descriptor[]> {
     return $Call.ByID(743175530).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType17($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.ListResult.createFrom;
+const $$createType0 = $models.ShippedTemplate.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.ExportArchiveResult.createFrom;
-const $$createType3 = $models.ShippedClient.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $Create.Map($Create.Any, $Create.Any);
-const $$createType6 = $models.ImportArchiveResult.createFrom;
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = $Create.Map($Create.Any, $Create.Any);
-const $$createType9 = $models.RunResultDTO.createFrom;
-const $$createType10 = $models.ClientInstall.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = formwidget$0.Descriptor.createFrom;
-const $$createType13 = $Create.Array($$createType12);
+const $$createType2 = $models.ListResult.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.ExportArchiveResult.createFrom;
+const $$createType5 = $models.ShippedClient.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $models.ImportArchiveResult.createFrom;
+const $$createType9 = $models.BindableTemplate.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $Create.Array($Create.Any);
+const $$createType12 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = $models.RunResultDTO.createFrom;
+const $$createType14 = $models.ClientInstall.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = formwidget$0.Descriptor.createFrom;
+const $$createType17 = $Create.Array($$createType16);

@@ -211,8 +211,22 @@ func buildKVTable(L *lua.LState, pluginID string, kv *KV) *lua.LTable {
 	return t
 }
 
-func buildTemplateTable(L *lua.LState, t TemplateAccess) *lua.LTable {
+func buildTemplateTable(L *lua.LState, t TemplateAccess, admin TemplateAdmin) *lua.LTable {
 	tbl := L.NewTable()
+	// install(file) creates a template the plugin holds in the context folder, create-only: true when created, false when one of that name was already there.
+	if admin == nil {
+		tbl.RawSetString("install", L.NewFunction(nilGuard("template")))
+	} else {
+		tbl.RawSetString("install", L.NewFunction(func(L *lua.LState) int {
+			created, err := admin.Install(L.CheckString(1))
+			if err != nil {
+				L.RaiseError("template.install: %v", err)
+				return 0
+			}
+			L.Push(lua.LBool(created))
+			return 1
+		}))
+	}
 	if t == nil {
 		tbl.RawSetString("list", L.NewFunction(nilGuard("template")))
 		tbl.RawSetString("get", L.NewFunction(nilGuard("template")))

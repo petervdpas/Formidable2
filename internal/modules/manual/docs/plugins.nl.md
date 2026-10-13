@@ -127,3 +127,33 @@ PDF-export vereist Chrome of Chromium en wordt geactiveerd onder Informatie >
 PDF. Is dat niet gebeurd, dan geeft `export` een fout die begint met
 `engine_inactive`. Zet **Vereist PDF-export** aan onder Gedrag om de run in dat
 geval vooraf te laten weigeren.
+
+## Sjablonen in een plugin
+
+Een plugin kan eigen sjablonen bevatten, zodat het script ergens kan opslaan
+wat het ophaalt. Op het tabblad **Meegeleverde sjablonen** van de plugin:
+
+- **Sjabloon toevoegen** neemt een sjabloon over uit de werkruimte Sjablonen,
+  of begint een nieuw op basis van YAML die je typt.
+- **Opslaan in plugin** bewaart de kopie in de plugin, zodat die meereist in
+  de plugin-zip. Opslaan maakt geen sjabloon aan.
+- **Sjabloon aanmaken** maakt het sjabloon in de geopende contextmap. De
+  plugin-zip importeren doet hetzelfde, en de plugin uitvoeren ook: zijn
+  sjablonen worden aangemaakt voordat het script start. Een sjabloon dat al
+  bestaat wordt nooit vervangen, dus je eigen wijzigingen blijven veilig.
+- Onder **Sjablonen** in het manifest worden de sjablonen die een plugin bevat
+  ter koppeling aangeboden nog voordat ze bestaan, zodat een plugin aan het
+  sjabloon dat hij meebrengt kan worden gekoppeld. Voer hem één keer uit
+  vanuit de werkruimte Plugins om dat sjabloon aan te maken.
+- **Huidige versie overnemen** kopieert het sjabloon zoals het nu is terug
+  naar de plugin.
+
+Een script kan hetzelfde met `formidable.template.install(file)`. Dat geeft
+`true` terug wanneer het sjabloon is aangemaakt en `false` wanneer er al een
+met die naam bestond. Alleen sjablonen die de plugin bevat kunnen worden
+aangemaakt.
+
+Wordt een plugin gestart vanuit de werkruimte Opslag, dan bevat de `ctx` van
+het script `ctx.template` (de bestandsnaam van het geopende sjabloon) en
+`ctx.datafile` (de bestandsnaam van het geopende record, als er een open is),
+zodat het met "dit record" kan werken zonder te vragen welk.

@@ -29,12 +29,18 @@ import { pluginName } from "../utils/pluginI18n";
 // information) omit it: the backend then returns only the workspace
 // channel. Empty list -> null group -> spreads into [] cleanly.
 // Refresh also fires on `formidable:context-reloaded`.
+//
+// `selectedDatafile`, when supplied, is a getter for the record that is open
+// in the workspace (Storage passes its selection). It rides into the
+// click-time ctx as `datafile`, so a script can read, save or export "this
+// record" without asking which one. It plays no part in the backend filter.
 
 type TemplateGetter = () => string;
 
 export function useWorkspacePluginMenu(
   workspaceID: string,
   selectedTemplate?: TemplateGetter,
+  selectedDatafile?: TemplateGetter,
 ) {
   const plugins = ref<ListResult[]>([]);
   const { running } = useGlobalPluginRun();
@@ -85,6 +91,8 @@ export function useWorkspacePluginMenu(
       onClick: () => {
         const extra: Record<string, unknown> = { workspace: workspaceID };
         if (tpl) extra.template = tpl;
+        const datafile = selectedDatafile ? selectedDatafile() : "";
+        if (tpl && datafile) extra.datafile = datafile;
         openGlobalPluginRun(p, extra);
       },
     }));

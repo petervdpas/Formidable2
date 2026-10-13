@@ -1219,6 +1219,7 @@ function openExportPdf() {
 const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu(
   "storage",
   () => selectedTemplate.value ?? "",
+  () => selectedDataFile.value,
 );
 
 setTopbarMenu(() => [

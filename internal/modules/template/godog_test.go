@@ -283,6 +283,30 @@ fields:
 		return w.m.SaveTemplate(name, &t)
 	})
 
+	ctx.Step(`^I create a template named "([^"]*)" from the following yaml:$`, func(name string, body *godog.DocString) error {
+		w.saveErr = w.m.CreateFromYAML(name, []byte(body.Content))
+		return nil
+	})
+	ctx.Step(`^the create succeeded$`, func() error { return w.saveErr })
+	ctx.Step(`^the create was refused$`, func() error {
+		if w.saveErr == nil {
+			return errors.New("the template was created")
+		}
+		return nil
+	})
+	ctx.Step(`^the create was refused because the template exists$`, func() error {
+		if !errors.Is(w.saveErr, ErrExists) {
+			return fmt.Errorf("err = %v, want ErrExists", w.saveErr)
+		}
+		return nil
+	})
+	ctx.Step(`^the create was refused because the file name is invalid$`, func() error {
+		if !errors.Is(w.saveErr, ErrInvalidName) {
+			return fmt.Errorf("err = %v, want ErrInvalidName", w.saveErr)
+		}
+		return nil
+	})
+
 	ctx.Step(`^I load template "([^"]*)"$`, func(name string) error {
 		w.loaded, w.loadErr = w.m.LoadTemplate(name)
 		return nil

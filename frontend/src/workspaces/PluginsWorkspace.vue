@@ -10,18 +10,17 @@ import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
 import PluginI18nEditor from "../components/PluginI18nEditor.vue";
 import PluginClientsEditor from "../components/PluginClientsEditor.vue";
+import PluginTemplatesEditor from "../components/PluginTemplatesEditor.vue";
 import PluginResultPanel from "../components/PluginResultPanel.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import FormFieldRow from "../components/form-fields/FormFieldRow.vue";
-import {
-  Service as TemplateSvc,
-  type Field,
-} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { getFieldTypeDef } from "../types/field-types";
 import {
   Service as PluginSvc,
   Command,
   RunResultDTO,
+  type BindableTemplate,
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
@@ -90,22 +89,36 @@ function setWorkspaceAttached(ws: string, on: boolean) {
 
 // Manifest.templates binds the plugin to specific template filenames -
 // it then surfaces in the storage/templates topbar only while one of
-// these is the active selection. The picker reads the live template
-// list from the backend (single source of truth); selecting none
-// leaves the plugin in the plain workspace channel.
-const templateFilenames = ref<string[]>([]);
-async function loadTemplateFilenames(): Promise<void> {
+// these is the active selection. The choices come from the backend
+// (single source of truth): the context folder's templates plus the ones
+// this plugin holds, so a plugin can be bound to a template it brings
+// before that template exists. Selecting none leaves the plugin in the
+// plain workspace channel.
+const bindableTemplates = ref<BindableTemplate[]>([]);
+async function loadBindableTemplates(): Promise<void> {
+  if (!selectedID.value) {
+    bindableTemplates.value = [];
+    return;
+  }
   try {
-    templateFilenames.value = (await TemplateSvc.ListTemplates()) ?? [];
+    bindableTemplates.value = (await PluginSvc.ListBindableTemplates(selectedID.value)) ?? [];
   } catch {
-    templateFilenames.value = [];
+    bindableTemplates.value = [];
   }
 }
-void loadTemplateFilenames();
+watch(selectedID, () => void loadBindableTemplates(), { immediate: true });
 if (typeof window !== "undefined") {
   window.addEventListener("formidable:context-reloaded", () => {
-    void loadTemplateFilenames();
+    void loadBindableTemplates();
   });
+}
+
+// Says where a binding choice comes from when it is not simply a template
+// of the context folder.
+function bindableNote(tpl: BindableTemplate): string {
+  if (tpl.held && !tpl.exists) return t("workspace.plugins.templates.held_missing");
+  if (tpl.held) return t("workspace.plugins.templates.held");
+  return "";
 }
 
 function isTemplateBound(tpl: string): boolean {
@@ -137,7 +150,7 @@ async function stopGlobalRun() {
 // most editing happens); Commands edits the manifest's command
 // list; Form Editor is a placeholder until the visual builder
 // lands in the next slice.
-type PluginTab = "source" | "commands" | "form" | "i18n" | "apiclients";
+type PluginTab = "source" | "commands" | "form" | "i18n" | "apiclients" | "heldtemplates";
 const activeTab = ref<PluginTab>("source");
 
 // ── Refresh ──────────────────────────────────────────────────────────
@@ -857,15 +870,16 @@ setTopbarMenu(() => [
           default-collapsed
         >
           <p
-            v-if="templateFilenames.length === 0"
+            v-if="bindableTemplates.length === 0"
             class="muted small"
           >{{ t('workspace.plugins.templates.empty') }}</p>
           <FormSwitchRow
-            v-for="tpl in templateFilenames"
-            :key="tpl"
-            :model-value="isTemplateBound(tpl)"
-            @update:model-value="(v: boolean) => setTemplateBound(tpl, v)"
-            :label="tpl"
+            v-for="tpl in bindableTemplates"
+            :key="tpl.file"
+            :model-value="isTemplateBound(tpl.file)"
+            @update:model-value="(v: boolean) => setTemplateBound(tpl.file, v)"
+            :label="tpl.file"
+            :description="bindableNote(tpl)"
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />
@@ -965,6 +979,15 @@ setTopbarMenu(() => [
             @click="activeTab = 'apiclients'"
           >
             {{ t('workspace.plugins.tab.apiclients') }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :class="['tab', { active: activeTab === 'heldtemplates' }]"
+            :aria-selected="activeTab === 'heldtemplates'"
+            @click="activeTab = 'heldtemplates'"
+          >
+            {{ t('workspace.plugins.tab.heldtemplates') }}
           </button>
         </nav>
 
@@ -1104,6 +1127,10 @@ setTopbarMenu(() => [
 
         <section v-show="activeTab === 'apiclients'" class="tab-pane">
           <PluginClientsEditor :plugin-id="selectedID" />
+        </section>
+
+        <section v-show="activeTab === 'heldtemplates'" class="tab-pane">
+          <PluginTemplatesEditor :plugin-id="selectedID" @changed="loadBindableTemplates" />
         </section>
       </template>
     </template>

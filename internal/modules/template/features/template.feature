@@ -481,3 +481,54 @@ Feature: Template management
       | label | color |
       | OPEN  | blue  |
     Then validation reports a "facet-field-unknown-key" error
+
+  Scenario: A template is created from YAML that came from elsewhere
+    When I create a template named "invoice.yaml" from the following yaml:
+      """
+      name: Invoice
+      fields:
+        - key: number
+          type: text
+          label: Number
+      """
+    Then the create succeeded
+    And the template list contains "invoice.yaml"
+    And loading "invoice.yaml" returns a template named "Invoice"
+
+  Scenario: Creating never replaces a template that is already there
+    Given I create a template named "invoice.yaml" from the following yaml:
+      """
+      name: Invoice
+      fields: []
+      """
+    When I create a template named "invoice.yaml" from the following yaml:
+      """
+      name: Someone else's invoice
+      fields: []
+      """
+    Then the create was refused because the template exists
+    And loading "invoice.yaml" returns a template named "Invoice"
+
+  Scenario: A file name that leaves the templates folder is refused
+    When I create a template named "../invoice.yaml" from the following yaml:
+      """
+      name: Invoice
+      fields: []
+      """
+    Then the create was refused because the file name is invalid
+    And the template list is empty
+
+  Scenario: YAML that fails validation creates nothing
+    When I create a template named "bad.yaml" from the following yaml:
+      """
+      name: Bad
+      fields:
+        - key: a
+          type: text
+          label: A
+        - key: a
+          type: text
+          label: A again
+      """
+    Then the create was refused
+    And the template list is empty

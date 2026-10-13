@@ -65,6 +65,9 @@ function errorLabel(kind: string, message: string): string {
   if (kind === "command_not_found") {
     return t("workspace.plugins.error_command_not_found", [message]);
   }
+  if (kind === "template_not_created") {
+    return t("workspace.plugins.error_template_not_created", [message]);
+  }
   if (kind === "pdf_not_active") {
     return t("workspace.plugins.error_pdf_not_active");
   }

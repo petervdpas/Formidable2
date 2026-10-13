@@ -57,9 +57,14 @@ const (
 	ClientFailed    = "failed"
 )
 
+// NoticeTemplate marks a queued notice as being about a template.
+const NoticeTemplate = "template"
+
 // ClientInstall is the outcome for one api-client a plugin declares. Error is set only on ClientFailed.
 // Derived marks an installed client whose definition was drafted from the document alone, so the user knows to review more than the credential.
+// Kind is empty for an api-client and NoticeTemplate when the thing a script created is a template; ID then holds its file name.
 type ClientInstall struct {
+	Kind    string `json:"kind,omitempty"`
 	Plugin  string `json:"plugin"`
 	ID      string `json:"id"`
 	Status  string `json:"status"`
@@ -129,7 +134,7 @@ func (m *Manager) queueClientNotices(outcomes []ClientInstall) {
 		m.notices = map[[2]string]ClientInstall{}
 	}
 	for _, o := range outcomes {
-		m.notices[[2]string{o.Plugin, o.ID}] = o
+		m.notices[[2]string{o.Plugin, o.Kind + ":" + o.ID}] = o
 	}
 }
 

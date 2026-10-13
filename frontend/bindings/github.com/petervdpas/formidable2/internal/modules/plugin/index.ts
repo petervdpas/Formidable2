@@ -7,6 +7,7 @@ export {
 };
 
 export {
+    BindableTemplate,
     ClientInstall,
     Command,
     ExportArchiveResult,
@@ -15,5 +16,7 @@ export {
     Manifest,
     RunResultDTO,
     ShippedClient,
+    ShippedTemplate,
+    TemplateInstall,
     ToastEvent
 } from "./models.js";

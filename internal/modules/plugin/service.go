@@ -157,6 +157,41 @@ func (s *Service) RemoveShippedClient(pluginID, clientID string) ([]ShippedClien
 	return s.m.RemoveShippedClient(pluginID, clientID)
 }
 
+// ListBindableTemplates returns the templates a plugin can be bound to: the context folder's, plus the ones the plugin holds even when not created yet.
+func (s *Service) ListBindableTemplates(pluginID string) ([]BindableTemplate, error) {
+	return s.m.ListBindableTemplates(pluginID)
+}
+
+// ListShippedTemplates describes the templates a plugin holds, for the editor's Templates tab.
+func (s *Service) ListShippedTemplates(pluginID string) ([]ShippedTemplate, error) {
+	return s.m.ListShippedTemplates(pluginID)
+}
+
+// GetShippedTemplate returns the YAML of one template a plugin holds.
+func (s *Service) GetShippedTemplate(pluginID, file string) (string, error) {
+	return s.m.GetShippedTemplate(pluginID, file)
+}
+
+// SaveShippedTemplate stores template YAML in the plugin; it creates nothing in the context folder.
+func (s *Service) SaveShippedTemplate(pluginID, file, yaml string) ([]ShippedTemplate, error) {
+	return s.m.SaveShippedTemplate(pluginID, file, yaml)
+}
+
+// AddShippedTemplateFrom copies an existing template of the context folder into the plugin.
+func (s *Service) AddShippedTemplateFrom(pluginID, file string) ([]ShippedTemplate, error) {
+	return s.m.AddShippedTemplateFrom(pluginID, file)
+}
+
+// CreateShippedTemplate creates the template in the context folder from the plugin's copy; an existing template is left untouched.
+func (s *Service) CreateShippedTemplate(pluginID, file string) ([]ShippedTemplate, error) {
+	return s.m.CreateShippedTemplate(pluginID, file)
+}
+
+// RemoveShippedTemplate takes the template out of the plugin; a template created from it stays.
+func (s *Service) RemoveShippedTemplate(pluginID, file string) ([]ShippedTemplate, error) {
+	return s.m.RemoveShippedTemplate(pluginID, file)
+}
+
 // GetSource returns the plugin's main.lua content.
 func (s *Service) GetSource(id string) (string, error) {
 	return s.m.GetSource(id)
@@ -190,6 +225,8 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrServerNotRunning):
 		return RunResultDTO{Kind: "server_not_running", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
+	case errors.Is(err, ErrTemplateNotCreated):
+		return RunResultDTO{Kind: "template_not_created", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrPDFNotActive):
 		return RunResultDTO{Kind: "pdf_not_active", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrClientMissing):

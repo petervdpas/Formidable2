@@ -6,10 +6,45 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * BindableTemplate is one template a plugin can be bound to (Manifest.Templates): every template of the context folder, plus the ones the plugin holds.
+ * A held template is offered before it exists, so a plugin can be bound to the template it brings.
+ */
+export class BindableTemplate {
+    "file": string;
+    "held": boolean;
+    "exists": boolean;
+
+    /** Creates a new BindableTemplate instance. */
+    constructor($$source: Partial<BindableTemplate> = {}) {
+        if (!("file" in $$source)) {
+            this["file"] = "";
+        }
+        if (!("held" in $$source)) {
+            this["held"] = false;
+        }
+        if (!("exists" in $$source)) {
+            this["exists"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BindableTemplate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BindableTemplate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BindableTemplate($$parsedSource as Partial<BindableTemplate>);
+    }
+}
+
+/**
  * ClientInstall is the outcome for one api-client a plugin declares. Error is set only on ClientFailed.
  * Derived marks an installed client whose definition was drafted from the document alone, so the user knows to review more than the credential.
+ * Kind is empty for an api-client and NoticeTemplate when the thing a script created is a template; ID then holds its file name.
  */
 export class ClientInstall {
+    "kind"?: string;
     "plugin": string;
     "id": string;
     "status": string;
@@ -144,6 +179,11 @@ export class ImportArchiveResult {
      */
     "clients"?: ClientInstall[];
 
+    /**
+     * Templates reports each template the plugin holds, the same three ways.
+     */
+    "templates"?: TemplateInstall[];
+
     /** Creates a new ImportArchiveResult instance. */
     constructor($$source: Partial<ImportArchiveResult> = {}) {
         if (!("id" in $$source)) {
@@ -165,12 +205,16 @@ export class ImportArchiveResult {
     static createFrom($$source: any = {}): ImportArchiveResult {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
         }
         if ("clients" in $$parsedSource) {
             $$parsedSource["clients"] = $$createField3_0($$parsedSource["clients"]);
+        }
+        if ("templates" in $$parsedSource) {
+            $$parsedSource["templates"] = $$createField4_0($$parsedSource["templates"]);
         }
         return new ImportArchiveResult($$parsedSource as Partial<ImportArchiveResult>);
     }
@@ -199,7 +243,7 @@ export class ListResult {
      * Creates a new ListResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ListResult {
-        const $$createField1_0 = $$createType3;
+        const $$createField1_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("manifest" in $$parsedSource) {
             $$parsedSource["manifest"] = $$createField1_0($$parsedSource["manifest"]);
@@ -284,7 +328,7 @@ export class Manifest {
         const $$createField9_0 = $$createType0;
         const $$createField10_0 = $$createType0;
         const $$createField11_0 = $$createType0;
-        const $$createField14_0 = $$createType5;
+        const $$createField14_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
             $$parsedSource["workspaces"] = $$createField9_0($$parsedSource["workspaces"]);
@@ -326,7 +370,7 @@ export class RunResultDTO {
      */
     static createFrom($$source: any = {}): RunResultDTO {
         const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType7;
+        const $$createField4_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("logLines" in $$parsedSource) {
             $$parsedSource["logLines"] = $$createField3_0($$parsedSource["logLines"]);
@@ -384,6 +428,74 @@ export class ShippedClient {
 }
 
 /**
+ * ShippedTemplate is one template a plugin holds, as the editor's Templates tab shows it.
+ * Installed says whether a template of that file name exists in the open context folder.
+ */
+export class ShippedTemplate {
+    "file": string;
+    "name"?: string;
+    "fields": number;
+    "installed": boolean;
+    "error"?: string;
+
+    /** Creates a new ShippedTemplate instance. */
+    constructor($$source: Partial<ShippedTemplate> = {}) {
+        if (!("file" in $$source)) {
+            this["file"] = "";
+        }
+        if (!("fields" in $$source)) {
+            this["fields"] = 0;
+        }
+        if (!("installed" in $$source)) {
+            this["installed"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ShippedTemplate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ShippedTemplate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ShippedTemplate($$parsedSource as Partial<ShippedTemplate>);
+    }
+}
+
+/**
+ * TemplateInstall is the outcome for one template on a zip import; Status uses the Client* vocabulary.
+ */
+export class TemplateInstall {
+    "plugin": string;
+    "file": string;
+    "status": string;
+    "error"?: string;
+
+    /** Creates a new TemplateInstall instance. */
+    constructor($$source: Partial<TemplateInstall> = {}) {
+        if (!("plugin" in $$source)) {
+            this["plugin"] = "";
+        }
+        if (!("file" in $$source)) {
+            this["file"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TemplateInstall instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TemplateInstall {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TemplateInstall($$parsedSource as Partial<TemplateInstall>);
+    }
+}
+
+/**
  * ToastEvent is one toast a script requested via formidable.toast.*, collected during a Run.
  */
 export class ToastEvent {
@@ -415,8 +527,10 @@ export class ToastEvent {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = ClientInstall.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = Manifest.createFrom;
-const $$createType4 = Command.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = ToastEvent.createFrom;
+const $$createType3 = TemplateInstall.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = Manifest.createFrom;
+const $$createType6 = Command.createFrom;
 const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = ToastEvent.createFrom;
+const $$createType9 = $Create.Array($$createType8);

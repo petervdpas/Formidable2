@@ -840,3 +840,37 @@ func pdfErr(err error) error {
 	}
 	return fmt.Errorf("%s: %s", ee.Code, msg)
 }
+
+// pluginTemplateInstaller is the template store as plugins see it: create-only
+// creation of the templates a plugin holds, through the same save path as the
+// template editor, so indexing and enablement follow as they do there.
+type pluginTemplateInstaller struct {
+	tpl *template.Manager
+}
+
+func (a pluginTemplateInstaller) HasTemplate(name string) bool { return a.tpl.Exists(name) }
+
+func (a pluginTemplateInstaller) CreateTemplate(name string, yaml []byte) (bool, error) {
+	err := a.tpl.CreateFromYAML(name, yaml)
+	if errors.Is(err, template.ErrExists) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (a pluginTemplateInstaller) InspectTemplate(name string, yaml []byte) (plugin.TemplateInfo, error) {
+	if err := template.CheckFilename(name); err != nil {
+		return plugin.TemplateInfo{}, err
+	}
+	t, err := template.ParseYAML(yaml)
+	if err != nil {
+		return plugin.TemplateInfo{}, err
+	}
+	return plugin.TemplateInfo{Name: t.Name, Fields: len(t.Fields)}, nil
+}
+
+func (a pluginTemplateInstaller) TemplateSource(name string) (string, error) {
+	return a.tpl.Source(name)
+}
+
+func (a pluginTemplateInstaller) TemplateFiles() ([]string, error) { return a.tpl.ListTemplates() }

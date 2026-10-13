@@ -68,12 +68,13 @@ type runtimeDeps struct {
 	API           HTTPClient
 	Client        ClientAccess
 	// ClientIDs are the api-clients the manifest declares; formidable.client refuses any other.
-	ClientIDs   []string
-	ClientAdmin ClientAdmin
-	PDF         PDFAccess
-	Stats       StatsAccess
-	Facets      FacetStatsAccess
-	StatObject  StatObjectAccess
+	ClientIDs     []string
+	ClientAdmin   ClientAdmin
+	PDF           PDFAccess
+	TemplateAdmin TemplateAdmin
+	Stats         StatsAccess
+	Facets        FacetStatsAccess
+	StatObject    StatObjectAccess
 	// I18nMessages is the plugin's active-locale translations with the `plugin.<id>.` prefix stripped; nil/empty makes t() return the key verbatim.
 	I18nMessages map[string]string
 }
@@ -92,7 +93,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("client", buildClientTable(L, deps.Ctx, deps.Client, deps.ClientAdmin, deps.ClientIDs))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
 	f.RawSetString("plugin", buildPluginTable(L, deps.Plugin))
-	f.RawSetString("template", buildTemplateTable(L, deps.Template))
+	f.RawSetString("template", buildTemplateTable(L, deps.Template, deps.TemplateAdmin))
 	f.RawSetString("collection", buildCollectionTable(L, deps.Collection))
 	f.RawSetString("form", buildFormTable(L, deps.Form))
 	f.RawSetString("render", buildRenderTable(L, deps.PluginID, deps.Render, deps.FM))
@@ -216,6 +217,7 @@ type scriptOpts struct {
 	ClientIDs     []string
 	ClientAdmin   ClientAdmin
 	PDF           PDFAccess
+	TemplateAdmin TemplateAdmin
 	Stats         StatsAccess
 	Facets        FacetStatsAccess
 	StatObject    StatObjectAccess
@@ -262,6 +264,7 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		ClientIDs:     opts.ClientIDs,
 		ClientAdmin:   opts.ClientAdmin,
 		PDF:           opts.PDF,
+		TemplateAdmin: opts.TemplateAdmin,
 		Stats:         opts.Stats,
 		Facets:        opts.Facets,
 		StatObject:    opts.StatObject,

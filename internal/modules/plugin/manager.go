@@ -40,6 +40,8 @@ type ManagerDeps struct {
 	RunOptionsOut RunOptionsEmitter
 	// Locale supplies the active locale id at Run time; nil falls back to "en".
 	Locale LocaleProvider
+	// Templates creates the templates plugins hold; nil leaves a plugin's templates folder inert.
+	Templates TemplateInstaller
 	// PDF is the PDF export behind formidable.pdf; nil disables the namespace and refuses plugins that declare requires_pdf.
 	PDF PDFAccess
 	// Client is the read side of the api-client store behind formidable.client; a script reaches only the clients its manifest declares.
@@ -262,6 +264,9 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 	if id := m.missingClient(p); id != "" {
 		return RunResult{}, fmt.Errorf("%w: %s", ErrClientMissing, id)
 	}
+	if err := m.createHeldTemplates(p); err != nil {
+		return RunResult{}, err
+	}
 	src, err := os.ReadFile(filepath.Join(p.Dir, "main.lua"))
 	if err != nil {
 		return RunResult{}, fmt.Errorf("plugin: read main.lua: %w", err)
@@ -307,6 +312,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		ClientIDs:     p.Manifest.APIClients,
 		ClientAdmin:   clientAdmin{m: m, p: p},
 		PDF:           m.deps.PDF,
+		TemplateAdmin: templateAdmin{m: m, p: p},
 		Stats:         m.deps.Stats,
 		Facets:        m.deps.Facets,
 		StatObject:    m.deps.StatObject,

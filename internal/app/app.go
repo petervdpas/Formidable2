@@ -752,6 +752,7 @@ func New(d Deps) (*App, error) {
 		StatObject: pluginStatObjectAdapter{svc: statSvc},
 		Locale:     pluginLocaleAdapter{cfg: cfgM},
 		PDF:        pluginPDF,
+		Templates:  pluginTemplateInstaller{tpl: tplM},
 		Client:     pluginClientAdapter{m: clientM, inv: clientInv},
 		Clients:    pluginClientAdapter{m: clientM, inv: clientInv},
 		ClientNoticeOut: func() {

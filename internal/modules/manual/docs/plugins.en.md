@@ -121,3 +121,31 @@ PDF export needs Chrome or Chromium and is activated under Information > PDF.
 When it is not set up, `export` raises an error starting with
 `engine_inactive`. Switch on **Requires PDF export** under Behavior to have
 the run refused up front in that case.
+
+## Templates in a plugin
+
+A plugin can hold templates of its own, so its script has somewhere to store
+what it fetches. On the plugin's **Shipped templates** tab:
+
+- **Add template** takes over a template from the Templates workspace, or
+  starts a new one from YAML you type.
+- **Save to plugin** stores the copy inside the plugin, so it travels in the
+  plugin zip. Saving creates no template.
+- **Create template** makes the template in the open context folder. Importing
+  the plugin zip does the same, and so does running the plugin: its templates
+  are created before the script starts. A template that already exists is
+  never replaced, so your own changes to it are safe.
+- Under **Templates** in the manifest, the templates a plugin holds are offered
+  for binding even before they exist, so a plugin can be tied to the template
+  it brings. Run it once from the Plugins workspace to create that template.
+- **Take over current version** copies the template as it is now back into the
+  plugin.
+
+A script can do the same with `formidable.template.install(file)`. It returns
+`true` when the template was created and `false` when one of that name was
+already there. Only templates the plugin holds can be installed.
+
+When a plugin is started from the Storage workspace, the script's `ctx` holds
+`ctx.template` (the open template's file name) and `ctx.datafile` (the open
+record's file name, when one is open), so it can work on "this record"
+without asking which one.

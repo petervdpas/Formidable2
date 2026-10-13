@@ -44,6 +44,8 @@ type ImportArchiveResult struct {
 	Files       []string `json:"files"`
 	// Clients reports each api-client the plugin declares: installed now, already present and left alone, or failed.
 	Clients []ClientInstall `json:"clients,omitempty"`
+	// Templates reports each template the plugin holds, the same three ways.
+	Templates []TemplateInstall `json:"templates,omitempty"`
 }
 
 // exportPluginArchive bundles <pluginsDir>/<id>/** into a zip at zipPath. id is validated up front; hidden entries
@@ -280,7 +282,7 @@ func (m *Manager) ExportArchive(id, zipPath string) (ExportArchiveResult, error)
 	return exportPluginArchive(m.deps.Editor, m.deps.PluginsDir, id, zipPath)
 }
 
-// ImportArchive materialises a plugin-archive zip under <PluginsDir>/, refusing to overwrite unless overwrite=true, then Refreshes the registry and creates the api-clients the plugin ships.
+// ImportArchive materialises a plugin-archive zip under <PluginsDir>/, refusing to overwrite unless overwrite=true, then Refreshes the registry and creates the api-clients and templates the plugin brings.
 func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveResult, error) {
 	if m.deps.Editor == nil {
 		return ImportArchiveResult{}, fmt.Errorf("plugin: editor fs not configured")
@@ -296,6 +298,7 @@ func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveRe
 	// Importing a plugin is the user asking for it, so the api-clients it ships are created here and only here.
 	if p, ok := m.Get(res.ID); ok {
 		res.Clients = m.importedClients(p, m.installClients(p))
+		res.Templates = m.installTemplates(p)
 	}
 	return res, nil
 }

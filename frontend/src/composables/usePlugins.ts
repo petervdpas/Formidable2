@@ -1,7 +1,7 @@
 import { computed, ref } from "vue";
 import {
   Service as PluginSvc,
-  type ClientInstall,
+  ClientInstall,
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import { backendErrMessage } from "../utils/backendError";
@@ -134,7 +134,18 @@ async function importArchive(zipPath: string, overwrite: boolean): Promise<Impor
   try {
     const res = await PluginSvc.ImportArchive(zipPath, overwrite);
     await refresh();
-    announceClients(res?.clients ?? []);
+    // Templates the import created ride the same notice path, marked by kind.
+    const templates = (res?.templates ?? []).map(
+      (tpl) =>
+        new ClientInstall({
+          kind: "template",
+          plugin: tpl.plugin,
+          id: tpl.file,
+          status: tpl.status,
+          error: tpl.error,
+        }),
+    );
+    announceClients([...(res?.clients ?? []), ...templates]);
     return {
       ok: true,
       id: res?.id ?? "",

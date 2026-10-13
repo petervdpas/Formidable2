@@ -97,6 +97,8 @@ type Manager struct {
 	author       AuthorReader
 
 	loadMu  keymu.Map
+	// createMu makes CreateFromYAML's exists-check and write one step.
+	createMu sync.Mutex
 	cacheMu sync.RWMutex
 	cache   map[string]*Template
 }
