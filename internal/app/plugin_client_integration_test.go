@@ -612,25 +612,30 @@ func TestPluginClient_AttemptReadsARefusalAndRecoversAfterAnUnknownOutcome(t *te
 	booked := map[string]bool{}
 	posts := 0
 	slowOnce := true
+	var mu sync.Mutex
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodPost {
 			_, _ = w.Write([]byte(`[]`))
 			return
 		}
-		posts++
 		var in map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&in)
 		guid, _ := in["guid"].(string)
-		if booked[guid] {
+		// The slow first answer is still pending when the script asks again, so two handlers overlap.
+		mu.Lock()
+		posts++
+		repeat, slow := booked[guid], slowOnce
+		booked[guid] = true
+		slowOnce = false
+		mu.Unlock()
+		if repeat {
 			w.WriteHeader(http.StatusConflict)
 			_, _ = w.Write([]byte(`{"error": "ledger.error.duplicate_guid"}`))
 			return
 		}
-		booked[guid] = true
-		if slowOnce {
+		if slow {
 			// Booked, but the answer never makes it back in time.
-			slowOnce = false
 			time.Sleep(400 * time.Millisecond)
 			return
 		}
@@ -695,6 +700,8 @@ end`,
 			t.Errorf("%s = %v, want %v", k, got[k], v)
 		}
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	if posts != 2 || len(booked) != 1 {
 		t.Errorf("posts = %d, booked = %d; the script sent twice on purpose and the remote booked once", posts, len(booked))
 	}
