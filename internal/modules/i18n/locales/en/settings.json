@@ -67,7 +67,7 @@
   "settings.field.git_quick_actions": "Git Quick Actions",
   "settings.field.git_root_directory": "Git Root Directory",
   "settings.field.git_self_cloned": "Selfcloned",
-  "settings.desc.git_self_cloned": "Use the system git binary for fetch/push/pull.",
+  "settings.desc.git_self_cloned": "Use the system git binary for status, discard, fetch, push and pull.",
   "settings.field.listening_port": "Listening Port",
   "settings.field.paste_data": "Paste-data on Lists/Tables",
   "settings.field.sort_data": "Sort Lists/Tables",
