@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1438,8 +1439,8 @@ func (m *Manager) Discard(opts DiscardOptions) error {
 	if strings.TrimSpace(opts.File) == "" {
 		return errors.New("git: discard: file required")
 	}
-	clean := filepath.Clean(opts.File)
-	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+	clean, ok := repoRelPath(opts.File)
+	if !ok {
 		return errors.New("git: discard: invalid file path")
 	}
 
@@ -1466,7 +1467,7 @@ func (m *Manager) Discard(opts DiscardOptions) error {
 		}
 	}
 
-	fullPath := filepath.Join(wt.Filesystem.Root(), clean)
+	fullPath := filepath.Join(wt.Filesystem.Root(), filepath.FromSlash(clean))
 
 	if headBlob != nil {
 		reader, err := headBlob.Reader()
@@ -1490,11 +1491,25 @@ func (m *Manager) Discard(opts DiscardOptions) error {
 		return nil
 	}
 
-	// wt.Remove handles staged-add; untracked files have no index entry, so fall back to os.Remove.
-	if _, rmErr := wt.Remove(clean); rmErr != nil {
-		if rmErr := os.Remove(fullPath); rmErr != nil && !os.IsNotExist(rmErr) {
-			return fmt.Errorf("git: discard: remove: %w", rmErr)
-		}
+	// wt.Remove drops a staged-add's index entry; it errors on, or silently skips, untracked files and folders, so the disk is cleared regardless.
+	_, _ = wt.Remove(clean)
+	if err := os.RemoveAll(fullPath); err != nil {
+		return fmt.Errorf("git: discard: remove: %w", err)
 	}
 	return nil
+}
+
+// repoRelPath normalises a status path to git's slash form: go-git's tree and
+// index only match "/", and filepath.Clean yields "\" on Windows, which made a
+// tracked file look untracked and get deleted. The repo root itself is refused.
+func repoRelPath(file string) (string, bool) {
+	s := strings.ReplaceAll(strings.TrimSpace(file), `\`, "/")
+	if strings.HasPrefix(s, "/") || filepath.IsAbs(file) || filepath.VolumeName(file) != "" {
+		return "", false
+	}
+	clean := path.Clean(s)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return "", false
+	}
+	return clean, true
 }

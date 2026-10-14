@@ -381,7 +381,7 @@ func TestRunner_RestoreRequiresBinaryWorkdirAndSafePath(t *testing.T) {
 	if err := r.Restore("  ", "a"); err == nil || !strings.Contains(err.Error(), "path required") {
 		t.Errorf("empty workdir: got %v", err)
 	}
-	for _, bad := range []string{"", "..", "../escape", "/abs/path"} {
+	for _, bad := range []string{"", "..", "../escape", "/abs/path", ".", "./", "a/.."} {
 		if err := r.Restore("/repo", bad); err == nil || !strings.Contains(err.Error(), "invalid file path") {
 			t.Errorf("Restore(%q): got %v, want invalid-path error", bad, err)
 		}

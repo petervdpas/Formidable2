@@ -151,7 +151,7 @@ func (r *Runner) Restore(workdir, file string) error {
 		return errors.New("sysgit: restore: path required")
 	}
 	clean := filepath.Clean(file)
-	if file == "" || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+	if file == "" || filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return errors.New("sysgit: restore: invalid file path")
 	}
 	r.log.Info("sysgit: restore", "path", workdir, "file", clean, "binary", r.binary)

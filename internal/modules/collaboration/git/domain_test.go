@@ -1878,6 +1878,120 @@ func TestDiscard_StagedAddRemovesFromWorktreeAndIndex(t *testing.T) {
 	}
 }
 
+func commitNested(t *testing.T, dir string, r *gogit.Repository, rel, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, filepath.FromSlash(rel))), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	addCommit(t, dir, r, rel, content, "seed "+rel)
+}
+
+func TestDiscard_RestoresModifiedNestedFile(t *testing.T) {
+	dir, r := newRepo(t)
+	commitNested(t, dir, r, "storage/ds/a.meta.json", "v1")
+	full := filepath.Join(dir, "storage", "ds", "a.meta.json")
+	if err := os.WriteFile(full, []byte("v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if err := m.Discard(DiscardOptions{Path: dir, File: "storage/ds/a.meta.json"}); err != nil {
+		t.Fatalf("Discard: %v", err)
+	}
+	got, err := os.ReadFile(full)
+	if err != nil || string(got) != "v1" {
+		t.Fatalf("content = %q, err = %v; want v1", got, err)
+	}
+}
+
+// Windows hands filepath.Clean output with backslashes; the HEAD lookup must
+// still find the tracked file instead of treating it as untracked and deleting it.
+func TestDiscard_BackslashPathRestoresTrackedFileInsteadOfDeleting(t *testing.T) {
+	dir, r := newRepo(t)
+	commitNested(t, dir, r, "storage/ds/a.meta.json", "v1")
+	full := filepath.Join(dir, "storage", "ds", "a.meta.json")
+	if err := os.WriteFile(full, []byte("v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if err := m.Discard(DiscardOptions{Path: dir, File: `storage\ds\a.meta.json`}); err != nil {
+		t.Fatalf("Discard: %v", err)
+	}
+	got, err := os.ReadFile(full)
+	if err != nil || string(got) != "v1" {
+		t.Fatalf("content = %q, err = %v; want v1", got, err)
+	}
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !s.Clean {
+		t.Errorf("expected clean status post-discard, got %+v", s)
+	}
+}
+
+func TestDiscard_RestoresDeletedNestedFile(t *testing.T) {
+	dir, r := newRepo(t)
+	commitNested(t, dir, r, "storage/ds/a.meta.json", "v1")
+	full := filepath.Join(dir, "storage", "ds", "a.meta.json")
+	if err := os.Remove(full); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if err := m.Discard(DiscardOptions{Path: dir, File: "storage/ds/a.meta.json"}); err != nil {
+		t.Fatalf("Discard: %v", err)
+	}
+	if got, err := os.ReadFile(full); err != nil || string(got) != "v1" {
+		t.Fatalf("content = %q, err = %v; want v1", got, err)
+	}
+}
+
+// git status --porcelain reports a wholly-untracked folder as "storage/invoice/".
+func TestDiscard_RemovesUntrackedDirectory(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "README.md", "root", "first")
+	inv := filepath.Join(dir, "storage", "invoice")
+	if err := os.MkdirAll(filepath.Join(inv, "images"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"a.meta.json", filepath.Join("images", "x.png")} {
+		if err := os.WriteFile(filepath.Join(inv, f), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	m := NewManager()
+	if err := m.Discard(DiscardOptions{Path: dir, File: "storage/invoice/"}); err != nil {
+		t.Fatalf("Discard: %v", err)
+	}
+	if _, err := os.Stat(inv); !os.IsNotExist(err) {
+		t.Errorf("expected storage/invoice absent, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "README.md")); err != nil {
+		t.Errorf("README.md must survive: %v", err)
+	}
+}
+
+func TestDiscard_RefusesRepoRootAndEscapes(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "README.md", "root", "first")
+	if err := os.WriteFile(filepath.Join(dir, "junk.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	for _, f := range []string{".", "./", "a/..", `..\escape`, "/etc/passwd", `\abs`} {
+		if err := m.Discard(DiscardOptions{Path: dir, File: f}); err == nil {
+			t.Errorf("Discard(%q) = nil, want error", f)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "junk.txt")); err != nil {
+		t.Errorf("junk.txt must survive refused discards: %v", err)
+	}
+}
+
 // TestCommit_RefusesDetachedHEAD covers the headless-checkout path -
 // not exposed by our UI today, but cheap to lock down so a future
 // "checkout this commit" feature has to make an explicit decision
