@@ -121,11 +121,24 @@ jobs:
       - name: Install NSIS
         shell: pwsh
         run: |
-          choco install nsis -y --no-progress
+          # The Chocolatey community feed has short outages (504s). A failing
+          # native command does not stop a pwsh script, so retry and then check
+          # for makensis.exe itself instead of trusting the exit code.
+          $nsis = "C:\Program Files (x86)\NSIS"
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            choco install nsis -y --no-progress
+            if (Test-Path "$nsis\makensis.exe") { break }
+            Write-Host "NSIS not installed (attempt $attempt of 4), retrying in 30s"
+            Start-Sleep -Seconds 30
+          }
+          if (-not (Test-Path "$nsis\makensis.exe")) {
+            Write-Error "NSIS install failed after 4 attempts (Chocolatey feed unavailable?)"
+            exit 1
+          }
           # choco updates PATH for *future* shells; this job's later steps
           # don't inherit it. Append the install dir to GITHUB_PATH so the
           # `makensis` call in the installer step resolves.
-          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          $nsis | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Build frontend
         shell: pwsh
