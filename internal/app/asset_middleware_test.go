@@ -113,3 +113,47 @@ func TestAPIAssetMiddleware_PreservesMethodAndQuery(t *testing.T) {
 		t.Errorf("query = %q, want format=url", capturedQuery)
 	}
 }
+
+// Wails' Windows bridge turns a 304 into a 500 (a 304 hangs WebView2), so a
+// request through the asset server must never be able to produce one: the
+// conditional headers are dropped and the handler always sends the full body.
+func TestAPIAssetMiddleware_DropsConditionalHeadersSoNo304ReachesTheWebview(t *testing.T) {
+	var seen http.Header
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := APIAssetMiddleware(api)(markerHandler("assets"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/images/m/a.diagram.svg", nil)
+	req.Header.Set("If-None-Match", `"abc"`)
+	req.Header.Set("If-Modified-Since", "Mon, 01 Jan 2024 00:00:00 GMT")
+	req.Header.Set("Accept", "image/*")
+	wrapped.ServeHTTP(httptest.NewRecorder(), req)
+
+	if seen.Get("If-None-Match") != "" || seen.Get("If-Modified-Since") != "" {
+		t.Fatalf("conditional headers reached the api handler: %v", seen)
+	}
+	if seen.Get("Accept") != "image/*" {
+		t.Fatal("other headers must pass through untouched")
+	}
+}
+
+func TestAPIAssetMiddleware_ImageRouteAnswers200ThroughTheWebviewBridge(t *testing.T) {
+	// The real image handler would answer 304 to a matching If-None-Match;
+	// through the middleware it must not get the chance.
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") != "" {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = io.WriteString(w, "<svg/>")
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/images/m/a.diagram.svg", nil)
+	req.Header.Set("If-None-Match", `"abc"`)
+	APIAssetMiddleware(api)(markerHandler("assets")).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Body.String() != "<svg/>" {
+		t.Fatalf("code %d body %q, want the full image", rec.Code, rec.Body.String())
+	}
+}

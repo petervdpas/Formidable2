@@ -67,7 +67,7 @@
   "settings.field.git_quick_actions": "Git-snelacties",
   "settings.field.git_root_directory": "Git Root-map",
   "settings.field.git_self_cloned": "Zelf gekloond",
-  "settings.desc.git_self_cloned": "Gebruik de systeem-git-binary voor status, terugdraaien, fetch, push en pull.",
+  "settings.desc.git_self_cloned": "Gebruik de systeem-git-binary voor status, verwerpen, fetch, push en pull.",
   "settings.field.listening_port": "Luisterpoort",
   "settings.field.paste_data": "Plakken op lijsten/tabellen",
   "settings.field.sort_data": "Lijsten/tabellen sorteren",
